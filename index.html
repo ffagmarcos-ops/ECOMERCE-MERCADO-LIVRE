@@ -1,0 +1,2250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tudo pra Você | Melhores Achados do Mercado Livre & Dicas de Compras</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts: Outfit (More premium/modern than Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <script>
+        // Apply color customization early from localStorage to prevent flash of wrong colors
+        (function() {
+            const storedColors = localStorage.getItem('admin-colors');
+            if (storedColors) {
+                try {
+                    const colors = JSON.parse(storedColors);
+                    const root = document.documentElement;
+                    if (colors.primaryPink) root.style.setProperty('--brand-pink', colors.primaryPink);
+                    if (colors.brandRose) root.style.setProperty('--brand-rose', colors.brandRose);
+                    if (colors.brandGold) root.style.setProperty('--brand-gold', colors.brandGold);
+                    if (colors.bgSoftPink) root.style.setProperty('--brand-softPink', colors.bgSoftPink);
+                    if (colors.bgBlush) root.style.setProperty('--brand-blush', colors.bgBlush);
+                } catch(e) {
+                    console.error("Erro ao aplicar cores customizadas:", e);
+                }
+            }
+        })();
+
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            white: '#FFFFFF',
+                            softPink: 'var(--brand-softPink, #FFF0F3)',
+                            pink: 'var(--brand-pink, #FF1A75)', // Exact vibrant hot pink from logo
+                            rose: 'var(--brand-rose, #D6005A)', // Rich dark pink from logo shading
+                            gold: 'var(--brand-gold, #FFD700)', // Gold/yellow color matching "tudo pra"
+                            yellow: '#FACC15', // Accent yellow
+                            blush: 'var(--brand-blush, #FFE3E8)',
+                            darkGray: '#1A1A1A', // High contrast charcoal text
+                            lightGray: '#F3F4F6',
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'glow': 'glow 2s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        glow: {
+                            '0%': { boxShadow: '0 0 5px rgba(255, 26, 117, 0.2)' },
+                            '100%': { boxShadow: '0 0 20px rgba(255, 26, 117, 0.6)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        :root {
+            --brand-pink: #FF1A75;
+            --brand-rose: #D6005A;
+            --brand-gold: #FFD700;
+            --brand-softPink: #FFF0F3;
+            --brand-blush: #FFE3E8;
+        }
+
+        /* Custom Scrollbar for horizontal scrolling elements */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Smooth scrolling for anchor links */
+        html { scroll-behavior: smooth; }
+
+        /* Custom scrollbar for desktop */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--brand-softPink);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--brand-blush);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--brand-pink);
+        }
+    </style>
+</head>
+<body class="bg-[#FAF7F8] text-brand-darkGray font-sans antialiased overflow-x-hidden">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none"></div>
+
+    <!-- Topbar (Quick Promo & WhatsApp Group Link) -->
+    <div class="bg-gradient-to-r from-brand-pink via-brand-rose to-brand-pink text-xs md:text-sm text-white py-2 shadow-sm">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <span><i class="fa-solid fa-sparkles mr-1 text-brand-gold animate-pulse"></i> Os melhores achados do Mercado Livre selecionados a dedo</span>
+                <span class="hidden md:inline"><i class="fa-solid fa-circle-check mr-1 text-brand-gold"></i> Compras 100% seguras</span>
+            </div>
+            <div class="flex space-x-4">
+                <a href="#como-funciona" class="hover:underline transition font-medium">Como Funciona?</a>
+                <a href="#sobre" class="hover:underline transition font-medium">Por que Confiar?</a>
+                <a href="#contato" class="hover:underline transition font-medium">Contato</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Header -->
+    <header class="bg-white/95 backdrop-blur-md sticky top-0 z-50 border-b border-brand-blush shadow-sm">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                
+                <!-- Logo & Mobile Menu Button -->
+                <div class="flex items-center justify-between w-full md:w-auto">
+                    <!-- Mobile Menu Toggle -->
+                    <button id="mobile-menu-btn" class="md:hidden text-brand-rose text-2xl pr-4 hover:text-brand-pink transition">
+                        <i class="fa-solid fa-bars-staggered"></i>
+                    </button>
+                    
+                    <!-- Logo -->
+                    <a href="#" class="flex items-center space-x-3">
+                        <img src="images/logo.png" alt="Tudo pra Você Logo" class="h-12 w-auto object-contain rounded-xl shadow-sm hover:scale-105 transition duration-300">
+                        <div class="hidden sm:flex flex-col leading-none">
+                            <span class="font-black text-xl tracking-tight text-brand-rose font-sans">TUDO PRA VOCÊ</span>
+                            <span class="text-[9px] tracking-widest font-bold uppercase text-brand-pink">Achadinhos e Dicas</span>
+                        </div>
+                    </a>
+                    
+                    <!-- Mobile Wishlist Icon -->
+                    <a href="#" class="md:hidden text-brand-rose text-xl relative ml-4" id="cart-btn-mobile">
+                        <i class="fa-regular fa-heart hover:text-brand-pink transition"></i>
+                        <span id="cart-count-mobile" class="absolute -top-2 -right-2 bg-brand-pink text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">0</span>
+                    </a>
+                </div>
+
+                <!-- Search Bar (Desktop) -->
+                <div class="hidden md:flex flex-1 max-w-2xl mx-8 relative">
+                    <input type="text" id="search-input" placeholder="O que você está procurando hoje no Mercado Livre?" class="w-full bg-brand-lightGray border border-brand-blush py-2.5 pl-5 pr-12 rounded-full text-brand-darkGray placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-pink focus:border-transparent transition-all duration-300">
+                    <button id="search-button" class="absolute right-0 top-0 mt-3 mr-5 text-brand-rose hover:text-brand-pink transition">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </button>
+                </div>
+
+                <!-- Right Actions (Desktop) -->
+                <div class="hidden md:flex items-center space-x-6">
+                    <div class="flex items-center space-x-2 cursor-pointer hover:text-brand-pink transition">
+                        <i class="fa-solid fa-shield-halved text-brand-pink text-xl"></i>
+                        <div class="text-sm">
+                            <p class="text-[10px] text-brand-pink uppercase font-semibold">Garantia oficial</p>
+                            <p class="font-bold text-brand-rose text-xs">Mercado Livre Seguros</p>
+                        </div>
+                    </div>
+                    
+                    <a href="https://www.instagram.com/tdpravoce_achadinhos/" target="_blank" class="flex items-center space-x-2 hover:text-brand-pink transition">
+                        <i class="fa-brands fa-instagram text-xl text-brand-pink"></i>
+                        <span class="text-sm font-semibold">Instagram</span>
+                    </a>
+                    
+                    <a href="https://wa.me/5521967399004" target="_blank" class="flex items-center space-x-2 hover:text-brand-pink transition">
+                        <i class="fa-regular fa-paper-plane text-xl text-brand-pink"></i>
+                        <span class="text-sm font-semibold">Grupo VIP</span>
+                    </a>
+                    
+                    <a href="#" class="relative flex items-center hover:text-brand-pink transition group" id="cart-btn-desktop">
+                        <div class="h-11 w-11 rounded-full bg-brand-softPink flex items-center justify-center border border-brand-blush group-hover:border-brand-pink/50 transition">
+                            <i class="fa-regular fa-heart text-lg text-brand-pink"></i>
+                        </div>
+                        <span id="cart-count-desktop" class="absolute -top-1 -right-1 bg-brand-pink text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center border-2 border-white">0</span>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Mobile Search Bar -->
+            <div class="mt-3 md:hidden relative">
+                <input type="text" id="search-input-mobile" placeholder="Buscar organizadores, utilidades, eletrônicos..." class="w-full bg-brand-lightGray border border-brand-blush py-2 pl-4 pr-10 rounded-xl text-brand-darkGray placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-brand-pink focus:border-transparent transition">
+                <button id="search-button-mobile" class="absolute right-0 top-0 mt-2.5 mr-3.5 text-brand-rose">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Menu (Desktop) -->
+        <nav class="hidden md:block bg-brand-softPink border-t border-brand-blush">
+            <div class="container mx-auto px-4">
+                <ul class="flex space-x-8 text-sm font-semibold py-3 text-brand-rose">
+                    <li>
+                        <a href="#catalogo" class="flex items-center space-x-2 text-brand-pink hover:text-brand-rose transition">
+                            <i class="fa-solid fa-bag-shopping"></i>
+                            <span>Todos os Achados</span>
+                        </a>
+                    </li>
+                    <li><a href="#ofertas" class="hover:text-brand-pink transition flex items-center gap-1"><span class="h-1.5 w-1.5 rounded-full bg-brand-pink animate-ping"></span> Promoções Relâmpago</a></li>
+                    <li><a href="#casa" class="hover:text-brand-pink transition">Casa & Cozinha</a></li>
+                    <li><a href="#beleza" class="hover:text-brand-pink transition">Beleza & Cuidados</a></li>
+                    <li><a href="#eletrônicos" class="hover:text-brand-pink transition">Eletrônicos & Gadgets</a></li>
+                    <li><a href="#organização" class="hover:text-brand-pink transition">Organização</a></li>
+                    <li><a href="#utilidades" class="hover:text-brand-pink transition">Utilidades Úteis</a></li>
+                    <li><a href="https://wa.me/5521967399004" target="_blank" class="text-green-600 font-bold hover:text-green-500 transition flex items-center gap-1.5"><i class="fa-brands fa-whatsapp text-green-500 text-lg"></i> Grupo Tudo pra Você no Zap</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Wishlist / Saved Drawer -->
+    <div id="cart-drawer" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden transition-opacity">
+        <div class="bg-white w-full max-w-md h-full ml-auto overflow-y-auto flex flex-col transform translate-x-full transition-transform duration-300 border-l border-brand-blush" id="cart-drawer-content">
+            <!-- Header -->
+            <div class="bg-brand-softPink p-5 flex justify-between items-center border-b border-brand-blush">
+                <div class="flex items-center space-x-2 text-brand-pink">
+                    <i class="fa-solid fa-heart text-xl"></i>
+                    <span class="font-extrabold text-brand-rose tracking-wide text-lg">Meus Achadinhos Salvos</span>
+                </div>
+                <button id="close-cart-btn" class="text-brand-rose hover:text-brand-pink text-2xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <!-- Items List Container -->
+            <div class="flex-1 p-5 overflow-y-auto space-y-4" id="cart-items-container">
+                <!-- Dynamically populated in JS -->
+            </div>
+
+            <!-- Footer summary -->
+            <div class="p-5 border-t border-brand-blush bg-brand-softPink/50 space-y-4">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-500">Total de itens salvos:</span>
+                    <span class="text-brand-rose font-bold" id="saved-count-total">0 itens</span>
+                </div>
+                <p class="text-[11px] text-gray-500 text-center leading-relaxed"><i class="fa-solid fa-info-circle text-brand-pink mr-0.5"></i> Salve seus achados favoritos para conferir depois ou abrir todas as promoções de uma só vez no Mercado Livre.</p>
+                <button id="checkout-btn" class="w-full bg-gradient-to-r from-brand-pink to-brand-rose text-white hover:opacity-95 font-extrabold py-3.5 rounded-xl text-center uppercase tracking-wider text-sm transition shadow-md shadow-brand-pink/20">
+                    Ir para o Mercado Livre
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Sidebar Menu -->
+    <div id="mobile-menu" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden transition-opacity">
+        <div class="bg-white w-4/5 max-w-sm h-full overflow-y-auto flex flex-col transform -translate-x-full transition-transform duration-300 border-r border-brand-blush" id="mobile-menu-content">
+            <div class="bg-brand-softPink p-5 flex justify-between items-center border-b border-brand-blush">
+                <div class="flex items-center space-x-2">
+                    <img src="images/logo.png" alt="Tudo pra Você Logo" class="h-10 w-auto object-contain rounded-lg">
+                    <span class="font-extrabold text-brand-rose tracking-wide text-lg">Tudo pra Você</span>
+                </div>
+                <button id="close-menu-btn" class="text-brand-rose hover:text-brand-pink text-2xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="p-5 border-b border-brand-blush bg-brand-softPink/30">
+                <div class="flex items-center space-x-2 text-brand-pink">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span class="font-bold text-sm">Links Seguros de Afiliado</span>
+                </div>
+            </div>
+
+            <nav class="flex-1 p-5">
+                <ul class="space-y-5 text-brand-rose font-medium">
+                    <li><a href="#ofertas" class="block text-brand-pink font-extrabold"><i class="fa-solid fa-fire mr-2 animate-bounce"></i> Ofertas em Destaque</a></li>
+                    <li class="border-t border-brand-blush pt-4"><span class="text-xs uppercase tracking-widest text-gray-400 font-bold block mb-2">Categorias</span></li>
+                    <li><a href="#casa" class="block hover:text-brand-pink transition"><i class="fa-solid fa-house mr-2 text-brand-pink"></i> Casa & Cozinha</a></li>
+                    <li><a href="#beleza" class="block hover:text-brand-pink transition"><i class="fa-solid fa-wand-magic-sparkles mr-2 text-brand-pink"></i> Beleza & Cuidados</a></li>
+                    <li><a href="#eletrônicos" class="block hover:text-brand-pink transition"><i class="fa-solid fa-bolt mr-2 text-brand-pink"></i> Eletrônicos & Gadgets</a></li>
+                    <li><a href="#organização" class="block hover:text-brand-pink transition"><i class="fa-solid fa-box mr-2 text-brand-pink"></i> Organização</a></li>
+                    <li><a href="#utilidades" class="block hover:text-brand-pink transition"><i class="fa-solid fa-screwdriver-wrench mr-2 text-brand-pink"></i> Utilidades Úteis</a></li>
+                    <li class="border-t border-brand-blush pt-4"><a href="#sobre" class="block hover:text-brand-pink transition"><i class="fa-solid fa-circle-question mr-2"></i> Como Funciona?</a></li>
+                    <li><a href="https://www.instagram.com/tdpravoce_achadinhos/" target="_blank" class="block text-brand-pink font-bold hover:text-brand-rose transition"><i class="fa-brands fa-instagram mr-2 text-brand-pink text-lg animate-pulse"></i> Siga no Instagram</a></li>
+                    <li><a href="https://wa.me/5521967399004" target="_blank" class="block text-green-600 font-bold hover:text-green-500 transition"><i class="fa-brands fa-whatsapp mr-2 text-green-500"></i> Grupo VIP Tudo pra Você</a></li>
+                </ul>
+            </nav>
+            
+            <div class="p-5 border-t border-brand-blush text-center text-xs text-gray-400">
+                Selecionando os melhores produtos para você de forma prática e 100% segura.
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Banner Carousel Section -->
+    <section class="relative w-full overflow-hidden border-b border-brand-blush h-[340px] md:h-[480px]" id="hero-carousel">
+        
+        <!-- Slide 1: Casa e Cozinha -->
+        <a href="https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599" target="_blank" class="carousel-slide absolute inset-0 w-full h-full opacity-100 transition-opacity duration-1000 ease-in-out bg-cover bg-right md:bg-center z-10" style="background-image: url('images/banner_casa.png');">
+            <!-- Full clickable overlay hover effect -->
+            <div class="w-full h-full bg-black/0 hover:bg-black/5 transition duration-300"></div>
+        </a>
+
+        <!-- Slide 2: Organização -->
+        <a href="https://produto.mercadolivre.com.br/MLB-4469244553-aspirador-rosa-vertical-britnia-2-em-1-1400w-base30-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599" target="_blank" class="carousel-slide absolute inset-0 w-full h-full opacity-0 transition-opacity duration-1000 ease-in-out bg-cover bg-right md:bg-center z-0" style="background-image: url('images/banner_tech.png');">
+            <!-- Full clickable overlay hover effect -->
+            <div class="w-full h-full bg-black/0 hover:bg-black/5 transition duration-300"></div>
+        </a>
+
+        <!-- Slide 3: Eletrônicos -->
+        <a href="https://www.mercadolivre.com.br/ventilador-de-mesa-30cm-super-power-mondial-60w-vsp-30-ap/p/MLB18932161?pdp_filters=item_id%3AMLB5917028234&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599&matt_event_ts=1780069575273&matt_d2id=" target="_blank" class="carousel-slide absolute inset-0 w-full h-full opacity-0 transition-opacity duration-1000 ease-in-out bg-cover bg-right md:bg-center z-0" style="background-image: url('images/banner_beleza.png');">
+            <!-- Full clickable overlay hover effect -->
+            <div class="w-full h-full bg-black/0 hover:bg-black/5 transition duration-300"></div>
+        </a>
+
+        <!-- Carousel Arrows (Desktop only) -->
+        <button id="carousel-prev" class="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 h-12 w-12 rounded-full bg-white/80 backdrop-blur-md border border-brand-blush items-center justify-center text-brand-rose hover:text-brand-pink hover:border-brand-pink/50 transition duration-300">
+            <i class="fa-solid fa-chevron-left text-lg"></i>
+        </button>
+        <button id="carousel-next" class="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 h-12 w-12 rounded-full bg-white/80 backdrop-blur-md border border-brand-blush items-center justify-center text-brand-rose hover:text-brand-pink hover:border-brand-pink/50 transition duration-300">
+            <i class="fa-solid fa-chevron-right text-lg"></i>
+        </button>
+
+        <!-- Carousel Dots Indicator -->
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex space-x-3">
+            <button class="carousel-dot h-2.5 w-2.5 rounded-full bg-brand-pink shadow shadow-brand-pink/50 transition duration-300" data-slide="0"></button>
+            <button class="carousel-dot h-2.5 w-2.5 rounded-full bg-brand-rose/20 hover:bg-brand-pink/40 transition duration-300" data-slide="1"></button>
+            <button class="carousel-dot h-2.5 w-2.5 rounded-full bg-brand-rose/20 hover:bg-brand-pink/40 transition duration-300" data-slide="2"></button>
+        </div>
+    </section>
+
+    <!-- Categories / Departments -->
+    <section class="py-12 bg-white relative z-20 border-b border-brand-blush">
+        <div class="container mx-auto px-4">
+            <h2 class="text-xl md:text-2xl font-black text-brand-rose mb-8 tracking-wide uppercase flex items-center">
+                <span class="h-4 w-1 bg-brand-pink mr-3 rounded-full animate-pulse"></span> Filtrar por Categorias
+            </h2>
+            
+            <!-- Horizontal scrollable categories -->
+            <div class="flex overflow-x-auto hide-scrollbar space-x-4 md:space-x-6 pb-4">
+                <!-- Category Item -->
+                <a href="#casa" class="flex flex-col items-center min-w-[100px] md:min-w-[120px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-brand-softPink border border-brand-blush group-hover:border-brand-pink/50 flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden bg-gradient-to-b group-hover:from-brand-pink/5">
+                        <span class="text-3xl md:text-4xl mb-1 group-hover:scale-110 transition duration-300">🏠</span>
+                        <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-1">Casa</span>
+                    </div>
+                </a>
+                
+                <a href="#beleza" class="flex flex-col items-center min-w-[100px] md:min-w-[120px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-brand-softPink border border-brand-blush group-hover:border-brand-pink/50 flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden bg-gradient-to-b group-hover:from-brand-pink/5">
+                        <span class="text-3xl md:text-4xl mb-1 group-hover:scale-110 transition duration-300">💄</span>
+                        <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-1">Beleza</span>
+                    </div>
+                </a>
+                
+                <a href="#eletrônicos" class="flex flex-col items-center min-w-[100px] md:min-w-[120px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-brand-softPink border border-brand-blush group-hover:border-brand-pink/50 flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden bg-gradient-to-b group-hover:from-brand-pink/5">
+                        <span class="text-3xl md:text-4xl mb-1 group-hover:scale-110 transition duration-300">⚡</span>
+                        <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-1">Eletrônicos</span>
+                    </div>
+                </a>
+                
+                <a href="#organização" class="flex flex-col items-center min-w-[100px] md:min-w-[120px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-brand-softPink border border-brand-blush group-hover:border-brand-pink/50 flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden bg-gradient-to-b group-hover:from-brand-pink/5">
+                        <span class="text-3xl md:text-4xl mb-1 group-hover:scale-110 transition duration-300">📦</span>
+                        <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-1">Organização</span>
+                    </div>
+                </a>
+
+                <a href="#utilidades" class="flex flex-col items-center min-w-[100px] md:min-w-[120px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-brand-softPink border border-brand-blush group-hover:border-brand-pink/50 flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden bg-gradient-to-b group-hover:from-brand-pink/5">
+                        <span class="text-3xl md:text-4xl mb-1 group-hover:scale-110 transition duration-300">🛍️</span>
+                        <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-1">Utilidades</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Nessa's Spotlight Featured Mini Banners -->
+    <section id="nessa-spotlight" class="py-12 bg-white relative z-20 border-b border-brand-blush">
+        <div class="container mx-auto px-4">
+            <h2 class="text-xl md:text-2xl font-black text-brand-rose mb-8 tracking-wide uppercase flex items-center">
+                <span class="h-4 w-1 bg-brand-pink mr-3 rounded-full animate-pulse"></span> Escolhas Exclusivas da Nessa ✨
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                
+                <!-- Mini Banner 1: Cafeteira -->
+                <a href="https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599" target="_blank" class="block group relative rounded-3xl overflow-hidden shadow-lg border border-brand-blush/30 hover:border-brand-pink/50 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="aspect-square w-full relative overflow-hidden bg-brand-softPink">
+                        <img src="images/nessa_cafe_banner.png" alt="Nessa Cafeteira Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute top-4 left-4 bg-brand-pink text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-brand-rose shadow-sm">
+                            Queridinho da Nessa ☕
+                        </div>
+                    </div>
+                    <div class="p-5 bg-gradient-to-b from-white to-[#FFF5F6]">
+                        <h3 class="font-extrabold text-brand-rose group-hover:text-brand-pink transition text-base leading-snug mb-1">Cafeteira Britânia Rosa</h3>
+                        <p class="text-xs text-gray-500 font-medium mb-4">Seu dia começa muito mais doce!</p>
+                        <div class="flex justify-between items-center">
+                            <span class="text-brand-pink font-extrabold text-xl">R$ 149,90</span>
+                            <span class="text-xs bg-brand-pink hover:bg-brand-rose text-white font-extrabold px-3 py-2 rounded-xl flex items-center uppercase tracking-wide transition shadow-sm">Compre Aqui <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[8px] text-brand-gold"></i></span>
+                        </div>
+                    </div>
+                </a>
+                
+                <!-- Mini Banner 2: Aspirador -->
+                <a href="https://produto.mercadolivre.com.br/MLB-4469244553-aspirador-rosa-vertical-britnia-2-em-1-1400w-base30-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599" target="_blank" class="block group relative rounded-3xl overflow-hidden shadow-lg border border-brand-blush/30 hover:border-brand-pink/50 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="aspect-square w-full relative overflow-hidden bg-brand-softPink">
+                        <img src="images/nessa_aspirador_banner.png" alt="Nessa Aspirador Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute top-4 left-4 bg-brand-pink text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-brand-rose shadow-sm">
+                            Praticidade Nota 10 🧹
+                        </div>
+                    </div>
+                    <div class="p-5 bg-gradient-to-b from-white to-[#FFF5F6]">
+                        <h3 class="font-extrabold text-brand-rose group-hover:text-brand-pink transition text-base leading-snug mb-1">Aspirador de Pó Britânia 1400W</h3>
+                        <p class="text-xs text-gray-500 font-medium mb-4">Limpeza super rápida e divertida!</p>
+                        <div class="flex justify-between items-center">
+                            <span class="text-brand-pink font-extrabold text-xl">R$ 189,90</span>
+                            <span class="text-xs bg-brand-pink hover:bg-brand-rose text-white font-extrabold px-3 py-2 rounded-xl flex items-center uppercase tracking-wide transition shadow-sm">Compre Aqui <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[8px] text-brand-gold"></i></span>
+                        </div>
+                    </div>
+                </a>
+                
+                <!-- Mini Banner 3: Ventilador -->
+                <a href="https://www.mercadolivre.com.br/ventilador-de-mesa-30cm-super-power-mondial-60w-vsp-30-ap/p/MLB18932161?pdp_filters=item_id%3AMLB5917028234&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599&matt_event_ts=1780069575273&matt_d2id=" target="_blank" class="block group relative rounded-3xl overflow-hidden shadow-lg border border-brand-blush/30 hover:border-brand-pink/50 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="aspect-square w-full relative overflow-hidden bg-brand-softPink">
+                        <img src="images/nessa_ventilador_banner.png" alt="Nessa Ventilador Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute top-4 left-4 bg-brand-pink text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-brand-rose shadow-sm">
+                            Para Dias de Calor 💨
+                        </div>
+                    </div>
+                    <div class="p-5 bg-gradient-to-b from-white to-[#FFF5F6]">
+                        <h3 class="font-extrabold text-brand-rose group-hover:text-brand-pink transition text-base leading-snug mb-1">Ventilador de Mesa Mondial 60W</h3>
+                        <p class="text-xs text-gray-500 font-medium mb-4">Refresco e estilo em qualquer cômodo!</p>
+                        <div class="flex justify-between items-center">
+                            <span class="text-brand-pink font-extrabold text-xl">R$ 129,90</span>
+                            <span class="text-xs bg-brand-pink hover:bg-brand-rose text-white font-extrabold px-3 py-2 rounded-xl flex items-center uppercase tracking-wide transition shadow-sm">Compre Aqui <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[8px] text-brand-gold"></i></span>
+                        </div>
+                    </div>
+                </a>
+                
+            </div>
+        </div>
+    </section>
+
+    <!-- Offers Section -->
+    <section id="ofertas" class="py-12 bg-[#FAF7F8]">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-end mb-8">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-black text-brand-rose flex items-center uppercase tracking-wide">
+                        <i class="fa-solid fa-fire text-brand-pink mr-3 animate-pulse"></i> Achadinhos Selecionados
+                    </h2>
+                    <p class="text-gray-500 text-xs md:text-sm mt-1 uppercase tracking-widest font-semibold">Os campeões de vendas com as melhores avaliações</p>
+                </div>
+                <a href="#catalogo" class="hidden md:block text-brand-pink font-bold hover:underline">Ver todos os achados</a>
+            </div>
+
+            <!-- "No Products Found" Alert Box (Hidden initially) -->
+            <div id="no-products-alert" class="hidden bg-white border border-brand-blush rounded-2xl p-8 text-center my-6 shadow-sm">
+                <span class="text-5xl mb-4 block">🔍</span>
+                <h3 class="text-lg font-bold text-brand-rose mb-1">Nenhum achadinho encontrado</h3>
+                <p class="text-gray-500 text-sm">Tente buscar por termos mais genéricos como "mop", "organizador", "fone" ou limpe a busca.</p>
+                <button id="clear-search-btn" class="mt-4 bg-gradient-to-r from-brand-pink to-brand-rose text-white font-extrabold px-6 py-2 rounded-xl text-sm transition border-b-2 border-brand-rose">
+                    Limpar Busca
+                </button>
+            </div>
+
+            <!-- Products Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="products-grid">
+                <!-- Os produtos serão renderizados dinamicamente via JavaScript -->
+            </div>
+            
+            <div class="mt-8 text-center md:hidden">
+                <a href="#catalogo" class="inline-block border-2 border-brand-pink text-brand-pink font-bold py-2.5 px-6 rounded-xl w-full">Ver todas as ofertas</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why Trust Our Finds Section -->
+    <section id="sobre" class="py-16 bg-white border-t border-brand-blush">
+        <div class="container mx-auto px-4">
+            <div class="bg-brand-softPink/50 border border-brand-blush rounded-3xl overflow-hidden flex flex-col md:flex-row shadow-sm relative">
+                <!-- Glowing ambient background lights -->
+                <div class="absolute top-0 right-0 w-80 h-80 bg-brand-pink/5 rounded-full blur-3xl"></div>
+                
+                <!-- Info Column -->
+                <div class="p-8 md:p-12 md:w-1/2 flex flex-col justify-center relative z-10">
+                    <div class="inline-flex items-center space-x-2 bg-brand-pink/10 border border-brand-pink/20 px-3 py-1 rounded-full w-max text-brand-pink font-bold text-xs mb-6 shadow-sm uppercase tracking-wider">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Curadoria Segura</span>
+                    </div>
+                    <h2 class="text-3xl font-black text-brand-rose mb-6 uppercase tracking-tight font-sans">Como Funcionam nossos Achadinhos?</h2>
+                    <p class="text-gray-600 mb-8 text-sm md:text-base leading-relaxed">
+                        Nós não vendemos os produtos diretamente. Nosso trabalho é vasculhar o **Mercado Livre** todos os dias em busca de utensílios inovadores, organizadores inteligentes e eletrônicos que realmente valem a pena. Selecionamos apenas vendedores premium (Líderes/Gold) com avaliações acima de 4.5 estrelas e entrega rápida via **Mercado Envios Full**!
+                    </p>
+                    
+                    <div class="space-y-5 mb-8">
+                        <div class="flex items-start">
+                            <div class="bg-brand-pink/10 h-10 w-10 rounded-xl flex items-center justify-center mr-4 border border-brand-pink/20 shrink-0">
+                                <i class="fa-solid fa-lock text-brand-pink text-lg"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-brand-rose text-sm uppercase">100% Compra Segura</h4>
+                                <p class="text-gray-500 text-sm mt-0.5">Todo o checkout e pagamento ocorrem diretamente nos servidores criptografados e seguros do próprio Mercado Livre.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-brand-pink/10 h-10 w-10 rounded-xl flex items-center justify-center mr-4 border border-brand-pink/20 shrink-0">
+                                <i class="fa-solid fa-truck-fast text-brand-pink text-lg"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-brand-rose text-sm uppercase">Envio Mercado Envios Full</h4>
+                                <p class="text-gray-500 text-sm mt-0.5">Priorizamos produtos já estocados nos centros de distribuição do Mercado Livre para garantir a entrega mais rápida do Brasil.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-brand-pink/10 h-10 w-10 rounded-xl flex items-center justify-center mr-4 border border-brand-pink/20 shrink-0">
+                                <i class="fa-solid fa-percentage text-brand-pink text-lg"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-brand-rose text-sm uppercase">Preço Justo e Cupons</h4>
+                                <p class="text-gray-500 text-sm mt-0.5">Comparamos preços históricos para garantir que você compre na oferta mais barata e aproveite cupons ativos.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <a href="#catalogo" class="bg-gradient-to-r from-brand-pink to-brand-rose hover:opacity-95 text-white font-extrabold py-3.5 px-8 rounded-xl text-center transition shadow-lg shadow-brand-pink/20 w-max flex items-center uppercase text-sm tracking-wider border-b-2 border-brand-rose">
+                        <i class="fa-solid fa-bag-shopping mr-2"></i> Explorar Achados
+                    </a>
+                </div>
+                
+                <!-- Graphic Representing ML Affiliate Guarantee -->
+                <div class="md:w-1/2 min-h-[350px] relative bg-brand-softPink flex items-center justify-center overflow-hidden border-t md:border-t-0 md:border-l border-brand-blush">
+                    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-brand-pink/10 via-transparent to-transparent z-0"></div>
+                    <div class="relative z-10 text-center p-8">
+                        <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-brand-pink via-brand-rose to-brand-pink text-white font-black flex items-center justify-center mx-auto text-3xl shadow-lg shadow-brand-pink/20 mb-6 animate-pulse-slow">ML</div>
+                        <h3 class="text-brand-rose font-extrabold text-xl mb-2 font-sans">Parceiro de Recomendação</h3>
+                        <p class="text-gray-500 text-xs max-w-sm mx-auto mb-6">Ao clicar nos produtos, você acessa os links oficiais do Mercado Livre com garantia de devolução de 30 dias e reembolso garantido.</p>
+                        <div class="flex gap-2 justify-center">
+                            <span class="bg-white border border-brand-blush px-3 py-1.5 rounded-lg text-[10px] text-brand-rose font-bold uppercase"><i class="fa-solid fa-award mr-1 text-brand-pink"></i> Vendedores Líderes</span>
+                            <span class="bg-white border border-brand-blush px-3 py-1.5 rounded-lg text-[10px] text-brand-rose font-bold uppercase"><i class="fa-solid fa-handshake mr-1 text-brand-pink"></i> Links Protegidos</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Search Steps -->
+    <section id="como-funciona" class="py-16 bg-[#FAF7F8] border-t border-brand-blush">
+        <div class="container mx-auto px-4">
+            <h2 class="text-2xl md:text-3xl font-black text-center text-brand-rose mb-12 uppercase tracking-wide font-sans">
+                Muito simples de comprar!
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                
+                <!-- Step 1 -->
+                <div class="bg-white border border-brand-blush rounded-2xl p-6 text-center hover:border-brand-pink/30 transition duration-300 shadow-sm">
+                    <div class="w-16 h-16 bg-brand-pink/10 rounded-2xl flex items-center justify-center mx-auto text-2xl mb-6 text-brand-pink border border-brand-pink/20">
+                        <i class="fa-solid fa-mobile-screen-button"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-brand-rose mb-2 font-sans">1. Escolha o Achadinho</h3>
+                    <p class="text-gray-500 text-sm">Navegue pelas categorias de utilidades, organização e beleza selecionadas por nós em nosso site.</p>
+                </div>
+                
+                <!-- Step 2 -->
+                <div class="bg-white border border-brand-blush rounded-2xl p-6 text-center hover:border-brand-pink/30 transition duration-300 shadow-sm">
+                    <div class="w-16 h-16 bg-brand-pink/10 rounded-2xl flex items-center justify-center mx-auto text-2xl mb-6 text-brand-pink border border-brand-pink/20">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-brand-rose mb-2 font-sans">2. Veja a Oferta no ML</h3>
+                    <p class="text-gray-500 text-sm">Clique em "Compre Aqui". Você será direcionado para o site ou app oficial de forma 100% segura.</p>
+                </div>
+                
+                <!-- Step 3 -->
+                <div class="bg-white border border-brand-blush rounded-2xl p-6 text-center hover:border-brand-pink/30 transition duration-300 shadow-sm">
+                    <div class="w-16 h-16 bg-brand-pink/10 rounded-2xl flex items-center justify-center mx-auto text-2xl mb-6 text-brand-pink border border-brand-pink/20">
+                        <i class="fa-solid fa-cart-flatbed-suitcases animate-bounce"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-brand-rose mb-2 font-sans">3. Compre com Segurança</h3>
+                    <p class="text-gray-500 text-sm">Conclua a compra com sua conta oficial do Mercado Livre, aproveite frete Full e receba super rápido.</p>
+                </div>
+                
+            </div>
+        </div>
+    </section>
+
+    <!-- Glowing Chatbot Toggle Button -->
+    <div id="chatbot-toggle" class="fixed bottom-6 left-6 md:left-auto md:right-72 z-40 h-14 w-14 rounded-full bg-gradient-to-tr from-brand-pink to-brand-rose text-white shadow-2xl flex items-center justify-center cursor-pointer border border-brand-blush hover:scale-110 transition duration-300 animate-glow">
+        <i class="fa-solid fa-comments text-xl"></i>
+        <!-- Glowing notification dot -->
+        <span class="absolute top-0 right-0 h-3.5 w-3.5 bg-green-500 rounded-full border border-white flex items-center justify-center">
+            <span class="h-2 w-2 bg-white rounded-full animate-ping"></span>
+        </span>
+    </div>
+
+    <!-- Floating Chatbot Window -->
+    <div id="chatbot-window" class="fixed bottom-24 left-6 right-6 md:left-auto md:right-72 w-auto md:w-96 h-[480px] bg-white/95 border border-brand-blush rounded-2xl shadow-2xl flex flex-col z-50 transform scale-0 origin-bottom-left md:origin-bottom-right transition-transform duration-300 backdrop-blur-md">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-brand-pink to-brand-rose p-4 rounded-t-2xl flex justify-between items-center border-b border-brand-blush">
+            <div class="flex items-center space-x-3 text-white">
+                <img src="images/nessa/face_1.png" alt="Nessa avatar" class="h-9 w-9 object-cover rounded-full border border-brand-blush/30 shadow-md">
+                <div>
+                    <h4 class="text-xs font-black uppercase tracking-wider font-sans">Nessa | Influenciadora</h4>
+                    <div class="flex items-center space-x-1.5 mt-0.5">
+                        <span class="h-2 w-2 rounded-full bg-green-400 animate-pulse"></span>
+                        <span class="text-[9px] text-green-200 font-bold uppercase">Online e Ativa</span>
+                    </div>
+                </div>
+            </div>
+            <button id="close-chatbot" class="text-white hover:text-brand-softPink transition text-lg px-2 py-1">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Chat Body (Messages Container) -->
+        <div id="chatbot-messages" class="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col scroll-smooth">
+            <!-- Bot message populated via JSON flow -->
+        </div>
+
+        <!-- Chat Footer (Interactive Options) -->
+        <div id="chatbot-options" class="p-4 border-t border-brand-blush bg-brand-softPink/40 flex flex-wrap gap-2 justify-end max-h-[160px] overflow-y-auto">
+            <!-- Option buttons populated dynamically -->
+        </div>
+    </div>
+
+    <!-- WhatsApp VIP Group Order Floating Widget -->
+    <div class="fixed bottom-6 right-6 z-40 hidden md:block">
+        <a href="https://wa.me/5521967399004" target="_blank" class="flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white font-extrabold px-5 py-3 rounded-full shadow-2xl transition duration-300 transform hover:scale-105 group border border-white/10">
+            <i class="fa-brands fa-whatsapp text-2xl text-white group-hover:rotate-12 transition duration-300"></i>
+            <span class="text-sm">Entrar no Grupo VIP</span>
+        </a>
+    </div>
+
+    <!-- Footer -->
+    <footer id="contato" class="bg-brand-darkGray text-gray-400 pt-16 pb-8 border-t border-brand-blush relative">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+                
+                <!-- Col 1: Brand details -->
+                <div class="space-y-4">
+                    <a href="#" class="flex items-center space-x-3">
+                        <img src="images/logo.png" alt="Tudo pra Você Logo" class="h-10 w-auto object-contain rounded-lg bg-white p-0.5">
+                        <span class="font-black text-2xl tracking-tight text-white font-sans">TUDO PRA VOCÊ</span>
+                    </a>
+                    <p class="text-sm text-gray-400 leading-relaxed font-medium">
+                        Sua melhor curadoria de produtos inovadores, úteis e práticos do Mercado Livre com garantia oficial e entrega ultra-rápida.
+                    </p>
+                    <div class="flex space-x-3 text-lg pt-2">
+                        <a href="https://www.instagram.com/tdpravoce_achadinhos/" target="_blank" class="h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="#" class="h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="TikTok"><i class="fa-brands fa-tiktok"></i></a>
+                        <a href="https://wa.me/5521967399004" target="_blank" class="h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+                    </div>
+                </div>
+
+                <!-- Col 2: Shortcuts -->
+                <div>
+                    <h3 class="text-white font-extrabold text-sm uppercase tracking-wider mb-5">Atalhos rápidos</h3>
+                    <ul class="space-y-3 text-sm">
+                        <li><a href="#catalogo" class="hover:text-brand-pink transition">Lista de Achados</a></li>
+                        <li><a href="#ofertas" class="hover:text-brand-pink transition">Ofertas do Dia</a></li>
+                        <li><a href="#sobre" class="hover:text-brand-pink transition">Quem Somos</a></li>
+                        <li><a href="#como-funciona" class="hover:text-brand-pink transition">Como Funciona</a></li>
+                        <li><a href="https://wa.me/5521967399004" class="hover:text-brand-pink transition text-green-400 font-semibold"><i class="fa-brands fa-whatsapp mr-1 text-green-500"></i> Grupo do WhatsApp</a></li>
+                        <li><a href="admin.html" class="hover:text-brand-pink transition text-brand-pink/90 font-bold"><i class="fa-solid fa-shield-halved mr-1 text-brand-pink"></i> Painel Administrativo</a></li>
+                    </ul>
+                </div>
+
+                <!-- Col 3: Safe affiliate shopping info -->
+                <div>
+                    <h3 class="text-white font-extrabold text-sm uppercase tracking-wider mb-5">Compra Segura</h3>
+                    <ul class="space-y-3 text-sm text-gray-400 leading-relaxed">
+                        <li><i class="fa-solid fa-circle-check text-brand-pink mr-1"></i> Links Protegidos e Oficiais</li>
+                        <li><i class="fa-solid fa-circle-check text-brand-pink mr-1"></i> Garantia Mercado Pago</li>
+                        <li><i class="fa-solid fa-circle-check text-brand-pink mr-1"></i> Devoluções grátis 30 dias</li>
+                        <li><i class="fa-solid fa-circle-check text-brand-pink mr-1"></i> Atendimento 24h Mercado Livre</li>
+                    </ul>
+                </div>
+
+                <!-- Col 4: Contact/Disclaimer -->
+                <div class="space-y-4">
+                    <h3 class="text-white font-extrabold text-sm uppercase tracking-wider mb-5">Aviso Legal</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed bg-white/5 border border-white/10 p-3 rounded-xl">
+                        <strong>Divulgação de Afiliado:</strong> Ao comprar através de nossos links indicados, nós podemos ganhar uma pequena comissão do Mercado Livre. Isso **não altera** o valor final pago pelo produto. Agradecemos por apoiar a curadoria!
+                    </p>
+                </div>
+                
+            </div>
+
+            <!-- Divider & Sub-footer -->
+            <div class="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
+                <p>&copy; 2026 Tudo pra Você. Todos os direitos reservados. Todas as marcas registradas são de propriedade de seus respectivos donos.</p>
+                <div class="flex space-x-6 mt-4 md:mt-0">
+                    <a href="#" class="hover:underline">Políticas de Privacidade</a>
+                    <a href="#" class="hover:underline">Termos de Uso</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Core Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // ========================================================
+            // DYNAMIC CONFIGURATION SYNC FROM ADMIN PANEL
+            // ========================================================
+            (function() {
+                // 1. Sync Logo
+                const storedLogo = localStorage.getItem('admin-logo');
+                if (storedLogo) {
+                    document.querySelectorAll('img[src="images/logo.png"]').forEach(img => {
+                        img.src = storedLogo;
+                    });
+                }
+
+                // Helper to escape HTML tags for safe rendering
+                function escapeHTML(str) {
+                    if (!str) return '';
+                    return str.replace(/[&<>'"]/g, 
+                        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+                    );
+                }
+
+                // 2. Sync Banners
+                const storedBanners = localStorage.getItem('admin-banners');
+                if (storedBanners) {
+                    try {
+                        const banners = JSON.parse(storedBanners);
+                        const slides = document.querySelectorAll('.carousel-slide');
+                        
+                        banners.forEach((banner, idx) => {
+                            const slide = slides[idx];
+                            if (slide) {
+                                slide.href = banner.affiliateUrl;
+                                slide.style.backgroundImage = `url('${banner.imageUrl}')`;
+                                
+                                // Check if it's customized (i.e. has custom text or a custom image)
+                                const isDefaultImg = banner.imageUrl === 'images/banner_casa.png' || 
+                                                     banner.imageUrl === 'images/banner_tech.png' || 
+                                                     banner.imageUrl === 'images/banner_beleza.png';
+                                                     
+                                const isDefaultText = (idx === 0 && banner.title === 'Cafeteira Britânia Rosa' && banner.badge === 'COZINHA CHARMOSA ☕') ||
+                                                      (idx === 1 && banner.title === 'Aspirador Vertical Rosa' && banner.badge === 'CASA IMPECÁVEL 🧹') ||
+                                                      (idx === 2 && banner.title === 'Ventilador Super Power' && banner.badge === 'REFRESCO E CONFORTO 💨');
+                                
+                                // Clear previous content (e.g. hover overlay)
+                                slide.innerHTML = '';
+                                
+                                if (!isDefaultImg || !isDefaultText) {
+                                    // Render beautiful, premium, modern HTML text overlay
+                                    const overlay = document.createElement('div');
+                                    overlay.className = 'container mx-auto px-4 h-full flex items-center relative z-20 pointer-events-none';
+                                    overlay.innerHTML = `
+                                        <div class="max-w-xs md:max-w-lg text-left bg-white/75 backdrop-blur-md p-4 md:p-8 rounded-3xl border border-white/50 shadow-xl ml-2 md:ml-12 animate-fade-in pointer-events-auto">
+                                            <span class="inline-block bg-brand-pink text-white text-[10px] md:text-xs font-black uppercase tracking-widest px-2.5 py-0.5 md:py-1 rounded-full mb-2 md:mb-3">${escapeHTML(banner.badge)}</span>
+                                            <h2 class="text-xl md:text-4xl font-black text-brand-rose leading-tight tracking-tight mb-1 md:mb-2">${escapeHTML(banner.title)}</h2>
+                                            <p class="text-xs md:text-base text-brand-darkGray/90 font-medium mb-3 md:mb-6">${escapeHTML(banner.subtitle)}</p>
+                                            <span class="inline-flex items-center gap-1.5 bg-gradient-to-r from-brand-pink to-brand-rose text-white font-extrabold px-4 py-2.5 md:px-6 md:py-3 rounded-xl uppercase tracking-wider text-[10px] md:text-xs shadow-lg hover:shadow-xl transition duration-300">
+                                                Ver Oferta <i class="fa-solid fa-arrow-right"></i>
+                                            </span>
+                                        </div>
+                                    `;
+                                    slide.appendChild(overlay);
+                                } else {
+                                    // Default, just render the hover overlay
+                                    slide.innerHTML = `<div class="w-full h-full bg-black/0 hover:bg-black/5 transition duration-300"></div>`;
+                                }
+                            }
+                        });
+                    } catch(e) {
+                        console.error("Erro ao sincronizar banners:", e);
+                    }
+                }
+            })();
+
+            // ========================================================
+            // E-COMMERCE PRODUCTS ARRAY (MERCADO LIVRE ACHADINHOS)
+            // ========================================================
+            let products = [
+              {
+                id: 1,
+                name: "Liquidificador Britânia Pro Maxx Turbo 3L 1200W Rosa 220V",
+                category: "casa",
+                brand: "Britânia",
+                price: 227.0,
+                oldPrice: 283.75,
+                badge: "Linha Rosa",
+                emoji: "🥤",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "liquidificador britania pro maxx turbo 3l 1200w rosa 220v casa cozinha eletro",
+                url: "https://www.mercadolivre.com.br/liquidificador-britnia-pro-maxx-turbo-3l-1200w-rosa/p/MLB22694469?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_644611-MLA96137565645_102025-O.webp"
+              },
+              {
+                id: 2,
+                name: "Air Fryer Rosa Britânia 5,5L Cesto Pinkstone 1500W BAFE53 127V",
+                category: "casa",
+                brand: "Britânia",
+                price: 429.0,
+                oldPrice: 536.25,
+                badge: "Linha Rosa",
+                emoji: "🍳",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "air fryer rosa britania 5,5l cesto pinkstone 1500w bafe53 127v casa cozinha fritadeira",
+                url: "https://produto.mercadolivre.com.br/MLB-4655536353-air-fryer-rosa-britnia-55l-cesto-pinkstone-1500w-bafe53-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_914280-MLA88399456511_072025-O.webp"
+              },
+              {
+                id: 3,
+                name: "Torradeira Rosa Britânia 6 Níveis de Tostagem 750W BTR04RS 127V",
+                category: "casa",
+                brand: "Britânia",
+                price: 153.0,
+                oldPrice: 191.25,
+                badge: "Linha Rosa",
+                emoji: "🍞",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "torradeira rosa britania 6 niveis tostagem 750w btr04rs 127v casa torrada",
+                url: "https://www.mercadolivre.com.br/torradeira-rosa-britnia-6-niveis-de-tostagem-750w-btr04rs/p/MLB28535335?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_959495-MLA99935097189_112025-O.webp"
+              },
+              {
+                id: 4,
+                name: "Cafeteira Britânia BCF15 Inox 15 Xícaras 550W Rosa 127V",
+                category: "casa",
+                brand: "Britânia",
+                price: 148.0,
+                oldPrice: 185.0,
+                badge: "Linha Rosa",
+                emoji: "☕",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "cafeteira britania bcf15 inox 15 xicaras 550w rosa 127v casa cafe rosa",
+                url: "https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_769638-MLA99506939262_112025-O.webp"
+              },
+              {
+                id: 5,
+                name: "Aspirador Vertical Britânia 2 Em 1 1400W Base30 Rosa 127V",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Britânia",
+                price: 237.99,
+                oldPrice: 297.49,
+                badge: "Linha Rosa",
+                emoji: "🧹",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "aspirador vertical britania 2 em 1 1400w base30 rosa 127v organizacao limpeza po",
+                url: "https://produto.mercadolivre.com.br/MLB-4469244553-aspirador-rosa-vertical-britnia-2-em-1-1400w-base30-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_886987-MLA99526846172_122025-O.webp"
+              },
+              {
+                id: 6,
+                name: "Espremedor Premium Mondial 30W E-02 Preto 127V",
+                category: "casa",
+                brand: "Mondial",
+                price: 59.31,
+                oldPrice: 74.14,
+                badge: "Destaque",
+                emoji: "🍊",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "espremedor premium mondial 30w e-02 preto 127v casa suco laranja",
+                url: "https://www.mercadolivre.com.br/espremedor-premium-mondial-30w-e-02/p/MLB19307438?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_852738-MLA99700511468_122025-O.webp"
+              },
+              {
+                id: 7,
+                name: "Aspirador Pó e Água Wap GTW 10 Compacto 1400W 127V",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Wap",
+                price: 269.0,
+                oldPrice: 336.25,
+                badge: "Mais Procurado",
+                emoji: "🧹",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "aspirador po agua wap gtw 10 compacto 1400w 10 litros amarelo preto 127v organizacao limpeza",
+                url: "https://www.mercadolivre.com.br/aspirador-de-po-e-agua-wap-gtw-10-compacto-1400w-10-litros-amarelopreto/p/MLB8923630?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_944970-MLA99949674111_112025-O.webp"
+              },
+              {
+                id: 8,
+                name: "Faqueiro 24 Peças Búzios Inox Tramontina Cinza Claro",
+                category: "casa",
+                brand: "Tramontina",
+                price: 64.74,
+                oldPrice: 80.92,
+                badge: "Aço Inox",
+                emoji: "🍴",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "faqueiro 24 pecas buzios inox 23799071 tramontina cor cinza claro casa cozinha talher",
+                url: "https://www.mercadolivre.com.br/faqueiro-24-pecas-buzios-inox-23799071-tramontina-cor-cinza-claro/p/MLB36638741?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_970615-MLA99517008492_112025-O.webp"
+              },
+              {
+                id: 9,
+                name: "Chaleira Elétrica 1.8L 1200W Unitermi Atacama Prata 127V",
+                category: "casa",
+                brand: "Unitermi",
+                price: 39.99,
+                oldPrice: 49.99,
+                badge: "Super Prático",
+                emoji: "🫖",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "chaleira eletrica 1,8l 1200w unitermi atacama prateado 127v casa cha cafe",
+                url: "https://www.mercadolivre.com.br/chaleira-eletrica-18l-1200w-unitermi-atacama/p/MLB13409957?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_666995-MLA99455173642_112025-O.webp"
+              },
+              {
+                id: 10,
+                name: "Ventilador de Mesa Mondial 30cm Super Power 60W 220V",
+                category: "eletr\u00f4nicos",
+                brand: "Mondial",
+                price: 149.0,
+                oldPrice: 186.25,
+                badge: "Verão",
+                emoji: "💨",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "ventilador de mesa 30cm super power mondial 60w vsp-30-ap preto 220v eletronicos ar",
+                url: "https://www.mercadolivre.com.br/ventilador-de-mesa-30cm-super-power-mondial-60w-vsp-30-ap/p/MLB18932161?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_994831-MLA99700690020_122025-O.webp"
+              },
+              {
+                id: 11,
+                name: "Sanduicheira Elétrica Cadence San 400 Preta 220V",
+                category: "casa",
+                brand: "Cadence",
+                price: 93.3,
+                oldPrice: 116.62,
+                badge: "Praticidade",
+                emoji: "🥪",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "sanduicheira eletrica cadence san 400 preto 220v casa misto quente grill",
+                url: "https://produto.mercadolivre.com.br/MLB-5140003520-sanduicheira-eletrica-cadence-san-400-preto-220v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_633183-MLA99468751756_112025-O.webp"
+              },
+              {
+                id: 12,
+                name: "Liquidificador Turbo Power Mondial 550W L-99 Vermelho 220V",
+                category: "casa",
+                brand: "Mondial",
+                price: 85.17,
+                oldPrice: 106.46,
+                badge: "Oferta",
+                emoji: "🥤",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "liquidificador turbo power mondial 550w l-99 fr vermelho 220v casa suco copo",
+                url: "https://www.mercadolivre.com.br/liquidificador-turbo-power-mondial-550w-l-99-fr/p/MLB15699907?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_820453-MLA100047352829_122025-O.webp"
+              },
+              {
+                id: 13,
+                name: "Cadeira de Escritório Ergonômica Premium Python Fly Cinza",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Python Fly",
+                price: 674.0,
+                oldPrice: 842.5,
+                badge: "Ergonômica",
+                emoji: "🪑",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "cadeira de escritorio ergonomica premium python fly cor cinza material estofamento malha elastica organizacao",
+                url: "https://www.mercadolivre.com.br/cadeira-de-escritorio-ergonmica-premium-python-fly-cor-cinza-material-do-estofamento-malha-elastica/p/MLB60063182?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_824171-MLA110616903986_052026-O.webp"
+              },
+              {
+                id: 14,
+                name: "Tênis Feminino Olympikus Para Caminhada e Academia",
+                category: "utilidades",
+                brand: "Olympikus",
+                price: 85.4,
+                oldPrice: 106.75,
+                badge: "Moda Fit",
+                emoji: "👟",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "tenis feminino olympikus caminhada academia promoco calado corrida utilidades",
+                url: "https://produto.mercadolivre.com.br/MLB-1867165690-tnis-feminino-olimp-para-caminhada-academia-promoco-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_827717-MLB101267701449_122025-O.webp"
+              },
+              {
+                id: 15,
+                name: "Fluido Capilar Haskell Pré Treino 200ml",
+                category: "beleza",
+                brand: "Haskell",
+                price: 59.9,
+                oldPrice: 74.88,
+                badge: "Cabelo Premium",
+                emoji: "🧴",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "fluido capilar haskell pre treino 200ml beleza cabelo hidratacao",
+                url: "https://www.mercadolivre.com.br/fluido-capilar-haskell-pre-treino-200ml/up/MLBU3524365650?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_766773-MLB111347756152_052026-O.webp"
+              },
+              {
+                id: 16,
+                name: "Bolsa Transversal Grande Viagem & Academia Bordo",
+                category: "utilidades",
+                brand: "Destaque",
+                price: 54.42,
+                oldPrice: 68.03,
+                badge: "Mais Procurado",
+                emoji: "👜",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "bolsa transversal grande bordo estilo para viagem e academia mala utilidades fit",
+                url: "https://produto.mercadolivre.com.br/MLB-5145059494-bolsa-transversal-grande-bordo-estilo-para-viagem-e-academia-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_997557-MLB81886466744_012025-O.webp"
+              },
+              {
+                id: 17,
+                name: "Batedeira Planetária Arno Deluxe 8 Velocidades 300W",
+                category: "casa",
+                brand: "Arno",
+                price: 349.9,
+                oldPrice: 437.38,
+                badge: "Top Chef",
+                emoji: "🥣",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "batedeira planetária arno deluxe 8 velocidades 300w casa arno",
+                url: "https://www.mercadolivre.com.br/batedeira-planetaria-arno-deluxe-sx80-8-velocidades-300w-branca/p/MLB12345678?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_656915-MLA99723651111_122025-O.webp"
+              },
+              {
+                id: 18,
+                name: "Mixer de Mão Philco 3 em 1 PMX700 com Copo 700W",
+                category: "casa",
+                brand: "Philco",
+                price: 169.9,
+                oldPrice: 212.38,
+                badge: "Praticidade",
+                emoji: "🌪️",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "mixer de mão philco 3 em 1 pmx700 com copo 700w casa philco",
+                url: "https://www.mercadolivre.com.br/mixer-de-mao-philco-3-em-1-pmx700-preto/p/MLB12345679?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_789456-MLA99723651112_122025-O.webp"
+              },
+              {
+                id: 19,
+                name: "Jogo de Panelas Antiaderente Tramontina Turim 5 Peças",
+                category: "casa",
+                brand: "Tramontina",
+                price: 289.9,
+                oldPrice: 362.38,
+                badge: "Aço Turim",
+                emoji: "🍳",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "jogo de panelas antiaderente tramontina turim 5 peças casa tramontina",
+                url: "https://www.mercadolivre.com.br/jogo-de-panelas-antiaderente-tramontina-turim-5-pecas-vermelho/p/MLB12345680?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_897654-MLA99723651113_122025-O.webp"
+              },
+              {
+                id: 20,
+                name: "Micro-ondas Espelhado Philco 20L PMO21E 127V",
+                category: "casa",
+                brand: "Philco",
+                price: 549.9,
+                oldPrice: 687.38,
+                badge: "Luxo",
+                emoji: "📟",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "micro-ondas espelhado philco 20l pmo21e 127v casa philco",
+                url: "https://www.mercadolivre.com.br/micro-ondas-espelhado-philco-20l-pmo21e-preto/p/MLB12345681?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_987654-MLA99723651114_122025-O.webp"
+              },
+              {
+                id: 21,
+                name: "Grill e Sanduicheira Mondial Press Redondo 1200W",
+                category: "casa",
+                brand: "Mondial",
+                price: 119.9,
+                oldPrice: 149.88,
+                badge: "2 em 1",
+                emoji: "🥪",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "grill e sanduicheira mondial press redondo 1200w casa mondial",
+                url: "https://www.mercadolivre.com.br/grill-e-sanduicheira-mondial-press-redondo/p/MLB12345682?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_765432-MLA99723651115_122025-O.webp"
+              },
+              {
+                id: 22,
+                name: "Garrafa Térmica 1L Unitermi Verona Rosé Premium",
+                category: "casa",
+                brand: "Unitermi",
+                price: 39.9,
+                oldPrice: 49.88,
+                badge: "Mesa Posta",
+                emoji: "🫖",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "garrafa térmica 1l unitermi verona rosé premium casa unitermi",
+                url: "https://www.mercadolivre.com.br/garrafa-termica-1l-unitermi-verona-rose/p/MLB12345683?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_654321-MLA99723651116_122025-O.webp"
+              },
+              {
+                id: 23,
+                name: "Pipoqueira Elétrica Mondial Pop Lite sem Óleo 1200W",
+                category: "casa",
+                brand: "Mondial",
+                price: 99.9,
+                oldPrice: 124.88,
+                badge: "Fit Pop",
+                emoji: "🍿",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "pipoqueira elétrica mondial pop lite sem óleo 1200w casa mondial",
+                url: "https://www.mercadolivre.com.br/pipoqueira-eletrica-mondial-pop-lite-branca/p/MLB12345684?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_543210-MLA99723651117_122025-O.webp"
+              },
+              {
+                id: 24,
+                name: "Cuscuzeira Antiaderente Tramontina Loreto Grafite",
+                category: "casa",
+                brand: "Tramontina",
+                price: 49.9,
+                oldPrice: 62.38,
+                badge: "Nordeste Vibe",
+                emoji: "🍲",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "cuscuzeira antiaderente tramontina loreto grafite casa tramontina",
+                url: "https://www.mercadolivre.com.br/cuscuzeira-antiaderente-tramontina-loreto-grafite/p/MLB12345685?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_432109-MLA99723651118_122025-O.webp"
+              },
+              {
+                id: 25,
+                name: "Chaleira Elétrica Cadence Contrast 1.7L 127V",
+                category: "casa",
+                brand: "Cadence",
+                price: 89.9,
+                oldPrice: 112.38,
+                badge: " Contrast ",
+                emoji: "🫖",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "chaleira elétrica cadence contrast 1.7l 127v casa cadence",
+                url: "https://www.mercadolivre.com.br/chaleira-eletrica-cadence-contrast-preta-1.7l/p/MLB12345686?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_321098-MLA99723651119_122025-O.webp"
+              },
+              {
+                id: 26,
+                name: "Mop Giratório Pro FlashLimp com Balde Duplo",
+                category: "organiza\u00e7\u00e3o",
+                brand: "FlashLimp",
+                price: 89.9,
+                oldPrice: 112.38,
+                badge: "Lider de Vendas",
+                emoji: "🧹",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "mop giratório pro flashlimp com balde duplo organização flashlimp",
+                url: "https://www.mercadolivre.com.br/mop-giratorio-pro-flashlimp-balde-duplo-cinza/p/MLB12345687?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_210987-MLA99723651120_122025-O.webp"
+              },
+              {
+                id: 27,
+                name: "Organizador Acrílico Giratório 360 Graus Maquiagem",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Destaque",
+                price: 49.9,
+                oldPrice: 62.38,
+                badge: "Organize",
+                emoji: "💄",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "organizador acrílico giratório 360 graus maquiagem organização destaque",
+                url: "https://www.mercadolivre.com.br/organizador-acrilico-giratorio-360-graus-maquiagem/p/MLB12345688?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_109876-MLA99723651121_122025-O.webp"
+              },
+              {
+                id: 28,
+                name: "Carrinho Organizador Multiuso Metal 3 Prateleiras",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Destaque",
+                price: 129.9,
+                oldPrice: 162.38,
+                badge: "Versátil",
+                emoji: "🪜",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "carrinho organizador multiuso metal 3 prateleiras organização destaque",
+                url: "https://www.mercadolivre.com.br/carrinho-organizador-multiuso-metal-3-prateleiras-preto/p/MLB12345689?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_098765-MLA99723651122_122025-O.webp"
+              },
+              {
+                id: 29,
+                name: "Caixa Organizadora Plástica 20L Ordene com Trava",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Ordene",
+                price: 39.9,
+                oldPrice: 49.88,
+                badge: "Resistente",
+                emoji: "📦",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "caixa organizadora plástica 20l ordene com trava organização ordene",
+                url: "https://www.mercadolivre.com.br/caixa-organizadora-plastica-20l-ordene-transparente/p/MLB12345690?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_987654-MLA99723651123_122025-O.webp"
+              },
+              {
+                id: 30,
+                name: "Cabides de Veludo Ultrafinos Antideslizantes 10 Peças",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Destaque",
+                price: 45.9,
+                oldPrice: 57.38,
+                badge: "Slim Premium",
+                emoji: "👚",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "cabides de veludo ultrafinos antideslizantes 10 peças organização destaque",
+                url: "https://www.mercadolivre.com.br/cabides-de-veludo-ultrafinos-antideslizantes-10-pecas-preto/p/MLB12345691?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_876543-MLA99723651124_122025-O.webp"
+              },
+              {
+                id: 31,
+                name: "Organizador de Gavetas Colmeia Organizon 5 Unidades",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Destaque",
+                price: 29.9,
+                oldPrice: 37.38,
+                badge: "Prático",
+                emoji: "🧦",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "organizador de gavetas colmeia organizon 5 unidades organização destaque",
+                url: "https://www.mercadolivre.com.br/organizador-de-gavetas-colmeia-organizon-5-unidades/p/MLB12345692?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_765432-MLA99723651125_122025-O.webp"
+              },
+              {
+                id: 32,
+                name: "Sapateira Organizadora Portátil Vertical 4 Andares",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Destaque",
+                price: 59.9,
+                oldPrice: 74.88,
+                badge: "Espaço Smart",
+                emoji: "👠",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "sapateira organizadora portátil vertical 4 andares organização destaque",
+                url: "https://www.mercadolivre.com.br/sapateira-organizadora-portatil-vertical-4-andares/p/MLB12345693?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_654321-MLA99723651126_122025-O.webp"
+              },
+              {
+                id: 33,
+                name: "Fone de Ouvido Bluetooth JBL Wave Flex Intra-auricular",
+                category: "eletr\u00f4nicos",
+                brand: "Jbl",
+                price: 289.9,
+                oldPrice: 362.38,
+                badge: "Pure Bass",
+                emoji: "🎧",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "fone de ouvido bluetooth jbl wave flex intra-auricular eletrônicos jbl",
+                url: "https://www.mercadolivre.com.br/fone-de-ouvido-bluetooth-jbl-wave-flex-preto/p/MLB12345694?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_543210-MLA99723651127_122025-O.webp"
+              },
+              {
+                id: 34,
+                name: "Carregador Portátil Power Bank Anker 10000mAh PowerCore",
+                category: "eletr\u00f4nicos",
+                brand: "Anker",
+                price: 149.9,
+                oldPrice: 187.38,
+                badge: "Super Charge",
+                emoji: "🔋",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "carregador portátil power bank anker 10000mah powercore eletrônicos anker",
+                url: "https://www.mercadolivre.com.br/carregador-portatil-power-bank-anker-10000mah-preto/p/MLB12345695?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_432109-MLA99723651128_122025-O.webp"
+              },
+              {
+                id: 35,
+                name: "Lâmpada Inteligente Xiaomi LED Smart Bulb Essential",
+                category: "eletr\u00f4nicos",
+                brand: "Xiaomi",
+                price: 69.9,
+                oldPrice: 87.38,
+                badge: "Alexa OK",
+                emoji: "💡",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "lâmpada inteligente xiaomi led smart bulb essential eletrônicos xiaomi",
+                url: "https://www.mercadolivre.com.br/lampada-inteligente-xiaomi-led-smart-bulb-essential-rgb/p/MLB12345696?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_321098-MLA99723651129_122025-O.webp"
+              },
+              {
+                id: 36,
+                name: "Tripé Ring Light LED de Mesa 26cm com Suporte Celular",
+                category: "eletr\u00f4nicos",
+                brand: "Destaque",
+                price: 49.9,
+                oldPrice: 62.38,
+                badge: "Vlog Vibe",
+                emoji: "🤳",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "tripé ring light led de mesa 26cm com suporte celular eletrônicos destaque",
+                url: "https://www.mercadolivre.com.br/tripe-ring-light-led-de-mesa-26cm-com-suporte-celular/p/MLB12345697?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_210987-MLA99723651130_122025-O.webp"
+              },
+              {
+                id: 37,
+                name: "Caixa de Som Bluetooth JBL Go 3 Azul Prova D'água",
+                category: "eletr\u00f4nicos",
+                brand: "Jbl",
+                price: 219.9,
+                oldPrice: 274.88,
+                badge: "JBL Pro Sound",
+                emoji: "🔊",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "caixa de som bluetooth jbl go 3 azul prova d'água eletrônicos jbl",
+                url: "https://www.mercadolivre.com.br/caixa-de-som-bluetooth-jbl-go-3-azul-prova-dagua/p/MLB12345698?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_109876-MLA99723651131_122025-O.webp"
+              },
+              {
+                id: 38,
+                name: "Umidificador e Difusor de Aromas Ultrassônico de Madeira",
+                category: "eletr\u00f4nicos",
+                brand: "Destaque",
+                price: 59.9,
+                oldPrice: 74.88,
+                badge: "Aromaterapia",
+                emoji: "🌫️",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "umidificador e difusor de aromas ultrassônico de madeira eletrônicos destaque",
+                url: "https://www.mercadolivre.com.br/umidificador-e-difusor-de-aromas-ultrassonico-madeira-rgb/p/MLB12345699?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_098765-MLA99723651132_122025-O.webp"
+              },
+              {
+                id: 39,
+                name: "Mouse Sem Fio Logitech Pebble M350 Silencioso Rosa",
+                category: "eletr\u00f4nicos",
+                brand: "Logitech",
+                price: 89.9,
+                oldPrice: 112.38,
+                badge: "Silent Click",
+                emoji: "🖱️",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "mouse sem fio logitech pebble m350 silencioso rosa eletrônicos logitech",
+                url: "https://www.mercadolivre.com.br/mouse-sem-fio-logitech-pebble-m350-rosa/p/MLB12345700?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_987654-MLA99723651133_122025-O.webp"
+              },
+              {
+                id: 40,
+                name: "Secador de Cabelo Profissional Taiff Easy 1700W",
+                category: "beleza",
+                brand: "Taiff",
+                price: 229.9,
+                oldPrice: 287.38,
+                badge: "Profissional",
+                emoji: "💨",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "secador de cabelo profissional taiff easy 1700w beleza taiff",
+                url: "https://www.mercadolivre.com.br/secador-de-cabelo-profissional-taiff-easy-1700w-preto/p/MLB12345701?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_876543-MLA99723651134_122025-O.webp"
+              },
+              {
+                id: 41,
+                name: "Prancha Chapinha de Cabelo Mondial Chrome Cerâmica",
+                category: "beleza",
+                brand: "Mondial",
+                price: 89.9,
+                oldPrice: 112.38,
+                badge: "Liso Perfeito",
+                emoji: "💇",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "prancha chapinha de cabelo mondial chrome cerâmica beleza mondial",
+                url: "https://www.mercadolivre.com.br/prancha-chapinha-de-cabelo-mondial-chrome-vermelha/p/MLB12345702?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_765432-MLA99723651135_122025-O.webp"
+              },
+              {
+                id: 42,
+                name: "Modelador de Cachos Philco Star Glamour Automático",
+                category: "beleza",
+                brand: "Philco",
+                price: 199.9,
+                oldPrice: 249.88,
+                badge: "Cachos Divos",
+                emoji: "🌀",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "modelador de cachos philco star glamour automático beleza philco",
+                url: "https://www.mercadolivre.com.br/modelador-de-cachos-philco-star-glamour-automatico/p/MLB12345703?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_654321-MLA99723651136_122025-O.webp"
+              },
+              {
+                id: 43,
+                name: "Espelho de Mesa com LED Articulado para Maquiagem USB",
+                category: "beleza",
+                brand: "Destaque",
+                price: 59.9,
+                oldPrice: 74.88,
+                badge: "Camarim Smart",
+                emoji: "🪞",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "espelho de mesa com led articulado para maquiagem usb beleza destaque",
+                url: "https://www.mercadolivre.com.br/espelho-de-mesa-com-led-articulado-maquiagem/p/MLB12345704?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_543210-MLA99723651137_122025-O.webp"
+              },
+              {
+                id: 44,
+                name: "Óleo Capilar Elseve L'Oréal Extraordinário Nutrição 100ml",
+                category: "beleza",
+                brand: "L'Oréal",
+                price: 39.9,
+                oldPrice: 49.88,
+                badge: "Top Hidratação",
+                emoji: "🧴",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "óleo capilar elseve l'oréal extraordinário nutrição 100ml beleza l'oréal",
+                url: "https://www.mercadolivre.com.br/oleo-capilar-elseve-loreal-extraordinario-100ml/p/MLB12345705?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_432109-MLA99723651138_122025-O.webp"
+              },
+              {
+                id: 45,
+                name: "Protetor Solar Neutrogena Sun Fresh FPS 70 Toque Seco",
+                category: "beleza",
+                brand: "Neutrogena",
+                price: 49.9,
+                oldPrice: 62.38,
+                badge: "Dermato",
+                emoji: "🧴",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "protetor solar neutrogena sun fresh fps 70 toque seco beleza neutrogena",
+                url: "https://www.mercadolivre.com.br/protetor-solar-neutrogena-sun-fresh-fps-70-120ml/p/MLB12345706?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_321098-MLA99723651139_122025-O.webp"
+              },
+              {
+                id: 46,
+                name: "Máscara de Cílios Maybelline The Colossal Lavável",
+                category: "beleza",
+                brand: "Maybelline",
+                price: 45.9,
+                oldPrice: 57.38,
+                badge: "Volume Cílios",
+                emoji: "👁️",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "máscara de cílios maybelline the colossal lavável beleza maybelline",
+                url: "https://www.mercadolivre.com.br/mascara-de-cilios-maybelline-the-colossal-preta/p/MLB12345707?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_210987-MLA99723651140_122025-O.webp"
+              },
+              {
+                id: 47,
+                name: "Esponja de Limpeza Facial Elétrica Silicone Recarregável",
+                category: "beleza",
+                brand: "Destaque",
+                price: 29.9,
+                oldPrice: 37.38,
+                badge: "Skin Care",
+                emoji: "🧼",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "esponja de limpeza facial elétrica silicone recarregável beleza destaque",
+                url: "https://www.mercadolivre.com.br/esponja-limpeza-facial-eletrica-silicone/p/MLB12345708?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_109876-MLA99723651141_122025-O.webp"
+              },
+              {
+                id: 48,
+                name: "Garrafa Térmica Kouda Sport Água Inox Matte 500ml",
+                category: "utilidades",
+                brand: "Kouda",
+                price: 119.9,
+                oldPrice: 149.88,
+                badge: "Fria por 24h",
+                emoji: "🍼",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "garrafa térmica kouda sport água inox matte 500ml utilidades kouda",
+                url: "https://www.mercadolivre.com.br/garrafa-termica-kouda-sport-inox-500ml/p/MLB12345709?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_098765-MLA99723651142_122025-O.webp"
+              },
+              {
+                id: 49,
+                name: "Tapete de Yoga EVA Antiderrapante Vollo com Alça",
+                category: "utilidades",
+                brand: "Vollo",
+                price: 49.9,
+                oldPrice: 62.38,
+                badge: "Pilates & Yoga",
+                emoji: "🧘",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "tapete de yoga eva antiderrapante vollo com alça utilidades vollo",
+                url: "https://www.mercadolivre.com.br/tapete-de-yoga-eva-antiderrapante-vollo/p/MLB12345710?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_987654-MLA99723651143_122025-O.webp"
+              },
+              {
+                id: 50,
+                name: "Kit 5 Mini Bands Elásticos Extensores Acte Sports",
+                category: "utilidades",
+                brand: "Acte Sports",
+                price: 29.9,
+                oldPrice: 37.38,
+                badge: "Treino em Casa",
+                emoji: "🎗️",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "kit 5 mini bands elásticos extensores acte sports utilidades acte sports",
+                url: "https://www.mercadolivre.com.br/kit-5-mini-bands-elasticos-extensores-acte/p/MLB12345711?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_876543-MLA99723651144_122025-O.webp"
+              },
+              {
+                id: 51,
+                name: "Mochila Impermeável Masculina/Feminina para Notebook",
+                category: "utilidades",
+                brand: "Destaque",
+                price: 119.9,
+                oldPrice: 149.88,
+                badge: "Viagem & Trabalho",
+                emoji: "🎒",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "mochila impermeável masculina/feminina para notebook utilidades destaque",
+                url: "https://www.mercadolivre.com.br/mochila-impermeavel-masculina-feminina-notebook/p/MLB12345712?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_765432-MLA99723651145_122025-O.webp"
+              }
+            ];
+
+
+
+            /* 
+               ==================================================================
+               📌 BANCO DE DADOS DINÂMICO & AFILIADOS (VANESSA PARVATI)
+               ==================================================================
+               1. SINGLE SOURCE OF TRUTH: Todos os produtos são carregados e gerenciados 
+                  diretamente da chave 'admin-custom-products' do localStorage.
+               2. AUTO-HIDRATAÇÃO E MIGRAÇÃO: Se o localStorage estiver vazio ou contiver 
+                  a base de dados antiga de 16 produtos (comprimento < 40 itens), o código 
+                  sobrescreve e hidrata automaticamente a base local com a nova lista de 
+                  51 produtos de afiliada pré-carregada no array padrão acima. Isso garante 
+                  que a atualização seja imediata sem limpeza manual de cache.
+               3. PARÂMETROS DE AFILIADA: Todos os links de compra possuem os parâmetros de 
+                  comissão de Vanessa (?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true) 
+                  nativamente integrados nos links do Mercado Livre.
+               4. RENDERIZAÇÃO DE IMAGENS: A vitrine renderiza imagens reais de alta definição 
+                  das fotos do Mercado Livre (formato widescreen -O.webp). Se nenhuma foto estiver 
+                  cadastrada ou falhar, há o fallback gracioso para o emoji correspondente.
+               ==================================================================
+            */
+            let customProducts = JSON.parse(localStorage.getItem('admin-custom-products'));
+            if (!customProducts || customProducts.length < 40) {
+                customProducts = [...products];
+                localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
+            }
+            products = customProducts;
+
+            // --- ESTADO DA WISHLIST (SALVOS) ---
+            let wishlist = [];
+
+            // Elementos DOM do Carrinho Lateral (Salvos)
+            const cartDrawer = document.getElementById('cart-drawer');
+            const cartDrawerContent = document.getElementById('cart-drawer-content');
+            const openCartBtnDesktop = document.getElementById('cart-btn-desktop');
+            const openCartBtnMobile = document.getElementById('cart-btn-mobile');
+            const closeCartBtn = document.getElementById('close-cart-btn');
+            const cartItemsContainer = document.getElementById('cart-items-container');
+            const savedCountTotal = document.getElementById('saved-count-total');
+            const cartCountDesktop = document.getElementById('cart-count-desktop');
+            const cartCountMobile = document.getElementById('cart-count-mobile');
+            const checkoutBtn = document.getElementById('checkout-btn');
+
+            // --- CONTROLE DOS FILTROS E PESQUISA ---
+            let activeCategory = 'all';
+            let searchQuery = '';
+
+            const productsGrid = document.getElementById('products-grid');
+            const noProductsAlert = document.getElementById('no-products-alert');
+            const clearSearchBtn = document.getElementById('clear-search-btn');
+            const searchInput = document.getElementById('search-input');
+            const searchInputMobile = document.getElementById('search-input-mobile');
+
+            // Helper to remove Portuguese accents and diacritics for ultra-flexible search
+            function normalizeStr(str) {
+                if (!str) return '';
+                return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            }
+
+            // --- FUNÇÕES DE RENDERIZAÇÃO DOS PRODUTOS ---
+            function renderProducts() {
+                productsGrid.innerHTML = '';
+                
+                // Aplicar filtros cruzados (Pesquisa + Categoria) com busca inteligente e tolerante a acentos e múltiplas palavras
+                const filtered = products.filter(product => {
+                    const matchesCategory = activeCategory === 'all' || product.category === activeCategory;
+                    
+                    // Busca tolerante a acentos e que permite pesquisar múltiplas palavras fora de ordem (ex: "chaleira atacama")
+                    const matchesSearch = (() => {
+                        if (!searchQuery.trim()) return true;
+                        
+                        const normalizedQuery = normalizeStr(searchQuery);
+                        const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
+                        if (queryWords.length === 0) return true;
+                        
+                        const targetText = normalizeStr(`${product.name} ${product.brand} ${product.category} ${product.searchKeys || ''}`);
+                        
+                        // Todas as palavras digitadas na busca devem estar presentes no produto
+                        return queryWords.every(word => targetText.includes(word));
+                    })();
+                    
+                    return matchesCategory && matchesSearch;
+                });
+
+                if (filtered.length === 0) {
+                    noProductsAlert.classList.remove('hidden');
+                } else {
+                    noProductsAlert.classList.add('hidden');
+                }
+
+                filtered.forEach(product => {
+                    const card = document.createElement('div');
+                    card.id = `product-card-${product.id}`;
+                    card.className = "product-card bg-white rounded-2xl border border-brand-blush p-4 flex flex-col hover:border-brand-pink/50 hover:shadow-md transition duration-300 relative group cursor-pointer";
+                    
+                    const badgeHTML = product.badge ? 
+                        `<div class="absolute top-3 right-3 bg-brand-pink text-white text-[9px] font-black px-2 py-0.5 rounded shadow-sm z-10 uppercase border border-brand-rose">${product.badge}</div>` : '';
+                    
+                    const isSaved = wishlist.some(item => item.id === product.id);
+                    const heartIconClass = isSaved ? "fa-solid fa-heart text-brand-pink scale-110" : "fa-regular fa-heart text-gray-400 group-hover:text-brand-pink";
+
+                    card.innerHTML = `
+                        ${badgeHTML}
+                        <!-- Wishlist Toggle (Heart icon) -->
+                        <button class="wishlist-toggle-btn absolute top-3 left-3 h-8 w-8 rounded-full bg-white/90 backdrop-blur-sm border border-brand-blush flex items-center justify-center z-20 hover:scale-115 shadow-sm transition" data-id="${product.id}">
+                            <i class="${heartIconClass} text-sm"></i>
+                        </button>
+                        
+                        <!-- Product visual click area -->
+                        <div class="product-click-area flex flex-col flex-1" data-url="${product.url}">
+                            <div class="h-32 md:h-40 w-full mb-3 flex justify-center items-center relative overflow-hidden bg-brand-softPink rounded-xl p-2">
+                                ${product.img_url ? 
+                                    `<img src="${product.img_url}" alt="${product.name}" class="h-full w-full object-contain group-hover:scale-105 transition duration-300" style="filter: drop-shadow(0 4px 6px ${product.glowColor})">` : 
+                                    `<span class="text-6xl md:text-7xl group-hover:scale-105 transition duration-300" style="filter: drop-shadow(0 10px 10px ${product.glowColor})">${product.emoji}</span>`
+                                }
+                                <div class="absolute bottom-2 bg-white/90 backdrop-blur-sm text-brand-pink text-[10px] font-bold px-2 py-0.5 rounded-full border border-brand-blush">
+                                    ${product.brand}
+                                </div>
+                            </div>
+                            <div class="flex-1 flex flex-col justify-between">
+                                <div>
+                                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">${product.category}</p>
+                                    <h3 class="text-sm font-bold text-brand-darkGray leading-tight mb-2 h-10 overflow-hidden group-hover:text-brand-pink transition">${product.name}</h3>
+                                </div>
+                                <div class="mb-3">
+                                    <span class="text-xs text-gray-400 line-through">R$ ${product.oldPrice.toFixed(2).replace('.', ',')}</span>
+                                    <div class="flex items-baseline text-brand-pink font-extrabold">
+                                        <span class="text-xs">R$</span>
+                                        <span class="text-2xl tracking-tighter mx-0.5">${Math.floor(product.price)}</span>
+                                        <span class="text-sm">,${(product.price % 1).toFixed(2).substring(2)}</span>
+                                        <span class="text-[10px] text-gray-500 font-normal ml-1">no Mercado Livre</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Actions flex row (Compre Aqui + Compartilhar do Site) -->
+                        <div class="flex items-center gap-2 w-full mt-auto">
+                            <button class="buy-now-btn-dynamic flex-1 bg-gradient-to-r from-brand-pink to-brand-rose hover:opacity-95 text-white font-extrabold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center transition shadow-md shadow-brand-pink/10 border-b-2 border-brand-rose" data-url="${product.url}">
+                                <i class="fa-solid fa-arrow-up-right-from-square mr-1.5 text-xs text-brand-gold"></i> Compre Aqui
+                            </button>
+                            <button class="share-toggle-btn w-10 h-10 rounded-xl bg-brand-softPink hover:bg-brand-pink hover:text-white text-brand-pink flex items-center justify-center transition border border-brand-blush shadow-sm shrink-0" data-id="${product.id}" title="Compartilhar do meu site">
+                                <i class="fa-solid fa-share-nodes text-base"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    productsGrid.appendChild(card);
+                });
+
+                // Atrelar escuta nos elementos clicáveis do produto
+                document.querySelectorAll('.product-click-area').forEach(element => {
+                    element.addEventListener('click', () => {
+                        const url = element.getAttribute('data-url');
+                        window.open(url, '_blank');
+                    });
+                });
+
+                // Atrelar clique do botão de redirecionamento "Comprar"
+                document.querySelectorAll('.buy-now-btn-dynamic').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const url = button.getAttribute('data-url');
+                        window.open(url, '_blank');
+                    });
+                });
+
+                // Atrelar clique de favoritar (Wishlist)
+                document.querySelectorAll('.wishlist-toggle-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = parseInt(btn.getAttribute('data-id'));
+                        toggleWishlist(id, btn);
+                    });
+                });
+
+                // Atrelar clique de compartilhar
+                document.querySelectorAll('.share-toggle-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = parseInt(btn.getAttribute('data-id'));
+                        shareProduct(id, btn);
+                    });
+                });
+            }
+
+            // --- LÓGICA DE COMPARTILHAMENTO DE PRODUTO ---
+            function shareProduct(productId, button) {
+                const product = products.find(p => p.id === productId);
+                if (!product) return;
+
+                // Base URL do site
+                const baseUri = window.location.href.split('?')[0];
+                const shareUrl = `${baseUri}?prod=${product.id}`;
+                const shareText = `Olha esse achadinho no site Tudo pra Você: ${product.name} por apenas R$ ${product.price.toFixed(2).replace('.', ',')}! 🌸`;
+
+                if (navigator.share) {
+                    navigator.share({
+                        title: 'Tudo pra Você - Achadinhos do Mercado Livre',
+                        text: shareText,
+                        url: shareUrl
+                    }).catch(err => {
+                        console.log('Erro ao compartilhar nativo, tentando fallback:', err);
+                        fallbackCopyToClipboard(shareText, shareUrl, button);
+                    });
+                } else {
+                    fallbackCopyToClipboard(shareText, shareUrl, button);
+                }
+            }
+
+            function fallbackCopyToClipboard(text, url, button) {
+                const textToCopy = `${text}\nVeja aqui no site: ${url}`;
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    // Animador temporário do ícone
+                    const originalIcon = button.innerHTML;
+                    button.innerHTML = `<i class="fa-solid fa-circle-check text-green-500 text-base animate-bounce"></i>`;
+                    
+                    showToast("Link do achadinho copiado para compartilhar! 🌸");
+                    
+                    setTimeout(() => {
+                        button.innerHTML = originalIcon;
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Erro ao copiar:', err);
+                });
+            }
+
+            // --- FUNÇÃO AUXILIAR DE TOAST ---
+            function showToast(message) {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = "bg-brand-darkGray/90 backdrop-blur-sm text-white px-5 py-3 rounded-2xl shadow-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 animate-fade-in transition-all duration-300 opacity-0 translate-y-2 pointer-events-auto border border-brand-blush/20";
+                toast.innerHTML = `<i class="fa-solid fa-check-circle text-brand-pink"></i> ${message}`;
+                
+                container.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.classList.remove('opacity-0', 'translate-y-2');
+                    toast.classList.add('opacity-100', 'translate-y-0');
+                }, 10);
+                
+                setTimeout(() => {
+                    toast.classList.remove('opacity-100', 'translate-y-0');
+                    toast.classList.add('opacity-0', 'translate-y-2');
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, 3000);
+            }
+
+            // --- LÓGICA DE GESTÃO DOS FAVORITOS (WISHLIST) ---
+            function openCart() {
+                cartDrawer.classList.remove('hidden');
+                setTimeout(() => {
+                    cartDrawerContent.classList.remove('translate-x-full');
+                }, 10);
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeCart() {
+                cartDrawerContent.classList.add('translate-x-full');
+                setTimeout(() => {
+                    cartDrawer.classList.add('hidden');
+                }, 300);
+                document.body.style.overflow = '';
+            }
+
+            openCartBtnDesktop.addEventListener('click', (e) => { e.preventDefault(); openCart(); });
+            openCartBtnMobile.addEventListener('click', (e) => { e.preventDefault(); openCart(); });
+            closeCartBtn.addEventListener('click', closeCart);
+            cartDrawer.addEventListener('click', (e) => {
+                if (e.target === cartDrawer) closeCart();
+            });
+
+            // Carregar favoritos local ao iniciar
+            function loadWishlist() {
+                const storedWishlist = localStorage.getItem('n1-achadinhos-wishlist');
+                if (storedWishlist) {
+                    wishlist = JSON.parse(storedWishlist);
+                }
+                updateWishlistUI();
+            }
+
+            function saveWishlist() {
+                localStorage.setItem('n1-achadinhos-wishlist', JSON.stringify(wishlist));
+                updateWishlistUI();
+                renderProducts(); // Redesenhar o catálogo para atualizar os coraçõezinhos
+            }
+
+            function toggleWishlist(productId, btnElement) {
+                const product = products.find(p => p.id === productId);
+                if (!product) return;
+
+                const index = wishlist.findIndex(item => item.id === productId);
+                if (index !== -1) {
+                    wishlist.splice(index, 1); // Remover
+                } else {
+                    wishlist.push(product); // Adicionar
+                    animateWishlistSuccess(btnElement);
+                }
+
+                saveWishlist();
+            }
+
+            function animateWishlistSuccess(btn) {
+                const heart = btn.querySelector('i');
+                heart.className = "fa-solid fa-heart text-brand-pink scale-125";
+                
+                // Efeito bounce no contador do cabeçalho
+                [cartCountDesktop, cartCountMobile].forEach(badge => {
+                    badge.classList.remove('scale-100');
+                    badge.classList.add('scale-125', 'bg-brand-rose');
+                    setTimeout(() => {
+                        badge.classList.remove('scale-125', 'bg-brand-rose');
+                        badge.classList.add('scale-100');
+                    }, 200);
+                });
+
+                setTimeout(() => {
+                    heart.classList.remove('scale-125');
+                }, 200);
+            }
+
+            function updateWishlistUI() {
+                const totalItems = wishlist.length;
+                cartCountDesktop.textContent = totalItems;
+                cartCountMobile.textContent = totalItems;
+                savedCountTotal.textContent = `${totalItems} ${totalItems === 1 ? 'achadinho' : 'achadinhos'}`;
+
+                cartItemsContainer.innerHTML = '';
+
+                if (wishlist.length === 0) {
+                    cartItemsContainer.innerHTML = `
+                        <div class="text-center py-16 text-gray-400" id="empty-cart-msg">
+                            <span class="text-6xl mb-4 block">💖</span>
+                            <p class="text-sm font-medium">Sua lista de salvos está vazia.</p>
+                            <p class="text-xs text-gray-400 mt-1 max-w-[200px] mx-auto">Favorite os achados que você mais gostou para consultá-los aqui.</p>
+                            <button id="continue-shopping" class="mt-5 text-brand-pink hover:text-brand-rose font-bold text-xs uppercase tracking-wider underline">Explorar Achados</button>
+                        </div>
+                    `;
+                    
+                    document.getElementById('continue-shopping').addEventListener('click', () => {
+                        closeCart();
+                        window.location.href = "#ofertas";
+                    });
+                    return;
+                }
+
+                wishlist.forEach(item => {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = "flex items-center justify-between border-b border-brand-blush pb-4";
+                    itemElement.innerHTML = `
+                        <div class="flex items-center space-x-3 cursor-pointer" onclick="window.open('${item.url}', '_blank')">
+                            <div class="h-12 w-12 rounded-xl bg-brand-softPink border border-brand-blush flex items-center justify-center overflow-hidden shrink-0">
+                                ${item.img_url ? 
+                                    `<img src="${item.img_url}" alt="${item.name}" class="h-full w-full object-contain">` : 
+                                    `<span class="text-2xl">${item.emoji}</span>`
+                                }
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold text-brand-rose max-w-[160px] truncate leading-tight hover:text-brand-pink transition">${item.name}</h4>
+                                <p class="text-[10px] text-brand-pink font-extrabold mt-0.5">R$ ${item.price.toFixed(2).replace('.', ',')} <span class="text-gray-400 font-normal">no Mercado Livre</span></p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button class="remove-wishlist-item-btn p-1.5 hover:bg-brand-softPink rounded-lg text-gray-400 hover:text-brand-pink transition" data-id="${item.id}">
+                                <i class="fa-solid fa-trash-can text-sm"></i>
+                            </button>
+                            <button class="share-wishlist-item-btn p-1.5 hover:bg-brand-softPink rounded-lg text-gray-400 hover:text-brand-pink transition" data-id="${item.id}">
+                                <i class="fa-solid fa-share-nodes text-sm"></i>
+                            </button>
+                            <a href="${item.url}" target="_blank" class="bg-brand-pink hover:bg-brand-rose text-white font-extrabold text-[9px] py-1.5 px-2.5 rounded-lg flex items-center uppercase tracking-wide transition border-b border-brand-rose shrink-0">
+                                Compre Aqui <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[8px] text-brand-gold"></i>
+                            </a>
+                        </div>
+                    `;
+                    cartItemsContainer.appendChild(itemElement);
+                });
+
+                document.querySelectorAll('.remove-wishlist-item-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = parseInt(btn.getAttribute('data-id'));
+                        wishlist = wishlist.filter(item => item.id !== id);
+                        saveWishlist();
+                    });
+                });
+
+                document.querySelectorAll('.share-wishlist-item-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = parseInt(btn.getAttribute('data-id'));
+                        shareProduct(id, btn);
+                    });
+                });
+            }
+
+            // --- REDIRECIONAR WISHLIST COMPLETA ---
+            checkoutBtn.addEventListener('click', () => {
+                if (wishlist.length === 0) return;
+                window.open("https://www.mercadolivre.com.br", "_blank");
+            });
+
+            // --- LÓGICA DE PESQUISA DIGITADA ---
+            function setupSearch() {
+                const handleSearch = (e) => {
+                    searchQuery = e.target.value;
+                    searchInput.value = searchQuery;
+                    searchInputMobile.value = searchQuery;
+                    renderProducts();
+                };
+
+                searchInput.addEventListener('input', handleSearch);
+                searchInputMobile.addEventListener('input', handleSearch);
+
+                clearSearchBtn.addEventListener('click', () => {
+                    searchQuery = '';
+                    searchInput.value = '';
+                    searchInputMobile.value = '';
+                    renderProducts();
+                });
+            }
+
+            // --- LÓGICA DE FILTRAGEM POR CATEGORIAS ---
+            function setupCategories() {
+                document.querySelectorAll('a[href^="#"]').forEach(link => {
+                    const target = link.getAttribute('href').substring(1);
+                    const validCategories = ['casa', 'beleza', 'eletrônicos', 'organização', 'utilidades'];
+                    
+                    if (validCategories.includes(target) || target === 'catalogo') {
+                        link.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            
+                            if (target === 'catalogo') {
+                                activeCategory = 'all';
+                            } else {
+                                activeCategory = target;
+                            }
+                            
+                            document.querySelectorAll('a[href^="#"]').forEach(l => l.classList.remove('text-brand-pink'));
+                            link.classList.add('text-brand-pink');
+
+                            document.getElementById('ofertas').scrollIntoView({ behavior: 'smooth' });
+                            
+                            renderProducts();
+                        });
+                    }
+                });
+            }
+
+            // --- TRATAMENTO DE LINKS DE COMPARTILHAMENTO DE PRODUTOS ---
+            function handleProductQueryLink() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const prodId = urlParams.get('prod');
+                if (prodId) {
+                    const id = parseInt(prodId);
+                    const product = products.find(p => p.id === id);
+                    if (product) {
+                        // Limpar qualquer busca/categoria anterior
+                        activeCategory = 'all';
+                        searchQuery = product.name;
+                        searchInput.value = product.name;
+                        searchInputMobile.value = product.name;
+                        
+                        // Renderizar para atualizar os produtos mostrados
+                        renderProducts();
+                        
+                        // Aguardar render e rolar até o produto
+                        setTimeout(() => {
+                            const targetCard = document.getElementById(`product-card-${id}`);
+                            if (targetCard) {
+                                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                
+                                // Efeito visual espetacular de destaque
+                                targetCard.classList.add('ring-4', 'ring-brand-pink', 'animate-pulse');
+                                showToast(`Achadinho selecionado: ${product.name}! ✨`);
+                                
+                                setTimeout(() => {
+                                    targetCard.classList.remove('ring-4', 'ring-brand-pink', 'animate-pulse');
+                                    targetCard.classList.add('transition-all', 'duration-1000');
+                                }, 4000);
+                            }
+                        }, 600);
+                    }
+                }
+            }
+
+            // --- INICIALIZAÇÃO ---
+            loadWishlist();
+            setupSearch();
+            setupCategories();
+            renderProducts();
+            handleProductQueryLink();
+
+
+            // --- CAROUSEL SLIDER LOGIC ---
+            const slides = document.querySelectorAll('.carousel-slide');
+            const dots = document.querySelectorAll('.carousel-dot');
+            const prevBtn = document.getElementById('carousel-prev');
+            const nextBtn = document.getElementById('carousel-next');
+            const carouselContainer = document.getElementById('hero-carousel');
+            let currentSlide = 0;
+            let slideInterval;
+
+            function showSlide(index) {
+                if (index >= slides.length) index = 0;
+                if (index < 0) index = slides.length - 1;
+                
+                currentSlide = index;
+
+                slides.forEach((slide, i) => {
+                    if (i === currentSlide) {
+                        slide.classList.remove('opacity-0', 'z-0');
+                        slide.classList.add('opacity-100', 'z-10');
+                    } else {
+                        slide.classList.remove('opacity-100', 'z-10');
+                        slide.classList.add('opacity-0', 'z-0');
+                    }
+                });
+
+                dots.forEach((dot, i) => {
+                    if (i === currentSlide) {
+                        dot.classList.remove('bg-brand-rose/20', 'hover:bg-brand-pink/40');
+                        dot.classList.add('bg-brand-pink', 'shadow', 'shadow-brand-pink/50');
+                    } else {
+                        dot.classList.remove('bg-brand-pink', 'shadow', 'shadow-brand-pink/50');
+                        dot.classList.add('bg-brand-rose/20', 'hover:bg-brand-pink/40');
+                    }
+                });
+            }
+
+            function nextSlide() {
+                showSlide(currentSlide + 1);
+            }
+
+            function prevSlide() {
+                showSlide(currentSlide - 1);
+            }
+
+            if (nextBtn) nextBtn.addEventListener('click', nextSlide);
+            if (prevBtn) prevBtn.addEventListener('click', prevSlide);
+
+            dots.forEach(dot => {
+                dot.addEventListener('click', (e) => {
+                    const slideIndex = parseInt(e.target.getAttribute('data-slide'));
+                    showSlide(slideIndex);
+                });
+            });
+
+            function startSlideShow() {
+                slideInterval = setInterval(nextSlide, 5000);
+            }
+
+            function stopSlideShow() {
+                clearInterval(slideInterval);
+            }
+
+            if (carouselContainer) {
+                startSlideShow();
+                carouselContainer.addEventListener('mouseenter', stopSlideShow);
+                carouselContainer.addEventListener('mouseleave', startSlideShow);
+            }
+
+
+            // --- CHATBOT ASSISTENTE VIRTUAL LARI ---
+            const chatbotToggle = document.getElementById('chatbot-toggle');
+            const chatbotWindow = document.getElementById('chatbot-window');
+            const closeChatbotBtn = document.getElementById('close-chatbot');
+            const chatbotMessagesContainer = document.getElementById('chatbot-messages');
+            const chatbotOptionsContainer = document.getElementById('chatbot-options');
+
+            let chatFlowData = null;
+            let currentChatState = 'start';
+
+            const inlineChatFlow = {
+              "initialState": "start",
+              "states": {
+                "start": {
+                  "message": "Olá! Sou a Nessa, sua influenciadora e assistente de achadinhos do Tudo pra Você! 🛍️✨ Estou aqui para te ajudar a encontrar os melhores produtos com super descontos e frete rápido. O que você quer encontrar hoje?",
+                  "options": [
+                    { "text": "🏠 Casa & Organização", "nextState": "home_org" },
+                    { "text": "💄 Beleza & Autocuidado", "nextState": "beauty" },
+                    { "text": "⚡ Gadgets e Eletrônicos", "nextState": "electronics" },
+                    { "text": "🔥 Destaques e Ofertas", "nextState": "daily_deals" },
+                    { "text": "❓ Como funciona?", "nextState": "how_it_works" }
+                  ]
+                },
+                "home_org": {
+                  "message": "Para deixar sua casa linda e organizada, separei organizadores em acrílico, Mops de limpeza rápida e mini seladores! Quer filtrar essa categoria agora?",
+                  "options": [
+                    { "text": "Filtrar Casa & Cozinha ➔", "nextState": "start", "action": "filter_home" },
+                    { "text": "Voltar", "nextState": "start" }
+                  ]
+                },
+                "beauty": {
+                  "message": "Em Beleza e Cuidado Pessoal, separei os queridinhos do momento: Ring Lights, kits profissionais de pincéis e espelhos com LED! Deseja ver esses achadinhos?",
+                  "options": [
+                    { "text": "Filtrar Beleza ➔", "nextState": "start", "action": "filter_beauty" },
+                    { "text": "Voltar", "nextState": "start" }
+                  ]
+                },
+                "electronics": {
+                  "message": "Tecnologia que facilita a vida e cabe no bolso! Temos fones Bluetooth, umidificadores com LED e projetores de estrelas. Deseja filtrar?",
+                  "options": [
+                    { "text": "Filtrar Eletrônicos ➔", "nextState": "start", "action": "filter_tech" },
+                    { "text": "Voltar", "nextState": "start" }
+                  ]
+                },
+                "daily_deals": {
+                  "message": "As melhores ofertas de hoje: o Mini Processador Sem Fio e o Umidificador Ultrassônico estão no topo dos mais pedidos com preços imbatíveis! Quer ver?",
+                  "options": [
+                    { "text": "Ver Ofertas do Dia ➔", "nextState": "start", "action": "filter_offers" },
+                    { "text": "Voltar", "nextState": "start" }
+                  ]
+                },
+                "how_it_works": {
+                  "message": "É super simples! Nós selecionamos as melhores ofertas e produtos com avaliações excelentes no Mercado Livre. Quando você clica em 'Compre Aqui', você é redirecionado para o site oficial para comprar de forma 100% segura. Nós ganhamos uma pequena comissão por indicação sem custo adicional para você! 🥰",
+                  "options": [
+                    { "text": "Entendi! Voltar", "nextState": "start" }
+                  ]
+                }
+              }
+            };
+
+            function toggleChatbot() {
+                const isOpen = chatbotWindow.classList.contains('scale-100');
+                if (isOpen) {
+                    chatbotWindow.classList.remove('scale-100');
+                    chatbotWindow.classList.add('scale-0');
+                } else {
+                    chatbotWindow.classList.remove('scale-0');
+                    chatbotWindow.classList.add('scale-100');
+                    
+                    if (chatbotMessagesContainer.children.length === 0) {
+                        loadChatState('start');
+                    }
+                }
+            }
+
+            chatbotToggle.addEventListener('click', toggleChatbot);
+            closeChatbotBtn.addEventListener('click', toggleChatbot);
+
+            async function fetchChatbotFlow() {
+                try {
+                    const response = await fetch('chatbot_flow.json');
+                    chatFlowData = await response.json();
+                } catch (e) {
+                    console.log("Chatbot rodando em modo local/fallback (offline).");
+                    chatFlowData = inlineChatFlow;
+                }
+            }
+
+            function appendMessage(sender, text) {
+                const msg = document.createElement('div');
+                msg.className = sender === 'bot' ? 
+                    "bg-brand-softPink border border-brand-blush text-brand-darkGray text-xs p-3 rounded-2xl rounded-tl-none self-start max-w-[85%] leading-relaxed shadow-sm" :
+                    "bg-gradient-to-r from-brand-pink to-brand-rose text-white text-xs font-semibold p-3 rounded-2xl rounded-tr-none self-end max-w-[85%] leading-relaxed shadow-sm";
+                
+                msg.textContent = text;
+                chatbotMessagesContainer.appendChild(msg);
+                chatbotMessagesContainer.scrollTop = chatbotMessagesContainer.scrollHeight;
+            }
+
+            function executeChatAction(action) {
+                if (action === 'filter_home') {
+                    activeCategory = 'casa';
+                    renderProducts();
+                    document.getElementById('ofertas').scrollIntoView({ behavior: 'smooth' });
+                } else if (action === 'filter_beauty') {
+                    activeCategory = 'beleza';
+                    renderProducts();
+                    document.getElementById('ofertas').scrollIntoView({ behavior: 'smooth' });
+                } else if (action === 'filter_tech') {
+                    activeCategory = 'eletrônicos';
+                    renderProducts();
+                    document.getElementById('ofertas').scrollIntoView({ behavior: 'smooth' });
+                } else if (action === 'filter_offers') {
+                    activeCategory = 'all';
+                    searchQuery = '';
+                    searchInput.value = '';
+                    renderProducts();
+                    document.getElementById('ofertas').scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+
+            function loadChatState(stateId) {
+                const state = chatFlowData.states[stateId];
+                if (!state) return;
+
+                currentChatState = stateId;
+                
+                setTimeout(() => {
+                    appendMessage('bot', state.message);
+                    
+                    chatbotOptionsContainer.innerHTML = '';
+                    state.options.forEach(opt => {
+                        const btn = document.createElement('button');
+                        btn.className = "bg-white border border-brand-blush hover:border-brand-pink/50 hover:bg-brand-softPink text-brand-rose font-bold py-1.5 px-3 rounded-xl text-[11px] transition duration-200 shadow-sm";
+                        btn.textContent = opt.text;
+                        
+                        btn.addEventListener('click', () => {
+                            appendMessage('user', opt.text);
+                            chatbotOptionsContainer.innerHTML = '';
+                            
+                            setTimeout(() => {
+                                loadChatState(opt.nextState);
+                                if (opt.action) {
+                                    executeChatAction(opt.action);
+                                }
+                            }, 800);
+                        });
+                        
+                        chatbotOptionsContainer.appendChild(btn);
+                    });
+                }, 300);
+            }
+
+            fetchChatbotFlow().then(() => {
+                // Fluxo carregado com sucesso
+            });
+
+            // Mobile sidebar control
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileMenuContent = document.getElementById('mobile-menu-content');
+            const closeMenuBtn = document.getElementById('close-menu-btn');
+
+            function openMobileMenu() {
+                mobileMenu.classList.remove('hidden');
+                setTimeout(() => {
+                    mobileMenuContent.classList.remove('-translate-x-full');
+                }, 10);
+            }
+
+            function closeMobileMenu() {
+                mobileMenuContent.classList.add('-translate-x-full');
+                setTimeout(() => {
+                    mobileMenu.classList.add('hidden');
+                }, 300);
+            }
+
+            mobileMenuBtn.addEventListener('click', openMobileMenu);
+            closeMenuBtn.addEventListener('click', closeMobileMenu);
+            mobileMenu.addEventListener('click', (e) => {
+                if (e.target === mobileMenu) closeMobileMenu();
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,2565 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo | Tudo pra Você</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts: Outfit (Premium & Modern) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        admin: {
+                            bg: '#09090B',         // Deep black background
+                            card: '#151518',       // Coal dark gray card
+                            border: '#27272A',     // Subtle gray border
+                            textMuted: '#94a3b8',  // Cool gray
+                            accentBlue: '#FF1A75', // Primary brand pink/rose
+                            accentGold: '#FFD700', // Primary accent gold
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-out forwards',
+                        'slide-in-right': 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.98)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        },
+                        slideInRight: {
+                            '0%': { transform: 'translateX(100%)', opacity: '0' },
+                            '100%': { transform: 'translateX(0)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* Custom scrollbar matching dark mode */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #09090B;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #27272A;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #FF1A75;
+        }
+
+        /* Custom styling for inputs to match the premium theme */
+        .admin-input {
+            background-color: #09090B;
+            border: 1px solid #27272A;
+            color: #ffffff;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            transition: all 0.2s ease-in-out;
+            width: 100%;
+        }
+        .admin-input:focus {
+            outline: none;
+            border-color: #FF1A75;
+            box-shadow: 0 0 0 2px rgba(255, 26, 117, 0.2);
+        }
+        .admin-input:disabled {
+            color: #4b5563;
+            cursor: not-allowed;
+            background-color: #09090B;
+        }
+
+        .admin-label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Color preview bubbles */
+        .color-bubble {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #27272A;
+        }
+    </style>
+</head>
+<body class="bg-admin-bg text-white font-sans antialiased overflow-x-hidden min-h-screen flex flex-col justify-between">
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 max-w-sm pointer-events-none"></div>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 1: LOGIN (High fidelity UI)         -->
+    <!-- ========================================== -->
+    <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-admin-bg p-4 transition-all duration-500">
+        <!-- Floating decorative neon lights -->
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-admin-accentBlue/10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-admin-accentGold/5 rounded-full blur-3xl"></div>
+
+        <div class="bg-admin-card border border-admin-border rounded-3xl p-8 md:p-12 w-full max-w-md shadow-2xl relative z-10 animate-fade-in">
+            <!-- Logo Placeholder -->
+            <div class="flex justify-center mb-6">
+                <img src="images/logo.png" class="h-20 w-auto object-contain fallback-logo" alt="Logo" onerror="this.src='https://placehold.co/200x80/151518/ffffff?text=Tudo+Pra+Voce'">
+            </div>
+
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-black uppercase tracking-tight text-white">Painel Administrativo</h2>
+                <p class="text-admin-textMuted text-xs mt-1 uppercase tracking-wider font-semibold">Tudo pra Você</p>
+            </div>
+
+            <form id="login-form" class="space-y-5">
+                <div>
+                    <label class="admin-label">Usuário</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
+                            <i class="fa-regular fa-user"></i>
+                        </span>
+                        <input type="text" id="login-username" class="admin-input pl-10" placeholder="Nome de usuário" required value="admin">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="admin-label">Senha</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
+                            <i class="fa-solid fa-lock"></i>
+                        </span>
+                        <input type="password" id="login-password" class="admin-input pl-10" placeholder="••••••••" required value="admin123">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-admin-textMuted">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" class="rounded border-admin-border bg-admin-bg text-admin-accentBlue focus:ring-0">
+                        <span>Lembrar-me</span>
+                    </label>
+                    <a href="#" class="hover:text-white transition">Esqueceu a senha?</a>
+                </div>
+
+                <!-- Credential Hints -->
+                <div class="bg-admin-bg/60 border border-admin-border/50 rounded-xl p-3 text-[11px] text-admin-textMuted leading-relaxed">
+                    🔑 <span class="font-bold text-white">Dica:</span> Use o usuário padrão <code class="text-admin-accentGold font-bold">admin</code> e a senha <code class="text-admin-accentGold font-bold">admin123</code> para acessar.
+                </div>
+
+                <button type="submit" class="w-full bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold py-3.5 rounded-xl uppercase tracking-wider text-xs transition duration-300 transform hover:scale-[1.02] shadow-lg shadow-pink-500/10">
+                    Acessar Painel <i class="fa-solid fa-arrow-right-to-bracket ml-1.5"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- SCREEN 2: ADMIN PANEL CONTAINER            -->
+    <!-- ========================================== -->
+    <div id="admin-panel" class="hidden min-h-screen flex flex-col opacity-0 transition-opacity duration-500">
+        
+        <!-- Header -->
+        <header class="bg-black/40 border-b border-admin-border backdrop-blur-md sticky top-0 z-40">
+            <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                <!-- Branding -->
+                <div class="flex items-center space-x-3">
+                    <img src="images/logo.png" class="h-10 w-auto object-contain fallback-logo" alt="Logo" onerror="this.src='https://placehold.co/100x40/151518/ffffff?text=Tudo+Pra+Voce'">
+                    <div class="flex flex-col">
+                        <span class="text-xl font-black tracking-tight text-white uppercase leading-none">Tudo pra Você</span>
+                        <span class="text-[9px] tracking-widest font-bold uppercase text-admin-accentGold mt-1">Configuração Visual</span>
+                    </div>
+                </div>
+
+                <!-- Logged In User Info -->
+                <div class="flex items-center justify-between md:justify-end space-x-4">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="h-8 w-8 bg-admin-border rounded-xl flex items-center justify-center text-admin-accentGold">
+                            <i class="fa-solid fa-sliders text-admin-accentBlue"></i>
+                        </div>
+                        <div class="text-left text-xs">
+                            <p class="font-extrabold text-white"> Vanessa Parvati</p>
+                            <p class="text-[10px] text-admin-textMuted uppercase font-semibold">Sessão Ativa</p>
+                        </div>
+                    </div>
+                    
+                    <button id="logout-btn" class="h-8 px-3 rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500 hover:text-white text-red-400 text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-power-off"></i> Sair
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <div class="border-b border-admin-border bg-admin-card/50">
+            <div class="container mx-auto px-4">
+                <nav class="flex overflow-x-auto hide-scrollbar -mb-px py-2 gap-1.5 scroll-smooth" id="admin-tabs">
+                    <!-- Tab Items rendered dynamically -->
+                </nav>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <main class="flex-1 container mx-auto px-4 py-8 max-w-6xl">
+            
+            <!-- Dynamic Tab Content Box -->
+            <div class="bg-admin-card border border-admin-border rounded-3xl p-6 md:p-10 shadow-2xl relative overflow-hidden" id="tab-content-container">
+                <!-- Glowing ambient background lights -->
+                <div class="absolute top-0 right-0 w-80 h-80 bg-admin-accentBlue/5 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute bottom-0 left-0 w-80 h-80 bg-admin-accentGold/5 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div id="tab-loading" class="hidden py-24 text-center">
+                    <i class="fa-solid fa-spinner animate-spin text-4xl text-admin-accentBlue mb-3"></i>
+                    <p class="text-sm text-admin-textMuted">Carregando painel...</p>
+                </div>
+
+                <div id="tab-content" class="relative z-10">
+                    <!-- Loaded tab HTML dynamically populated -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-black/60 border-t border-admin-border py-4 text-center text-xs text-admin-textMuted">
+            <div class="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-2">
+                <p>&copy; 2026 Tudo pra Você - Painel Administrativo.</p>
+                <p class="uppercase tracking-widest text-[9px] font-bold text-admin-accentGold">Edição Visual Exclusiva</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- CORE SYSTEM JAVASCRIPT STATE               -->
+    <!-- ========================================== -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // Dynamics logo sync across headers
+            function syncLogo() {
+                const storedLogo = localStorage.getItem('admin-logo');
+                if (storedLogo) {
+                    document.querySelectorAll('img[src="images/logo.png"], img.fallback-logo').forEach(img => {
+                        img.src = storedLogo;
+                    });
+                }
+            }
+            syncLogo();
+
+            // --- DEFAULT PRODUCTS DATABASE (THE 16 ORIGINAL PORTAL PRODUCTS) ---
+            const DEFAULT_PRODUCTS = [
+              {
+                id: 1,
+                name: "Liquidificador Britânia Pro Maxx Turbo 3L 1200W Rosa 220V",
+                category: "casa",
+                brand: "Britânia",
+                price: 227.0,
+                oldPrice: 283.75,
+                badge: "Linha Rosa",
+                emoji: "🥤",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "liquidificador britania pro maxx turbo 3l 1200w rosa 220v casa cozinha eletro",
+                url: "https://www.mercadolivre.com.br/liquidificador-britnia-pro-maxx-turbo-3l-1200w-rosa/p/MLB22694469?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_644611-MLA96137565645_102025-O.webp"
+              },
+              {
+                id: 2,
+                name: "Air Fryer Rosa Britânia 5,5L Cesto Pinkstone 1500W BAFE53 127V",
+                category: "casa",
+                brand: "Britânia",
+                price: 429.0,
+                oldPrice: 536.25,
+                badge: "Linha Rosa",
+                emoji: "🍳",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "air fryer rosa britania 5,5l cesto pinkstone 1500w bafe53 127v casa cozinha fritadeira",
+                url: "https://produto.mercadolivre.com.br/MLB-4655536353-air-fryer-rosa-britnia-55l-cesto-pinkstone-1500w-bafe53-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_914280-MLA88399456511_072025-O.webp"
+              },
+              {
+                id: 3,
+                name: "Torradeira Rosa Britânia 6 Níveis de Tostagem 750W BTR04RS 127V",
+                category: "casa",
+                brand: "Britânia",
+                price: 153.0,
+                oldPrice: 191.25,
+                badge: "Linha Rosa",
+                emoji: "🍞",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "torradeira rosa britania 6 niveis tostagem 750w btr04rs 127v casa torrada",
+                url: "https://www.mercadolivre.com.br/torradeira-rosa-britnia-6-niveis-de-tostagem-750w-btr04rs/p/MLB28535335?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_959495-MLA99935097189_112025-O.webp"
+              },
+              {
+                id: 4,
+                name: "Cafeteira Britânia BCF15 Inox 15 Xícaras 550W Rosa 127V",
+                category: "casa",
+                brand: "Britânia",
+                price: 148.0,
+                oldPrice: 185.0,
+                badge: "Linha Rosa",
+                emoji: "☕",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "cafeteira britania bcf15 inox 15 xicaras 550w rosa 127v casa cafe rosa",
+                url: "https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_769638-MLA99506939262_112025-O.webp"
+              },
+              {
+                id: 5,
+                name: "Aspirador Vertical Britânia 2 Em 1 1400W Base30 Rosa 127V",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Britânia",
+                price: 237.99,
+                oldPrice: 297.49,
+                badge: "Linha Rosa",
+                emoji: "🧹",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "aspirador vertical britania 2 em 1 1400w base30 rosa 127v organizacao limpeza po",
+                url: "https://produto.mercadolivre.com.br/MLB-4469244553-aspirador-rosa-vertical-britnia-2-em-1-1400w-base30-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_886987-MLA99526846172_122025-O.webp"
+              },
+              {
+                id: 6,
+                name: "Espremedor Premium Mondial 30W E-02 Preto 127V",
+                category: "casa",
+                brand: "Mondial",
+                price: 59.31,
+                oldPrice: 74.14,
+                badge: "Destaque",
+                emoji: "🍊",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "espremedor premium mondial 30w e-02 preto 127v casa suco laranja",
+                url: "https://www.mercadolivre.com.br/espremedor-premium-mondial-30w-e-02/p/MLB19307438?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_852738-MLA99700511468_122025-O.webp"
+              },
+              {
+                id: 7,
+                name: "Aspirador Pó e Água Wap GTW 10 Compacto 1400W 127V",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Wap",
+                price: 269.0,
+                oldPrice: 336.25,
+                badge: "Mais Procurado",
+                emoji: "🧹",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "aspirador po agua wap gtw 10 compacto 1400w 10 litros amarelo preto 127v organizacao limpeza",
+                url: "https://www.mercadolivre.com.br/aspirador-de-po-e-agua-wap-gtw-10-compacto-1400w-10-litros-amarelopreto/p/MLB8923630?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_944970-MLA99949674111_112025-O.webp"
+              },
+              {
+                id: 8,
+                name: "Faqueiro 24 Peças Búzios Inox Tramontina Cinza Claro",
+                category: "casa",
+                brand: "Tramontina",
+                price: 64.74,
+                oldPrice: 80.92,
+                badge: "Aço Inox",
+                emoji: "🍴",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "faqueiro 24 pecas buzios inox 23799071 tramontina cor cinza claro casa cozinha talher",
+                url: "https://www.mercadolivre.com.br/faqueiro-24-pecas-buzios-inox-23799071-tramontina-cor-cinza-claro/p/MLB36638741?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_970615-MLA99517008492_112025-O.webp"
+              },
+              {
+                id: 9,
+                name: "Chaleira Elétrica 1.8L 1200W Unitermi Atacama Prata 127V",
+                category: "casa",
+                brand: "Unitermi",
+                price: 39.99,
+                oldPrice: 49.99,
+                badge: "Super Prático",
+                emoji: "🫖",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "chaleira eletrica 1,8l 1200w unitermi atacama prateado 127v casa cha cafe",
+                url: "https://www.mercadolivre.com.br/chaleira-eletrica-18l-1200w-unitermi-atacama/p/MLB13409957?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_666995-MLA99455173642_112025-O.webp"
+              },
+              {
+                id: 10,
+                name: "Ventilador de Mesa Mondial 30cm Super Power 60W 220V",
+                category: "eletr\u00f4nicos",
+                brand: "Mondial",
+                price: 149.0,
+                oldPrice: 186.25,
+                badge: "Verão",
+                emoji: "💨",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "ventilador de mesa 30cm super power mondial 60w vsp-30-ap preto 220v eletronicos ar",
+                url: "https://www.mercadolivre.com.br/ventilador-de-mesa-30cm-super-power-mondial-60w-vsp-30-ap/p/MLB18932161?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_994831-MLA99700690020_122025-O.webp"
+              },
+              {
+                id: 11,
+                name: "Sanduicheira Elétrica Cadence San 400 Preta 220V",
+                category: "casa",
+                brand: "Cadence",
+                price: 93.3,
+                oldPrice: 116.62,
+                badge: "Praticidade",
+                emoji: "🥪",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "sanduicheira eletrica cadence san 400 preto 220v casa misto quente grill",
+                url: "https://produto.mercadolivre.com.br/MLB-5140003520-sanduicheira-eletrica-cadence-san-400-preto-220v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_633183-MLA99468751756_112025-O.webp"
+              },
+              {
+                id: 12,
+                name: "Liquidificador Turbo Power Mondial 550W L-99 Vermelho 220V",
+                category: "casa",
+                brand: "Mondial",
+                price: 85.17,
+                oldPrice: 106.46,
+                badge: "Oferta",
+                emoji: "🥤",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "liquidificador turbo power mondial 550w l-99 fr vermelho 220v casa suco copo",
+                url: "https://www.mercadolivre.com.br/liquidificador-turbo-power-mondial-550w-l-99-fr/p/MLB15699907?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_820453-MLA100047352829_122025-O.webp"
+              },
+              {
+                id: 13,
+                name: "Cadeira de Escritório Ergonômica Premium Python Fly Cinza",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Python Fly",
+                price: 674.0,
+                oldPrice: 842.5,
+                badge: "Ergonômica",
+                emoji: "🪑",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "cadeira de escritorio ergonomica premium python fly cor cinza material estofamento malha elastica organizacao",
+                url: "https://www.mercadolivre.com.br/cadeira-de-escritorio-ergonmica-premium-python-fly-cor-cinza-material-do-estofamento-malha-elastica/p/MLB60063182?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_824171-MLA110616903986_052026-O.webp"
+              },
+              {
+                id: 14,
+                name: "Tênis Feminino Olympikus Para Caminhada e Academia",
+                category: "utilidades",
+                brand: "Olympikus",
+                price: 85.4,
+                oldPrice: 106.75,
+                badge: "Moda Fit",
+                emoji: "👟",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "tenis feminino olympikus caminhada academia promoco calado corrida utilidades",
+                url: "https://produto.mercadolivre.com.br/MLB-1867165690-tnis-feminino-olimp-para-caminhada-academia-promoco-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_827717-MLB101267701449_122025-O.webp"
+              },
+              {
+                id: 15,
+                name: "Fluido Capilar Haskell Pré Treino 200ml",
+                category: "beleza",
+                brand: "Haskell",
+                price: 59.9,
+                oldPrice: 74.88,
+                badge: "Cabelo Premium",
+                emoji: "🧴",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "fluido capilar haskell pre treino 200ml beleza cabelo hidratacao",
+                url: "https://www.mercadolivre.com.br/fluido-capilar-haskell-pre-treino-200ml/up/MLBU3524365650?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_766773-MLB111347756152_052026-O.webp"
+              },
+              {
+                id: 16,
+                name: "Bolsa Transversal Grande Viagem & Academia Bordo",
+                category: "utilidades",
+                brand: "Destaque",
+                price: 54.42,
+                oldPrice: 68.03,
+                badge: "Mais Procurado",
+                emoji: "👜",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "bolsa transversal grande bordo estilo para viagem e academia mala utilidades fit",
+                url: "https://produto.mercadolivre.com.br/MLB-5145059494-bolsa-transversal-grande-bordo-estilo-para-viagem-e-academia-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_997557-MLB81886466744_012025-O.webp"
+              },
+              {
+                id: 17,
+                name: "Batedeira Planetária Arno Deluxe 8 Velocidades 300W",
+                category: "casa",
+                brand: "Arno",
+                price: 349.9,
+                oldPrice: 437.38,
+                badge: "Top Chef",
+                emoji: "🥣",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "batedeira planetária arno deluxe 8 velocidades 300w casa arno",
+                url: "https://www.mercadolivre.com.br/batedeira-planetaria-arno-deluxe-sx80-8-velocidades-300w-branca/p/MLB12345678?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_656915-MLA99723651111_122025-O.webp"
+              },
+              {
+                id: 18,
+                name: "Mixer de Mão Philco 3 em 1 PMX700 com Copo 700W",
+                category: "casa",
+                brand: "Philco",
+                price: 169.9,
+                oldPrice: 212.38,
+                badge: "Praticidade",
+                emoji: "🌪️",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "mixer de mão philco 3 em 1 pmx700 com copo 700w casa philco",
+                url: "https://www.mercadolivre.com.br/mixer-de-mao-philco-3-em-1-pmx700-preto/p/MLB12345679?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_789456-MLA99723651112_122025-O.webp"
+              },
+              {
+                id: 19,
+                name: "Jogo de Panelas Antiaderente Tramontina Turim 5 Peças",
+                category: "casa",
+                brand: "Tramontina",
+                price: 289.9,
+                oldPrice: 362.38,
+                badge: "Aço Turim",
+                emoji: "🍳",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "jogo de panelas antiaderente tramontina turim 5 peças casa tramontina",
+                url: "https://www.mercadolivre.com.br/jogo-de-panelas-antiaderente-tramontina-turim-5-pecas-vermelho/p/MLB12345680?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_897654-MLA99723651113_122025-O.webp"
+              },
+              {
+                id: 20,
+                name: "Micro-ondas Espelhado Philco 20L PMO21E 127V",
+                category: "casa",
+                brand: "Philco",
+                price: 549.9,
+                oldPrice: 687.38,
+                badge: "Luxo",
+                emoji: "📟",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "micro-ondas espelhado philco 20l pmo21e 127v casa philco",
+                url: "https://www.mercadolivre.com.br/micro-ondas-espelhado-philco-20l-pmo21e-preto/p/MLB12345681?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_987654-MLA99723651114_122025-O.webp"
+              },
+              {
+                id: 21,
+                name: "Grill e Sanduicheira Mondial Press Redondo 1200W",
+                category: "casa",
+                brand: "Mondial",
+                price: 119.9,
+                oldPrice: 149.88,
+                badge: "2 em 1",
+                emoji: "🥪",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "grill e sanduicheira mondial press redondo 1200w casa mondial",
+                url: "https://www.mercadolivre.com.br/grill-e-sanduicheira-mondial-press-redondo/p/MLB12345682?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_765432-MLA99723651115_122025-O.webp"
+              },
+              {
+                id: 22,
+                name: "Garrafa Térmica 1L Unitermi Verona Rosé Premium",
+                category: "casa",
+                brand: "Unitermi",
+                price: 39.9,
+                oldPrice: 49.88,
+                badge: "Mesa Posta",
+                emoji: "🫖",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "garrafa térmica 1l unitermi verona rosé premium casa unitermi",
+                url: "https://www.mercadolivre.com.br/garrafa-termica-1l-unitermi-verona-rose/p/MLB12345683?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_654321-MLA99723651116_122025-O.webp"
+              },
+              {
+                id: 23,
+                name: "Pipoqueira Elétrica Mondial Pop Lite sem Óleo 1200W",
+                category: "casa",
+                brand: "Mondial",
+                price: 99.9,
+                oldPrice: 124.88,
+                badge: "Fit Pop",
+                emoji: "🍿",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "pipoqueira elétrica mondial pop lite sem óleo 1200w casa mondial",
+                url: "https://www.mercadolivre.com.br/pipoqueira-eletrica-mondial-pop-lite-branca/p/MLB12345684?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_543210-MLA99723651117_122025-O.webp"
+              },
+              {
+                id: 24,
+                name: "Cuscuzeira Antiaderente Tramontina Loreto Grafite",
+                category: "casa",
+                brand: "Tramontina",
+                price: 49.9,
+                oldPrice: 62.38,
+                badge: "Nordeste Vibe",
+                emoji: "🍲",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "cuscuzeira antiaderente tramontina loreto grafite casa tramontina",
+                url: "https://www.mercadolivre.com.br/cuscuzeira-antiaderente-tramontina-loreto-grafite/p/MLB12345685?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_432109-MLA99723651118_122025-O.webp"
+              },
+              {
+                id: 25,
+                name: "Chaleira Elétrica Cadence Contrast 1.7L 127V",
+                category: "casa",
+                brand: "Cadence",
+                price: 89.9,
+                oldPrice: 112.38,
+                badge: " Contrast ",
+                emoji: "🫖",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "chaleira elétrica cadence contrast 1.7l 127v casa cadence",
+                url: "https://www.mercadolivre.com.br/chaleira-eletrica-cadence-contrast-preta-1.7l/p/MLB12345686?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_321098-MLA99723651119_122025-O.webp"
+              },
+              {
+                id: 26,
+                name: "Mop Giratório Pro FlashLimp com Balde Duplo",
+                category: "organiza\u00e7\u00e3o",
+                brand: "FlashLimp",
+                price: 89.9,
+                oldPrice: 112.38,
+                badge: "Lider de Vendas",
+                emoji: "🧹",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "mop giratório pro flashlimp com balde duplo organização flashlimp",
+                url: "https://www.mercadolivre.com.br/mop-giratorio-pro-flashlimp-balde-duplo-cinza/p/MLB12345687?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_210987-MLA99723651120_122025-O.webp"
+              },
+              {
+                id: 27,
+                name: "Organizador Acrílico Giratório 360 Graus Maquiagem",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Destaque",
+                price: 49.9,
+                oldPrice: 62.38,
+                badge: "Organize",
+                emoji: "💄",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "organizador acrílico giratório 360 graus maquiagem organização destaque",
+                url: "https://www.mercadolivre.com.br/organizador-acrilico-giratorio-360-graus-maquiagem/p/MLB12345688?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_109876-MLA99723651121_122025-O.webp"
+              },
+              {
+                id: 28,
+                name: "Carrinho Organizador Multiuso Metal 3 Prateleiras",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Destaque",
+                price: 129.9,
+                oldPrice: 162.38,
+                badge: "Versátil",
+                emoji: "🪜",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "carrinho organizador multiuso metal 3 prateleiras organização destaque",
+                url: "https://www.mercadolivre.com.br/carrinho-organizador-multiuso-metal-3-prateleiras-preto/p/MLB12345689?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_098765-MLA99723651122_122025-O.webp"
+              },
+              {
+                id: 29,
+                name: "Caixa Organizadora Plástica 20L Ordene com Trava",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Ordene",
+                price: 39.9,
+                oldPrice: 49.88,
+                badge: "Resistente",
+                emoji: "📦",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "caixa organizadora plástica 20l ordene com trava organização ordene",
+                url: "https://www.mercadolivre.com.br/caixa-organizadora-plastica-20l-ordene-transparente/p/MLB12345690?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_987654-MLA99723651123_122025-O.webp"
+              },
+              {
+                id: 30,
+                name: "Cabides de Veludo Ultrafinos Antideslizantes 10 Peças",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Destaque",
+                price: 45.9,
+                oldPrice: 57.38,
+                badge: "Slim Premium",
+                emoji: "👚",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "cabides de veludo ultrafinos antideslizantes 10 peças organização destaque",
+                url: "https://www.mercadolivre.com.br/cabides-de-veludo-ultrafinos-antideslizantes-10-pecas-preto/p/MLB12345691?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_876543-MLA99723651124_122025-O.webp"
+              },
+              {
+                id: 31,
+                name: "Organizador de Gavetas Colmeia Organizon 5 Unidades",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Destaque",
+                price: 29.9,
+                oldPrice: 37.38,
+                badge: "Prático",
+                emoji: "🧦",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "organizador de gavetas colmeia organizon 5 unidades organização destaque",
+                url: "https://www.mercadolivre.com.br/organizador-de-gavetas-colmeia-organizon-5-unidades/p/MLB12345692?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_765432-MLA99723651125_122025-O.webp"
+              },
+              {
+                id: 32,
+                name: "Sapateira Organizadora Portátil Vertical 4 Andares",
+                category: "organiza\u00e7\u00e3o",
+                brand: "Destaque",
+                price: 59.9,
+                oldPrice: 74.88,
+                badge: "Espaço Smart",
+                emoji: "👠",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "sapateira organizadora portátil vertical 4 andares organização destaque",
+                url: "https://www.mercadolivre.com.br/sapateira-organizadora-portatil-vertical-4-andares/p/MLB12345693?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_654321-MLA99723651126_122025-O.webp"
+              },
+              {
+                id: 33,
+                name: "Fone de Ouvido Bluetooth JBL Wave Flex Intra-auricular",
+                category: "eletr\u00f4nicos",
+                brand: "Jbl",
+                price: 289.9,
+                oldPrice: 362.38,
+                badge: "Pure Bass",
+                emoji: "🎧",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "fone de ouvido bluetooth jbl wave flex intra-auricular eletrônicos jbl",
+                url: "https://www.mercadolivre.com.br/fone-de-ouvido-bluetooth-jbl-wave-flex-preto/p/MLB12345694?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_543210-MLA99723651127_122025-O.webp"
+              },
+              {
+                id: 34,
+                name: "Carregador Portátil Power Bank Anker 10000mAh PowerCore",
+                category: "eletr\u00f4nicos",
+                brand: "Anker",
+                price: 149.9,
+                oldPrice: 187.38,
+                badge: "Super Charge",
+                emoji: "🔋",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "carregador portátil power bank anker 10000mah powercore eletrônicos anker",
+                url: "https://www.mercadolivre.com.br/carregador-portatil-power-bank-anker-10000mah-preto/p/MLB12345695?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_432109-MLA99723651128_122025-O.webp"
+              },
+              {
+                id: 35,
+                name: "Lâmpada Inteligente Xiaomi LED Smart Bulb Essential",
+                category: "eletr\u00f4nicos",
+                brand: "Xiaomi",
+                price: 69.9,
+                oldPrice: 87.38,
+                badge: "Alexa OK",
+                emoji: "💡",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "lâmpada inteligente xiaomi led smart bulb essential eletrônicos xiaomi",
+                url: "https://www.mercadolivre.com.br/lampada-inteligente-xiaomi-led-smart-bulb-essential-rgb/p/MLB12345696?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_321098-MLA99723651129_122025-O.webp"
+              },
+              {
+                id: 36,
+                name: "Tripé Ring Light LED de Mesa 26cm com Suporte Celular",
+                category: "eletr\u00f4nicos",
+                brand: "Destaque",
+                price: 49.9,
+                oldPrice: 62.38,
+                badge: "Vlog Vibe",
+                emoji: "🤳",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "tripé ring light led de mesa 26cm com suporte celular eletrônicos destaque",
+                url: "https://www.mercadolivre.com.br/tripe-ring-light-led-de-mesa-26cm-com-suporte-celular/p/MLB12345697?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_210987-MLA99723651130_122025-O.webp"
+              },
+              {
+                id: 37,
+                name: "Caixa de Som Bluetooth JBL Go 3 Azul Prova D'água",
+                category: "eletr\u00f4nicos",
+                brand: "Jbl",
+                price: 219.9,
+                oldPrice: 274.88,
+                badge: "JBL Pro Sound",
+                emoji: "🔊",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "caixa de som bluetooth jbl go 3 azul prova d'água eletrônicos jbl",
+                url: "https://www.mercadolivre.com.br/caixa-de-som-bluetooth-jbl-go-3-azul-prova-dagua/p/MLB12345698?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_109876-MLA99723651131_122025-O.webp"
+              },
+              {
+                id: 38,
+                name: "Umidificador e Difusor de Aromas Ultrassônico de Madeira",
+                category: "eletr\u00f4nicos",
+                brand: "Destaque",
+                price: 59.9,
+                oldPrice: 74.88,
+                badge: "Aromaterapia",
+                emoji: "🌫️",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "umidificador e difusor de aromas ultrassônico de madeira eletrônicos destaque",
+                url: "https://www.mercadolivre.com.br/umidificador-e-difusor-de-aromas-ultrassonico-madeira-rgb/p/MLB12345699?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_098765-MLA99723651132_122025-O.webp"
+              },
+              {
+                id: 39,
+                name: "Mouse Sem Fio Logitech Pebble M350 Silencioso Rosa",
+                category: "eletr\u00f4nicos",
+                brand: "Logitech",
+                price: 89.9,
+                oldPrice: 112.38,
+                badge: "Silent Click",
+                emoji: "🖱️",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "mouse sem fio logitech pebble m350 silencioso rosa eletrônicos logitech",
+                url: "https://www.mercadolivre.com.br/mouse-sem-fio-logitech-pebble-m350-rosa/p/MLB12345700?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_987654-MLA99723651133_122025-O.webp"
+              },
+              {
+                id: 40,
+                name: "Secador de Cabelo Profissional Taiff Easy 1700W",
+                category: "beleza",
+                brand: "Taiff",
+                price: 229.9,
+                oldPrice: 287.38,
+                badge: "Profissional",
+                emoji: "💨",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "secador de cabelo profissional taiff easy 1700w beleza taiff",
+                url: "https://www.mercadolivre.com.br/secador-de-cabelo-profissional-taiff-easy-1700w-preto/p/MLB12345701?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_876543-MLA99723651134_122025-O.webp"
+              },
+              {
+                id: 41,
+                name: "Prancha Chapinha de Cabelo Mondial Chrome Cerâmica",
+                category: "beleza",
+                brand: "Mondial",
+                price: 89.9,
+                oldPrice: 112.38,
+                badge: "Liso Perfeito",
+                emoji: "💇",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "prancha chapinha de cabelo mondial chrome cerâmica beleza mondial",
+                url: "https://www.mercadolivre.com.br/prancha-chapinha-de-cabelo-mondial-chrome-vermelha/p/MLB12345702?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_765432-MLA99723651135_122025-O.webp"
+              },
+              {
+                id: 42,
+                name: "Modelador de Cachos Philco Star Glamour Automático",
+                category: "beleza",
+                brand: "Philco",
+                price: 199.9,
+                oldPrice: 249.88,
+                badge: "Cachos Divos",
+                emoji: "🌀",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "modelador de cachos philco star glamour automático beleza philco",
+                url: "https://www.mercadolivre.com.br/modelador-de-cachos-philco-star-glamour-automatico/p/MLB12345703?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_654321-MLA99723651136_122025-O.webp"
+              },
+              {
+                id: 43,
+                name: "Espelho de Mesa com LED Articulado para Maquiagem USB",
+                category: "beleza",
+                brand: "Destaque",
+                price: 59.9,
+                oldPrice: 74.88,
+                badge: "Camarim Smart",
+                emoji: "🪞",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "espelho de mesa com led articulado para maquiagem usb beleza destaque",
+                url: "https://www.mercadolivre.com.br/espelho-de-mesa-com-led-articulado-maquiagem/p/MLB12345704?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_543210-MLA99723651137_122025-O.webp"
+              },
+              {
+                id: 44,
+                name: "Óleo Capilar Elseve L'Oréal Extraordinário Nutrição 100ml",
+                category: "beleza",
+                brand: "L'Oréal",
+                price: 39.9,
+                oldPrice: 49.88,
+                badge: "Top Hidratação",
+                emoji: "🧴",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "óleo capilar elseve l'oréal extraordinário nutrição 100ml beleza l'oréal",
+                url: "https://www.mercadolivre.com.br/oleo-capilar-elseve-loreal-extraordinario-100ml/p/MLB12345705?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_432109-MLA99723651138_122025-O.webp"
+              },
+              {
+                id: 45,
+                name: "Protetor Solar Neutrogena Sun Fresh FPS 70 Toque Seco",
+                category: "beleza",
+                brand: "Neutrogena",
+                price: 49.9,
+                oldPrice: 62.38,
+                badge: "Dermato",
+                emoji: "🧴",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "protetor solar neutrogena sun fresh fps 70 toque seco beleza neutrogena",
+                url: "https://www.mercadolivre.com.br/protetor-solar-neutrogena-sun-fresh-fps-70-120ml/p/MLB12345706?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_321098-MLA99723651139_122025-O.webp"
+              },
+              {
+                id: 46,
+                name: "Máscara de Cílios Maybelline The Colossal Lavável",
+                category: "beleza",
+                brand: "Maybelline",
+                price: 45.9,
+                oldPrice: 57.38,
+                badge: "Volume Cílios",
+                emoji: "👁️",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "máscara de cílios maybelline the colossal lavável beleza maybelline",
+                url: "https://www.mercadolivre.com.br/mascara-de-cilios-maybelline-the-colossal-preta/p/MLB12345707?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_210987-MLA99723651140_122025-O.webp"
+              },
+              {
+                id: 47,
+                name: "Esponja de Limpeza Facial Elétrica Silicone Recarregável",
+                category: "beleza",
+                brand: "Destaque",
+                price: 29.9,
+                oldPrice: 37.38,
+                badge: "Skin Care",
+                emoji: "🧼",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "esponja de limpeza facial elétrica silicone recarregável beleza destaque",
+                url: "https://www.mercadolivre.com.br/esponja-limpeza-facial-eletrica-silicone/p/MLB12345708?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_109876-MLA99723651141_122025-O.webp"
+              },
+              {
+                id: 48,
+                name: "Garrafa Térmica Kouda Sport Água Inox Matte 500ml",
+                category: "utilidades",
+                brand: "Kouda",
+                price: 119.9,
+                oldPrice: 149.88,
+                badge: "Fria por 24h",
+                emoji: "🍼",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "garrafa térmica kouda sport água inox matte 500ml utilidades kouda",
+                url: "https://www.mercadolivre.com.br/garrafa-termica-kouda-sport-inox-500ml/p/MLB12345709?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_098765-MLA99723651142_122025-O.webp"
+              },
+              {
+                id: 49,
+                name: "Tapete de Yoga EVA Antiderrapante Vollo com Alça",
+                category: "utilidades",
+                brand: "Vollo",
+                price: 49.9,
+                oldPrice: 62.38,
+                badge: "Pilates & Yoga",
+                emoji: "🧘",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "tapete de yoga eva antiderrapante vollo com alça utilidades vollo",
+                url: "https://www.mercadolivre.com.br/tapete-de-yoga-eva-antiderrapante-vollo/p/MLB12345710?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_987654-MLA99723651143_122025-O.webp"
+              },
+              {
+                id: 50,
+                name: "Kit 5 Mini Bands Elásticos Extensores Acte Sports",
+                category: "utilidades",
+                brand: "Acte Sports",
+                price: 29.9,
+                oldPrice: 37.38,
+                badge: "Treino em Casa",
+                emoji: "🎗️",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "kit 5 mini bands elásticos extensores acte sports utilidades acte sports",
+                url: "https://www.mercadolivre.com.br/kit-5-mini-bands-elasticos-extensores-acte/p/MLB12345711?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_876543-MLA99723651144_122025-O.webp"
+              },
+              {
+                id: 51,
+                name: "Mochila Impermeável Masculina/Feminina para Notebook",
+                category: "utilidades",
+                brand: "Destaque",
+                price: 119.9,
+                oldPrice: 149.88,
+                badge: "Viagem & Trabalho",
+                emoji: "🎒",
+                glowColor: "rgba(255,26,117,0.3)",
+                searchKeys: "mochila impermeável masculina/feminina para notebook utilidades destaque",
+                url: "https://www.mercadolivre.com.br/mochila-impermeavel-masculina-feminina-notebook/p/MLB12345712?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_765432-MLA99723651145_122025-O.webp"
+              }
+            ];
+
+
+
+            // --- STATE MANAGEMENT ---
+            const tabList = [
+                { id: 'logo-config', label: 'Logomarca da Página', icon: 'fa-solid fa-store' },
+                { id: 'banners-config', label: 'Banners & Slideshow', icon: 'fa-solid fa-images' },
+                { id: 'cores-config', label: 'Customizar Cores', icon: 'fa-solid fa-palette' },
+                { id: 'produtos-config', label: 'Cadastrar Produtos', icon: 'fa-solid fa-cart-plus' }
+            ];
+
+            let activeTabId = 'logo-config';
+            let isEditing = false;
+            let editingProductId = null;
+
+            // 1. Default Colors State
+            let brandColors = JSON.parse(localStorage.getItem('admin-colors')) || {
+                primaryPink: '#FF1A75', // Primary brand pink/rose
+                brandRose: '#D6005A',   // Shadow borders pink
+                brandGold: '#FFD700',   // Warm amber/gold
+                bgSoftPink: '#FFF5F7',  // Soft pink background blocks
+                bgBlush: '#FFE4E8'      // Blush pink border highlights
+            };
+
+            // 2. Default Banners State (The 3 Photorealistic Widescreen Banners)
+            let banners = JSON.parse(localStorage.getItem('admin-banners')) || [
+                { 
+                    id: 1, 
+                    badge: 'COZINHA CHARMOSA ☕', 
+                    title: 'Cafeteira Britânia Rosa', 
+                    subtitle: 'Seu dia começa mais doce e cheio de estilo', 
+                    imageUrl: 'images/banner_casa.png', 
+                    affiliateUrl: 'https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599'
+                },
+                { 
+                    id: 2, 
+                    badge: 'CASA IMPECÁVEL 🧹', 
+                    title: 'Aspirador Vertical Rosa', 
+                    subtitle: 'Praticidade e rapidez para a limpeza do dia a dia', 
+                    imageUrl: 'images/banner_tech.png', 
+                    affiliateUrl: 'https://produto.mercadolivre.com.br/MLB-4469244553-aspirador-rosa-vertical-britnia-2-em-1-1400w-base30-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599'
+                },
+                { 
+                    id: 3, 
+                    badge: 'REFRESCO E CONFORTO 💨', 
+                    title: 'Ventilador Super Power', 
+                    subtitle: 'Vento forte e design elegante para os dias quentes', 
+                    imageUrl: 'images/banner_beleza.png', 
+                    affiliateUrl: 'https://www.mercadolivre.com.br/ventilador-de-mesa-30cm-super-power-mondial-60w-vsp-30-ap/p/MLB18932161?pdp_filters=item_id%3AMLB5917028234&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599&matt_event_ts=1780069575273&matt_d2id='
+                }
+            ];
+
+            // --- SELECTORS ---
+            const loginScreen = document.getElementById('login-screen');
+            const loginForm = document.getElementById('login-form');
+            const adminPanel = document.getElementById('admin-panel');
+            const logoutBtn = document.getElementById('logout-btn');
+            const tabsContainer = document.getElementById('admin-tabs');
+            const tabContent = document.getElementById('tab-content');
+            const tabLoading = document.getElementById('tab-loading');
+            const toastContainer = document.getElementById('toast-container');
+
+            // --- TOAST NOTIFICATIONS ---
+            function showToast(message, type = 'success') {
+                const toast = document.createElement('div');
+                toast.className = `flex items-center gap-3 p-4 rounded-xl border bg-admin-card shadow-2xl animate-slide-in-right pointer-events-auto min-w-[280px]`;
+                
+                let borderClass = 'border-green-500/20';
+                let iconClass = 'fa-solid fa-circle-check text-green-500';
+                if (type === 'error') {
+                    borderClass = 'border-red-500/20';
+                    iconClass = 'fa-solid fa-circle-xmark text-red-400';
+                } else if (type === 'info') {
+                    borderClass = 'border-amber-500/20';
+                    iconClass = 'fa-solid fa-circle-info text-amber-500';
+                }
+
+                toast.classList.add(borderClass);
+                
+                toast.innerHTML = `
+                    <div class="text-lg"><i class="${iconClass}"></i></div>
+                    <div class="flex-1 text-xs font-semibold text-gray-200 leading-tight">${message}</div>
+                    <button class="text-gray-500 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
+                `;
+
+                toast.querySelector('button').addEventListener('click', () => {
+                    toast.remove();
+                });
+
+                toastContainer.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.remove();
+                }, 4000);
+            }
+
+            // --- AUTHENTICATION ---
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const user = document.getElementById('login-username').value;
+                const pass = document.getElementById('login-password').value;
+
+                if (user === 'admin' && pass === 'admin123') {
+                    showToast('Acesso autorizado! Carregando painel de configuração...', 'success');
+                    
+                    loginScreen.classList.add('opacity-0', 'scale-95');
+                    setTimeout(() => {
+                        loginScreen.classList.add('hidden');
+                        adminPanel.classList.remove('hidden');
+                        setTimeout(() => {
+                            adminPanel.classList.remove('opacity-0');
+                            adminPanel.classList.add('opacity-100');
+                            renderTabs();
+                            loadTab(activeTabId);
+                        }, 50);
+                    }, 500);
+                } else {
+                    showToast('Usuário ou senha incorretos!', 'error');
+                }
+            });
+
+            logoutBtn.addEventListener('click', () => {
+                showToast('Desconectado com sucesso!', 'info');
+                adminPanel.classList.add('opacity-0');
+                setTimeout(() => {
+                    adminPanel.classList.add('hidden');
+                    loginScreen.classList.remove('hidden');
+                    setTimeout(() => {
+                        loginScreen.classList.remove('opacity-0', 'scale-95');
+                        loginScreen.classList.add('opacity-100', 'scale-100');
+                    }, 50);
+                }, 500);
+            });
+
+            // --- TAB RENDER LOGIC ---
+            function renderTabs() {
+                tabsContainer.innerHTML = '';
+                tabList.forEach(tab => {
+                    const isActive = tab.id === activeTabId;
+                    const btn = document.createElement('button');
+                    btn.className = `flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition whitespace-nowrap border-b-2`;
+                    
+                    if (isActive) {
+                        btn.className += ` bg-white/5 border-admin-accentBlue text-white shadow-lg shadow-pink-500/5`;
+                    } else {
+                        btn.className += ` border-transparent text-admin-textMuted hover:text-white hover:bg-white/5`;
+                    }
+
+                    btn.innerHTML = `<i class="${tab.icon}"></i> ${tab.label}`;
+                    
+                    btn.addEventListener('click', () => {
+                        if (activeTabId === tab.id) return;
+                        activeTabId = tab.id;
+                        renderTabs();
+                        loadTab(tab.id);
+                    });
+
+                    tabsContainer.appendChild(btn);
+                });
+            }
+
+            // --- LOAD TAB CONTENT ---
+            function loadTab(tabId) {
+                tabContent.classList.add('opacity-0');
+                tabLoading.classList.remove('hidden');
+                
+                setTimeout(() => {
+                    tabLoading.classList.add('hidden');
+                    tabContent.classList.remove('opacity-0');
+                    
+                    switch(tabId) {
+                        case 'logo-config':
+                            loadLogoTab();
+                            break;
+                        case 'banners-config':
+                            loadBannersTab();
+                            break;
+                        case 'cores-config':
+                            loadColorsTab();
+                            break;
+                        case 'produtos-config':
+                            loadProductsTab();
+                            break;
+                    }
+                }, 200);
+            }
+
+            // ==========================================
+            // TAB 1: LOGOMARCA DA PÁGINA                 
+            // ==========================================
+            function loadLogoTab() {
+                const currentLogo = localStorage.getItem('admin-logo') || 'images/logo.png';
+                
+                tabContent.innerHTML = `
+                    <div class="space-y-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-white tracking-wide">Logo Oficial do Site</h2>
+                            <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Atualize a logomarca que aparece em todos os cabeçalhos, chatbot e rodapés.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center bg-admin-card rounded-2xl p-6 border border-admin-border animate-fade-in">
+                            
+                            <!-- Logo Preview -->
+                            <div class="flex flex-col items-center justify-center p-6 bg-admin-bg border border-admin-border rounded-2xl h-48 relative overflow-hidden group">
+                                <span class="text-[9px] uppercase tracking-wider text-admin-textMuted font-black absolute top-3">Preview Atual</span>
+                                <img src="${currentLogo}" id="logo-preview-img" class="h-20 w-auto object-contain fallback-logo" alt="Logo Preview" onerror="this.src='https://placehold.co/200x80/151518/ffffff?text=Tudo+Pra+Voce'">
+                            </div>
+
+                            <!-- Upload Options -->
+                            <div class="md:col-span-2 space-y-5">
+                                <div>
+                                    <label class="admin-label">Carregar Novo Arquivo de Logo</label>
+                                    <div class="relative flex items-center justify-center w-full">
+                                        <label class="flex flex-col items-center justify-center w-full h-24 border border-dashed border-admin-border rounded-xl cursor-pointer hover:border-admin-accentBlue/50 hover:bg-white/5 transition">
+                                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                                <i class="fa-solid fa-cloud-arrow-up text-admin-accentBlue text-lg mb-1"></i>
+                                                <p class="text-xs text-gray-400 font-medium">Clique para fazer upload (PNG, JPG, SVG)</p>
+                                            </div>
+                                            <input type="file" id="logo-file-upload" class="hidden" accept="image/*" />
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="relative flex items-center">
+                                    <div class="flex-grow border-t border-admin-border"></div>
+                                    <span class="flex-shrink mx-4 text-[10px] text-admin-textMuted font-black uppercase tracking-widest">Ou</span>
+                                    <div class="flex-grow border-t border-admin-border"></div>
+                                </div>
+
+                                <div>
+                                    <label class="admin-label">URL da Imagem da Logo (Link Direto)</label>
+                                    <input type="text" id="logo-url-input" class="admin-input text-xs" placeholder="https://exemplo.com/sua-logo.png" value="${currentLogo.startsWith('data:') ? '' : currentLogo}">
+                                </div>
+
+                                <div class="flex justify-end pt-2 gap-3">
+                                    <button id="logo-reset-btn" class="bg-white/5 border border-white/10 hover:border-red-500/50 hover:bg-red-500/5 text-red-400 font-extrabold px-6 py-2.5 rounded-xl text-xs transition uppercase tracking-wider">
+                                        Restaurar Padrão
+                                    </button>
+                                    <button id="logo-save-btn" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold px-8 py-2.5 rounded-xl text-xs transition uppercase tracking-wider shadow-lg shadow-pink-500/10">
+                                        Salvar Logo
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const fileUpload = document.getElementById('logo-file-upload');
+                const urlInput = document.getElementById('logo-url-input');
+                const previewImg = document.getElementById('logo-preview-img');
+                const saveBtn = document.getElementById('logo-save-btn');
+                const resetBtn = document.getElementById('logo-reset-btn');
+
+                // Read file upload as Base64
+                fileUpload.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            previewImg.src = event.target.result;
+                            urlInput.value = ''; // Clear URL input when file is loaded
+                            showToast('Imagem carregada! Clique em "Salvar" para aplicar.', 'info');
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+
+                // Live preview URL changes
+                urlInput.addEventListener('input', (e) => {
+                    if (e.target.value.trim()) {
+                        previewImg.src = e.target.value.trim();
+                    }
+                });
+
+                // Reset Logo to Default
+                resetBtn.addEventListener('click', () => {
+                    localStorage.removeItem('admin-logo');
+                    previewImg.src = 'images/logo.png';
+                    urlInput.value = 'images/logo.png';
+                    syncLogo();
+                    showToast('Logomarca restaurada para o padrão!', 'info');
+                });
+
+                // Save custom logo
+                saveBtn.addEventListener('click', () => {
+                    const finalSource = previewImg.src;
+                    localStorage.setItem('admin-logo', finalSource);
+                    syncLogo();
+                    showToast('Logomarca atualizada com sucesso!', 'success');
+                });
+            }
+
+            // ==========================================
+            // TAB 2: BANNERS & SLIDESHOW                 
+            // ==========================================
+            function loadBannersTab() {
+                let bannersHTML = '';
+                
+                banners.forEach((banner, idx) => {
+                    bannersHTML += `
+                        <!-- Banner Card ${banner.id} -->
+                        <div class="bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 space-y-4 animate-fade-in relative">
+                            <div class="flex justify-between items-center border-b border-admin-border pb-3">
+                                <div class="flex items-center space-x-2">
+                                    <span class="h-5 w-5 bg-admin-accentBlue text-white rounded-lg flex items-center justify-center text-xs font-black">${banner.id}</span>
+                                    <h3 class="text-sm font-black uppercase text-white tracking-wider">Slide ${banner.id} - Widescreen</h3>
+                                </div>
+                                <span class="text-[9px] bg-admin-bg border border-admin-border text-admin-accentGold font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Medida Recomendada: 1920x600</span>
+                            </div>
+
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <!-- Banner Preview and image Upload -->
+                                <div class="space-y-3">
+                                    <div class="h-32 w-full bg-admin-bg border border-admin-border rounded-xl overflow-hidden relative group">
+                                        <img src="${banner.imageUrl}" id="banner-preview-${banner.id}" class="w-full h-full object-cover" alt="Preview Slide ${banner.id}">
+                                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition cursor-pointer">
+                                            <label class="cursor-pointer text-xs font-bold text-white flex flex-col items-center gap-1">
+                                                <i class="fa-solid fa-cloud-arrow-up text-admin-accentBlue text-lg"></i>
+                                                Upload Imagem
+                                                <input type="file" class="hidden banner-file-upload" data-id="${banner.id}" accept="image/*" />
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="admin-label">Ou URL da Imagem</label>
+                                        <input type="text" id="banner-url-${banner.id}" class="admin-input text-xs banner-url-input" data-id="${banner.id}" value="${banner.imageUrl.startsWith('data:') ? '' : banner.imageUrl}">
+                                    </div>
+                                </div>
+
+                                <!-- Text overlays Configuration -->
+                                <div class="lg:col-span-2 space-y-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="admin-label">Badge de Categoria / Tag (Texto Curto)</label>
+                                            <input type="text" id="banner-badge-${banner.id}" class="admin-input text-xs" placeholder="Badge/Categoria" value="${banner.badge}">
+                                        </div>
+                                        <div>
+                                            <label class="admin-label">Link de Afiliado (Compra direta)</label>
+                                            <input type="text" id="banner-link-${banner.id}" class="admin-input text-xs font-mono" placeholder="Insira seu link de afiliado ML" value="${banner.affiliateUrl}">
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="admin-label">Título Principal (Foco Comercial)</label>
+                                            <input type="text" id="banner-title-${banner.id}" class="admin-input text-xs font-black" placeholder="Título" value="${banner.title}">
+                                        </div>
+                                        <div>
+                                            <label class="admin-label">Subtítulo / Chamada Secundária</label>
+                                            <input type="text" id="banner-sub-${banner.id}" class="admin-input text-xs" placeholder="Subtítulo" value="${banner.subtitle}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                tabContent.innerHTML = `
+                    <div class="space-y-6">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div>
+                                <h2 class="text-xl font-bold text-white tracking-wide">Banners Principais do Slide</h2>
+                                <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Altere as artes do carrossel principal, textos em português e links de afiliado.</p>
+                            </div>
+                            <div class="flex gap-2.5">
+                                <button id="banners-reset-btn" class="bg-white/5 border border-white/10 hover:border-red-500/50 hover:bg-red-500/5 text-red-400 font-extrabold px-6 py-2.5 rounded-xl text-xs transition uppercase tracking-wider">
+                                    Restaurar Banners
+                                </button>
+                                <button id="banners-save-btn" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold px-8 py-2.5 rounded-xl text-xs transition uppercase tracking-wider shadow-lg shadow-pink-500/10">
+                                    Salvar Alterações
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-6">
+                            ${bannersHTML}
+                        </div>
+                    </div>
+                `;
+
+                // Handle slide image uploads
+                document.querySelectorAll('.banner-file-upload').forEach(upload => {
+                    upload.addEventListener('change', (e) => {
+                        const id = parseInt(upload.getAttribute('data-id'));
+                        const file = e.target.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                document.getElementById(`banner-preview-${id}`).src = event.target.result;
+                                document.getElementById(`banner-url-${id}`).value = ''; // clear link
+                                showToast(`Slide ${id}: Imagem carregada!`, 'info');
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                });
+
+                // Handle direct URL preview changes
+                document.querySelectorAll('.banner-url-input').forEach(input => {
+                    input.addEventListener('input', (e) => {
+                        const id = parseInt(input.getAttribute('data-id'));
+                        const val = input.value.trim();
+                        if (val) {
+                            document.getElementById(`banner-preview-${id}`).src = val;
+                        }
+                    });
+                });
+
+                // Reset Banners
+                document.getElementById('banners-reset-btn').addEventListener('click', () => {
+                    localStorage.removeItem('admin-banners');
+                    showToast('Artes e links dos banners restaurados!', 'info');
+                    // Reload tab
+                    setTimeout(() => {
+                        banners = JSON.parse(localStorage.getItem('admin-banners')) || [
+                            { id: 1, badge: 'COZINHA CHARMOSA ☕', title: 'Cafeteira Britânia Rosa', subtitle: 'Seu dia começa mais doce e cheio de estilo', imageUrl: 'images/banner_casa.png', affiliateUrl: 'https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599' },
+                            { id: 2, badge: 'CASA IMPECÁVEL 🧹', title: 'Aspirador Vertical Rosa', subtitle: 'Praticidade e rapidez para a limpeza do dia a dia', imageUrl: 'images/banner_tech.png', affiliateUrl: 'https://produto.mercadolivre.com.br/MLB-4469244553-aspirador-rosa-vertical-britnia-2-em-1-1400w-base30-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599' },
+                            { id: 3, badge: 'REFRESCO E CONFORTO 💨', title: 'Ventilador Super Power', subtitle: 'Vento forte e design elegante para os dias quentes', imageUrl: 'images/banner_beleza.png', affiliateUrl: 'https://www.mercadolivre.com.br/ventilador-de-mesa-30cm-super-power-mondial-60w-vsp-30-ap/p/MLB18932161?pdp_filters=item_id%3AMLB5917028234&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599&matt_event_ts=1780069575273&matt_d2id=' }
+                        ];
+                        loadBannersTab();
+                    }, 100);
+                });
+
+                // Save Banners
+                document.getElementById('banners-save-btn').addEventListener('click', () => {
+                    let updatedBanners = [];
+                    for(let i = 1; i <= 3; i++) {
+                        const imgSource = document.getElementById(`banner-preview-${i}`).src;
+                        const badgeText = document.getElementById(`banner-badge-${i}`).value;
+                        const linkText = document.getElementById(`banner-link-${i}`).value;
+                        const titleText = document.getElementById(`banner-title-${i}`).value;
+                        const subText = document.getElementById(`banner-sub-${i}`).value;
+
+                        updatedBanners.push({
+                            id: i,
+                            badge: badgeText,
+                            title: titleText,
+                            subtitle: subText,
+                            imageUrl: imgSource,
+                            affiliateUrl: linkText
+                        });
+                    }
+
+                    banners = updatedBanners;
+                    localStorage.setItem('admin-banners', JSON.stringify(banners));
+                    showToast('Todos os 3 banners principais foram atualizados!', 'success');
+                });
+            }
+
+            // ==========================================
+            // TAB 3: CUSTOMIZAR CORES                    
+            // ==========================================
+            function loadColorsTab() {
+                tabContent.innerHTML = `
+                    <div class="space-y-6">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div>
+                                <h2 class="text-xl font-bold text-white tracking-wide">Cores e Identidade Visual</h2>
+                                <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Customizar a paleta de cores primárias, secundárias e backgrounds do portal Tudo pra Você.</p>
+                            </div>
+                            <div class="flex gap-2.5">
+                                <button id="colors-reset-btn" class="bg-white/5 border border-white/10 hover:border-red-500/50 hover:bg-red-500/5 text-red-400 font-extrabold px-6 py-2.5 rounded-xl text-xs transition uppercase tracking-wider">
+                                    Restaurar Padrão
+                                </button>
+                                <button id="colors-save-btn" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold px-8 py-2.5 rounded-xl text-xs transition uppercase tracking-wider shadow-lg shadow-pink-500/10">
+                                    Salvar Cores
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
+                            <!-- Color Pickers Box (Span 2) -->
+                            <div class="lg:col-span-2 bg-admin-card border border-admin-border rounded-2xl p-6 space-y-5">
+                                <h3 class="text-xs font-black uppercase text-admin-textMuted tracking-wider mb-2 border-b border-admin-border pb-2"><i class="fa-solid fa-sliders mr-1.5 text-admin-accentBlue"></i> Seleção de Tons da Paleta</h3>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <!-- Pink Primario -->
+                                    <div class="bg-admin-bg/40 border border-admin-border p-4 rounded-xl space-y-2">
+                                        <label class="admin-label">Rosa Primário (Botões & Elementos Ativos)</label>
+                                        <div class="flex gap-3 items-center">
+                                            <input type="color" id="color-primary-pink" class="h-10 w-16 bg-admin-bg border border-admin-border rounded cursor-pointer" value="${brandColors.primaryPink}">
+                                            <input type="text" id="color-primary-pink-hex" class="admin-input font-mono text-xs text-center" value="${brandColors.primaryPink}">
+                                        </div>
+                                    </div>
+
+                                    <!-- Rose Secundario -->
+                                    <div class="bg-admin-bg/40 border border-admin-border p-4 rounded-xl space-y-2">
+                                        <label class="admin-label">Rose Escuro (Bordas & Sombras de CTA)</label>
+                                        <div class="flex gap-3 items-center">
+                                            <input type="color" id="color-brand-rose" class="h-10 w-16 bg-admin-bg border border-admin-border rounded cursor-pointer" value="${brandColors.brandRose}">
+                                            <input type="text" id="color-brand-rose-hex" class="admin-input font-mono text-xs text-center" value="${brandColors.brandRose}">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                    <!-- Destaque Gold -->
+                                    <div class="bg-admin-bg/40 border border-admin-border p-4 rounded-xl space-y-2">
+                                        <label class="admin-label">Dourado / Ouro (Cupom & Badges)</label>
+                                        <div class="flex gap-3 items-center">
+                                            <input type="color" id="color-brand-gold" class="h-10 w-12 bg-admin-bg border border-admin-border rounded cursor-pointer" value="${brandColors.brandGold}">
+                                            <input type="text" id="color-brand-gold-hex" class="admin-input font-mono text-[10px] text-center px-1" value="${brandColors.brandGold}">
+                                        </div>
+                                    </div>
+
+                                    <!-- Background Soft Pink -->
+                                    <div class="bg-admin-bg/40 border border-admin-border p-4 rounded-xl space-y-2">
+                                        <label class="admin-label">Fundo Suave (Seções Claras)</label>
+                                        <div class="flex gap-3 items-center">
+                                            <input type="color" id="color-bg-soft" class="h-10 w-12 bg-admin-bg border border-admin-border rounded cursor-pointer" value="${brandColors.bgSoftPink}">
+                                            <input type="text" id="color-bg-soft-hex" class="admin-input font-mono text-[10px] text-center px-1" value="${brandColors.bgSoftPink}">
+                                        </div>
+                                    </div>
+
+                                    <!-- Blush Pink Borders -->
+                                    <div class="bg-admin-bg/40 border border-admin-border p-4 rounded-xl space-y-2">
+                                        <label class="admin-label">Rosa Blush (Bordas de Cards)</label>
+                                        <div class="flex gap-3 items-center">
+                                            <input type="color" id="color-bg-blush" class="h-10 w-12 bg-admin-bg border border-admin-border rounded cursor-pointer" value="${brandColors.bgBlush}">
+                                            <input type="text" id="color-bg-blush-hex" class="admin-input font-mono text-[10px] text-center px-1" value="${brandColors.bgBlush}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Preset Themes Box (Span 1) -->
+                            <div class="lg:col-span-1 bg-admin-card border border-admin-border rounded-2xl p-6 space-y-5">
+                                <h3 class="text-xs font-black uppercase text-admin-textMuted tracking-wider mb-2 border-b border-admin-border pb-2"><i class="fa-solid fa-tags mr-1.5 text-admin-accentGold"></i> Presets de Cores</h3>
+                                <p class="text-[10px] text-admin-textMuted leading-relaxed">Selecione uma paleta harmônica pronta com apenas um clique:</p>
+                                
+                                <div class="space-y-3">
+                                    <!-- Preset 1: Original Pink & Gold -->
+                                    <button class="preset-btn w-full bg-admin-bg hover:bg-white/5 border border-admin-border hover:border-admin-accentBlue/50 p-3.5 rounded-xl text-left text-xs font-bold transition flex justify-between items-center" data-theme="original">
+                                        <span>Hot Pink & Gold (Original)</span>
+                                        <div class="flex gap-1.5">
+                                            <div class="color-bubble" style="background-color: #FF1A75;"></div>
+                                            <div class="color-bubble" style="background-color: #FFD700;"></div>
+                                        </div>
+                                    </button>
+
+                                    <!-- Preset 2: Luxury Dark Gold -->
+                                    <button class="preset-btn w-full bg-admin-bg hover:bg-white/5 border border-admin-border hover:border-admin-accentBlue/50 p-3.5 rounded-xl text-left text-xs font-bold transition flex justify-between items-center" data-theme="violet">
+                                        <span>Violet Glow & Amber</span>
+                                        <div class="flex gap-1.5">
+                                            <div class="color-bubble" style="background-color: #8B5CF6;"></div>
+                                            <div class="color-bubble" style="background-color: #F59E0B;"></div>
+                                        </div>
+                                    </button>
+
+                                    <!-- Preset 3: Sweet Cherry -->
+                                    <button class="preset-btn w-full bg-admin-bg hover:bg-white/5 border border-admin-border hover:border-admin-accentBlue/50 p-3.5 rounded-xl text-left text-xs font-bold transition flex justify-between items-center" data-theme="cherry">
+                                        <span>Sweet Cherry & Bronze</span>
+                                        <div class="flex gap-1.5">
+                                            <div class="color-bubble" style="background-color: #E11D48;"></div>
+                                            <div class="color-bubble" style="background-color: #CD7F32;"></div>
+                                        </div>
+                                    </button>
+
+                                    <!-- Preset 4: Emerald Breeze -->
+                                    <button class="preset-btn w-full bg-admin-bg hover:bg-white/5 border border-admin-border hover:border-admin-accentBlue/50 p-3.5 rounded-xl text-left text-xs font-bold transition flex justify-between items-center" data-theme="emerald">
+                                        <span>Emerald & Mint</span>
+                                        <div class="flex gap-1.5">
+                                            <div class="color-bubble" style="background-color: #059669;"></div>
+                                            <div class="color-bubble" style="background-color: #10B981;"></div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Set selectors
+                const pickPink = document.getElementById('color-primary-pink');
+                const hexPink = document.getElementById('color-primary-pink-hex');
+
+                const pickRose = document.getElementById('color-brand-rose');
+                const hexRose = document.getElementById('color-brand-rose-hex');
+
+                const pickGold = document.getElementById('color-brand-gold');
+                const hexGold = document.getElementById('color-brand-gold-hex');
+
+                const pickSoft = document.getElementById('color-bg-soft');
+                const hexSoft = document.getElementById('color-bg-soft-hex');
+
+                const pickBlush = document.getElementById('color-bg-blush');
+                const hexBlush = document.getElementById('color-bg-blush-hex');
+
+                // Helper to link picker and hex text
+                function linkColor(picker, hexInput) {
+                    picker.addEventListener('input', (e) => {
+                        hexInput.value = e.target.value.toUpperCase();
+                    });
+                    hexInput.addEventListener('input', (e) => {
+                        const val = e.target.value;
+                        if (val.match(/^#[0-9A-F]{6}$/i)) {
+                            picker.value = val;
+                        }
+                    });
+                }
+
+                linkColor(pickPink, hexPink);
+                linkColor(pickRose, hexRose);
+                linkColor(pickGold, hexGold);
+                linkColor(pickSoft, hexSoft);
+                linkColor(pickBlush, hexBlush);
+
+                // Presets Logic
+                document.querySelectorAll('.preset-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const theme = btn.getAttribute('data-theme');
+                        
+                        let customTheme = {};
+                        if (theme === 'original') {
+                            customTheme = { pk: '#FF1A75', rs: '#D6005A', gd: '#FFD700', sf: '#FFF5F7', bl: '#FFE4E8' };
+                        } else if (theme === 'violet') {
+                            customTheme = { pk: '#8B5CF6', rs: '#6D28D9', gd: '#F59E0B', sf: '#F5F3FF', bl: '#DDD6FE' };
+                        } else if (theme === 'cherry') {
+                            customTheme = { pk: '#E11D48', rs: '#BE123C', gd: '#CD7F32', sf: '#FFF1F2', bl: '#FFE4E6' };
+                        } else if (theme === 'emerald') {
+                            customTheme = { pk: '#059669', rs: '#047857', gd: '#F59E0B', sf: '#ECFDF5', bl: '#D1FAE5' };
+                        }
+
+                        pickPink.value = customTheme.pk; hexPink.value = customTheme.pk;
+                        pickRose.value = customTheme.rs; hexRose.value = customTheme.rs;
+                        pickGold.value = customTheme.gd; hexGold.value = customTheme.gd;
+                        pickSoft.value = customTheme.sf; hexSoft.value = customTheme.sf;
+                        pickBlush.value = customTheme.bl; hexBlush.value = customTheme.bl;
+
+                        showToast(`Paleta ${btn.querySelector('span').textContent} carregada! Clique em "Salvar" para aplicar.`, 'info');
+                    });
+                });
+
+                // Reset Colors
+                document.getElementById('colors-reset-btn').addEventListener('click', () => {
+                    localStorage.removeItem('admin-colors');
+                    brandColors = {
+                        primaryPink: '#FF1A75',
+                        brandRose: '#D6005A',
+                        brandGold: '#FFD700',
+                        bgSoftPink: '#FFF5F7',
+                        bgBlush: '#FFE4E8'
+                    };
+                    loadColorsTab();
+                    showToast('Paleta de cores restaurada para o padrão!', 'info');
+                });
+
+                // Save Colors
+                document.getElementById('colors-save-btn').addEventListener('click', () => {
+                    brandColors.primaryPink = hexPink.value.trim();
+                    brandColors.brandRose = hexRose.value.trim();
+                    brandColors.brandGold = hexGold.value.trim();
+                    brandColors.bgSoftPink = hexSoft.value.trim();
+                    brandColors.bgBlush = hexBlush.value.trim();
+
+                    localStorage.setItem('admin-colors', JSON.stringify(brandColors));
+                    showToast('Paleta de cores salva com sucesso!', 'success');
+                });
+            }
+
+            // ==========================================
+            // TAB 4: CADASTRAR PRODUTOS                 
+            // ==========================================
+                /* 
+                   ==============================================================
+                   📌 BANCO DE DADOS DINÂMICO & AFILIADOS (VANESSA PARVATI)
+                   ==============================================================
+                   1. SINGLE SOURCE OF TRUTH: Todos os produtos são exibidos e gerenciados 
+                      da chave 'admin-custom-products' do localStorage.
+                   2. AUTO-HIDRATAÇÃO E MIGRAÇÃO: Caso o localStorage esteja vazio ou possua 
+                      a base de dados antiga de 16 produtos (comprimento < 40 itens), o painel 
+                      sobrescreve e hidrata automaticamente a base local com os 51 produtos 
+                      premium de afiliada definidos no array estático DEFAULT_PRODUCTS.
+                   3. AÇÕES DE GERENCIAMENTO: Suporta exclusão física de itens e edição reativa 
+                      (lápis azul) que preenche o formulário manual de cadastro e ativa o 
+                      modo edição (Título, Preço, ID, Categoria, Emoji e Link Customizado).
+                   4. BYPASS DE REDE (HTML PARSER): O formulário inclui o parser local 
+                      que extrai dados de metatags de códigos-fonte HTML colados pelo usuário 
+                      para evitar bloqueios de CORS e requisições do Mercado Livre.
+                   ==============================================================
+                */
+                let customProducts = JSON.parse(localStorage.getItem('admin-custom-products'));
+                if (!customProducts || customProducts.length < 40) {
+                    customProducts = [...DEFAULT_PRODUCTS];
+                    localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
+                }
+                
+                let productsRowsHTML = '';
+                customProducts.forEach((prod, index) => {
+                    productsRowsHTML += `
+                        <tr class="border-b border-admin-border hover:bg-white/5 transition duration-150">
+                            <td class="py-3 px-4">
+                                <img src="${prod.img_url}" class="h-10 w-10 object-contain rounded bg-white p-0.5" onerror="this.src='https://placehold.co/40x40/151518/ffffff?text=Prod'">
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="text-xs font-bold text-white max-w-xs truncate">${prod.name}</div>
+                                <div class="text-[9px] text-admin-textMuted uppercase font-semibold mt-0.5">ID: ${prod.id}</div>
+                            </td>
+                            <td class="py-3 px-4 text-[10px] font-black uppercase text-admin-accentGold">${prod.category}</td>
+                            <td class="py-3 px-4 text-xs font-mono text-white">R$ ${prod.price.toFixed(2)}</td>
+                            <td class="py-3 px-4">
+                                <div class="flex gap-2">
+                                    <button class="edit-prod-btn h-8 w-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white transition flex items-center justify-center" data-id="${prod.id}" title="Editar Produto">
+                                        <i class="fa-solid fa-pen text-xs"></i>
+                                    </button>
+                                    <button class="delete-prod-btn h-8 w-8 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition flex items-center justify-center" data-id="${prod.id}" title="Excluir Produto">
+                                        <i class="fa-solid fa-trash-can text-xs"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tabContent.innerHTML = `
+                    <div class="space-y-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-white tracking-wide">Cadastro de Produtos da Vitrine</h2>
+                            <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Cadastre seus links de afiliados e insira novos achados diretamente na vitrine do site.</p>
+                        </div>
+
+                        <!-- Sincronização Automática Box -->
+                        <div class="bg-gradient-to-r from-admin-card via-admin-card to-pink-950/10 border border-admin-border hover:border-admin-accentGold/30 rounded-2xl p-5 md:p-6 space-y-4 transition duration-300 animate-fade-in">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-admin-border pb-3">
+                                <div>
+                                    <h3 class="text-sm font-black uppercase text-white tracking-wider flex items-center gap-2">
+                                        <i class="fa-solid fa-sync text-admin-accentGold animate-pulse"></i>
+                                        Sincronizar Loja de Afiliados da Vanessa (Nessa)
+                                    </h3>
+                                    <p class="text-[10px] text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">
+                                        Importa automaticamente todos os produtos da vitrine social da Vanessa diretamente do Mercado Livre.
+                                    </p>
+                                </div>
+                                <div class="shrink-0 flex gap-2">
+                                    <button type="button" id="sync-vanessa-btn" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold px-6 py-3 rounded-xl uppercase tracking-wider text-xs transition duration-200 shadow-lg shadow-pink-500/10 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-rotate"></i> Sincronizar Loja
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                                <div class="md:col-span-3">
+                                    <label class="admin-label">Link da Vitrine/Lista de Afiliados no Mercado Livre</label>
+                                    <input type="url" id="sync-url" class="admin-input text-xs font-mono" value="https://www.mercadolivre.com.br/social/vanessaparvati/lists/993dfb99-913f-4b93-a6e9-d7886a1b911d" placeholder="Cole o link da lista de afiliados...">
+                                </div>
+                                <div>
+                                    <label class="admin-label">Parâmetros de Afiliado (Vanessa)</label>
+                                    <div class="text-[10px] text-admin-accentGold font-bold bg-white/5 p-2.5 rounded-xl border border-white/5 font-mono leading-relaxed">
+                                        matt_tool=80930673<br>matt_word=vanessaparvati
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Log e Progresso -->
+                            <div id="sync-log-container" class="hidden bg-admin-bg border border-admin-border rounded-xl p-4 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fa-solid fa-spinner animate-spin text-admin-accentBlue" id="sync-spinner"></i>
+                                        <span id="sync-status-text">Iniciando Sincronização...</span>
+                                    </span>
+                                    <span class="text-[10px] text-admin-textMuted font-mono" id="sync-timer">0.0s</span>
+                                </div>
+                                <div class="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+                                    <div id="sync-progress-bar" class="bg-gradient-to-r from-admin-accentBlue to-admin-accentGold h-full w-0 transition-all duration-300"></div>
+                                </div>
+                                <div id="sync-log-details" class="text-[9px] font-mono text-admin-textMuted max-h-24 overflow-y-auto space-y-1 pt-1 leading-relaxed border-t border-admin-border/50">
+                                    <!-- Log lines dynamic -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start animate-fade-in">
+                            
+                            <!-- Left: Form Box (Span 2) -->
+                            <div class="lg:col-span-2 bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 space-y-5">
+                                <h3 id="form-header-title" class="text-xs font-black uppercase text-admin-textMuted tracking-wider mb-2 border-b border-admin-border pb-2">
+                                    <i class="fa-solid fa-cart-plus mr-1.5 text-admin-accentBlue"></i> Novo Achadinho
+                                </h3>
+                                
+                                <form id="prod-register-form" class="space-y-4">
+                                    <div>
+                                        <label class="admin-label">Link do Produto no Mercado Livre (Opcional se cadastrar manualmente)</label>
+                                        <div class="flex gap-2">
+                                            <input type="url" id="prod-url" class="admin-input text-xs font-mono" placeholder="https://www.mercadolivre.com.br/p/MLB...">
+                                            <button type="button" id="prod-fetch-btn" class="bg-white/5 border border-white/10 hover:border-admin-accentBlue/50 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition duration-200 shrink-0 uppercase tracking-wider">
+                                                <i class="fa-solid fa-cloud-arrow-down mr-1"></i> Detectar
+                                            </button>
+                                        </div>
+                                        <div class="flex items-start gap-2 mt-2 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                                            <i class="fa-solid fa-circle-info text-blue-400 mt-0.5 shrink-0"></i>
+                                            <div class="text-[10px] text-blue-200 leading-relaxed">
+                                                <strong class="font-bold text-blue-300">Como usar:</strong> Cole a URL do produto do Mercado Livre e clique em <strong>Detectar</strong> para preenchimento inteligente.
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Fallback de Extração Manual por Código Fonte (Bypass) -->
+                                    <div class="bg-white/5 border border-white/10 rounded-xl p-3 space-y-2">
+                                        <div class="flex items-center justify-between cursor-pointer" onclick="document.getElementById('manual-html-box').classList.toggle('hidden')">
+                                            <span class="text-[10px] font-bold text-admin-accentGold uppercase tracking-wider flex items-center gap-1.5">
+                                                <i class="fa-solid fa-code text-admin-accentGold"></i>
+                                                Bypass Bloqueio: Colar HTML do Produto (Opcional)
+                                            </span>
+                                            <i class="fa-solid fa-chevron-down text-admin-textMuted text-[10px]"></i>
+                                        </div>
+                                        <div id="manual-html-box" class="hidden space-y-2 pt-2 border-t border-white/5">
+                                            <p class="text-[9px] text-admin-textMuted leading-relaxed">
+                                                Se a detecção automática falhar devido a bloqueios do Mercado Livre, abra o produto no PC, clique com o botão direito -> <strong>Exibir Código Fonte da Página</strong> (ou Ctrl+U / Cmd+U). Copie tudo (Ctrl+A -> Ctrl+C) e cole no campo abaixo.
+                                            </p>
+                                            <textarea id="prod-raw-html" class="admin-input text-[10px] font-mono h-24" placeholder="Cole o código HTML da página do produto aqui..."></textarea>
+                                            <button type="button" id="prod-parse-html-btn" class="w-full bg-admin-accentBlue/20 border border-admin-accentBlue/30 hover:bg-admin-accentBlue/40 text-admin-accentBlue font-bold py-2 rounded-xl text-[10px] uppercase tracking-wider transition">
+                                                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Extrair do HTML Colado
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="admin-label">Nome Completo do Produto *</label>
+                                        <input type="text" id="prod-name" class="admin-input text-xs font-bold" placeholder="Ex: Organizador de Maquiagem Acrílico Giratório" required>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label class="admin-label">Preço Atual (R$) *</label>
+                                            <input type="number" step="0.01" id="prod-price" class="admin-input text-xs font-mono" placeholder="149.90" required>
+                                        </div>
+                                        <div>
+                                            <label class="admin-label">Preço Antigo (Opcional - R$)</label>
+                                            <input type="number" step="0.01" id="prod-old-price" class="admin-input text-xs font-mono" placeholder="187.38">
+                                        </div>
+                                        <div>
+                                            <label class="admin-label">Categoria da Vitrine *</label>
+                                            <select id="prod-category" class="admin-input text-xs bg-admin-bg cursor-pointer" required>
+                                                <option value="casa">🏠 Casa & Cozinha</option>
+                                                <option value="beleza">💄 Beleza & Cuidados</option>
+                                                <option value="eletrônicos">⚡ Eletrônicos & Gadgets</option>
+                                                <option value="organização">📦 Organização</option>
+                                                <option value="utilidades">🛍️ Utilidades Úteis</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div class="md:col-span-2">
+                                            <label class="admin-label">URL da Imagem do Produto *</label>
+                                            <input type="url" id="prod-img" class="admin-input text-xs" placeholder="https://http2.mlstatic.com/...webp" required>
+                                        </div>
+                                        <div>
+                                            <label class="admin-label">Emoji / Badge Tag *</label>
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <input type="text" id="prod-emoji" class="admin-input text-xs text-center" placeholder="💄" value="🎁" required>
+                                                <input type="text" id="prod-badge" class="admin-input text-xs text-center" placeholder="Destaque" value="Novidade">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Novos Campos Avançados: ID e Link Customizado de Afiliado -->
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-admin-border pt-4">
+                                        <div>
+                                            <label class="admin-label">Código ID do Produto (Auto-gerado se em branco)</label>
+                                            <input type="text" id="prod-id" class="admin-input text-xs font-mono font-bold" placeholder="Código numérico ou MLB ID">
+                                        </div>
+                                        <div>
+                                            <label class="admin-label">Link de Afiliado Final Customizado (Opcional)</label>
+                                            <input type="url" id="prod-custom-link" class="admin-input text-xs font-mono" placeholder="Ex: https://meli.la/... ou seu link final">
+                                        </div>
+                                    </div>
+
+                                    <div class="flex justify-end gap-3 pt-2">
+                                        <button type="button" id="prod-cancel-edit-btn" class="hidden bg-white/5 border border-white/10 hover:bg-white/10 text-white font-extrabold px-6 py-3 rounded-xl uppercase tracking-wider text-xs transition duration-200">
+                                            Cancelar Edição
+                                        </button>
+                                        <button type="submit" id="prod-submit-btn" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold px-8 py-3 rounded-xl uppercase tracking-wider text-xs transition duration-200 shadow-lg shadow-pink-500/10">
+                                            Cadastrar Produto
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Right: Products List Box (Span 1) -->
+                            <div class="lg:col-span-1 bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 flex flex-col justify-between max-h-[500px]">
+                                <div class="space-y-4 flex flex-col h-full overflow-hidden">
+                                    <h3 class="text-xs font-black uppercase text-admin-textMuted tracking-wider mb-2 border-b border-admin-border pb-2"><i class="fa-solid fa-list mr-1.5 text-admin-accentGold"></i> Todos os Produtos (${customProducts.length})</h3>
+                                    
+                                    <div class="flex-1 overflow-y-auto pr-1">
+                                        <table class="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr class="border-b border-admin-border text-[9px] font-black uppercase text-admin-textMuted tracking-wider">
+                                                    <th class="pb-2">Foto</th>
+                                                    <th class="pb-2">Nome/ID</th>
+                                                    <th class="pb-2">Cat</th>
+                                                    <th class="pb-2">Preço</th>
+                                                    <th class="pb-2">Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="custom-products-tbody">
+                                                ${productsRowsHTML}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // --- Lógica do Botão Cancelar Edição ---
+                const cancelEditBtn = document.getElementById('prod-cancel-edit-btn');
+                cancelEditBtn.addEventListener('click', () => {
+                    isEditing = false;
+                    editingProductId = null;
+                    
+                    document.getElementById('prod-register-form').reset();
+                    document.getElementById('prod-id').value = '';
+                    document.getElementById('prod-id').disabled = false;
+                    document.getElementById('prod-custom-link').value = '';
+                    
+                    document.getElementById('form-header-title').innerHTML = `<i class="fa-solid fa-cart-plus mr-1.5 text-admin-accentBlue"></i> Novo Achadinho`;
+                    document.getElementById('prod-submit-btn').innerText = 'Cadastrar Produto';
+                    cancelEditBtn.classList.add('hidden');
+                    showToast('Edição cancelada!', 'info');
+                });
+
+                // Handle Form Submit (Add or Edit product)
+                document.getElementById('prod-register-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    const url = document.getElementById('prod-url').value.trim();
+                    const customLink = document.getElementById('prod-custom-link').value.trim();
+                    const name = document.getElementById('prod-name').value.trim();
+                    const price = parseFloat(document.getElementById('prod-price').value);
+                    const oldPrice = parseFloat(document.getElementById('prod-old-price').value) || null;
+                    const category = document.getElementById('prod-category').value;
+                    const imgUrl = document.getElementById('prod-img').value.trim();
+                    const emoji = document.getElementById('prod-emoji').value.trim();
+                    const badge = document.getElementById('prod-badge').value.trim() || 'Achadinho';
+                    const customId = document.getElementById('prod-id').value.trim();
+
+                    // Final Target Link logic: custom affiliate link or auto ML redirect URL
+                    let finalUrl = customLink;
+                    if (!finalUrl) {
+                        if (url) {
+                            // Strip tracking parameters and add Vanessa's ones
+                            let base = url.split('?')[0];
+                            finalUrl = `${base}?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true`;
+                        } else {
+                            finalUrl = 'https://www.mercadolivre.com.br';
+                        }
+                    }
+
+                    if (isEditing) {
+                        // Update existing product
+                        const index = customProducts.findIndex(p => p.id === editingProductId);
+                        if (index !== -1) {
+                            let newId = customId ? (isNaN(customId) ? customId : parseInt(customId)) : editingProductId;
+                            
+                            customProducts[index] = {
+                                ...customProducts[index],
+                                id: newId,
+                                name: name,
+                                category: category,
+                                price: price,
+                                oldPrice: oldPrice || (price * 1.25),
+                                badge: badge,
+                                emoji: emoji,
+                                glowColor: "rgba(255,26,117,0.3)",
+                                searchKeys: `${name.toLowerCase()} ${category.toLowerCase()} achadinho`,
+                                url: finalUrl,
+                                img_url: imgUrl
+                            };
+                            
+                            localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
+                            showToast('Produto atualizado com sucesso!', 'success');
+                            
+                            isEditing = false;
+                            editingProductId = null;
+                        } else {
+                            showToast('Erro ao encontrar produto para salvar!', 'error');
+                        }
+                    } else {
+                        // Create unique product object
+                        let newId = customId ? (isNaN(customId) ? customId : parseInt(customId)) : Date.now();
+                        
+                        const newProd = {
+                            id: newId,
+                            name: name,
+                            category: category,
+                            brand: "Curadoria",
+                            price: price,
+                            oldPrice: oldPrice || (price * 1.25),
+                            badge: badge,
+                            emoji: emoji,
+                            glowColor: "rgba(255,26,117,0.3)",
+                            searchKeys: `${name.toLowerCase()} ${category.toLowerCase()} achadinho`,
+                            url: finalUrl,
+                            img_url: imgUrl
+                        };
+
+                        customProducts.unshift(newProd); // Add to beginning
+                        localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
+                        showToast('Produto cadastrado e inserido na vitrine!', 'success');
+                    }
+                    
+                    // Reload tab
+                    setTimeout(() => {
+                        loadProductsTab();
+                    }, 200);
+                });
+
+                // Atrelar Clique de Edição de Produtos (Edit Product button)
+                document.querySelectorAll('.edit-prod-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = parseInt(btn.getAttribute('data-id')) || btn.getAttribute('data-id');
+                        const prod = customProducts.find(p => p.id === id);
+                        
+                        if (prod) {
+                            isEditing = true;
+                            editingProductId = prod.id;
+                            
+                            // Fill all form inputs
+                            document.getElementById('prod-url').value = prod.url || '';
+                            document.getElementById('prod-name').value = prod.name;
+                            document.getElementById('prod-price').value = prod.price;
+                            document.getElementById('prod-old-price').value = prod.oldPrice || '';
+                            document.getElementById('prod-category').value = prod.category;
+                            document.getElementById('prod-img').value = prod.img_url;
+                            document.getElementById('prod-emoji').value = prod.emoji;
+                            document.getElementById('prod-badge').value = prod.badge;
+                            document.getElementById('prod-id').value = prod.id;
+                            
+                            // Check if the URL is customized
+                            if (prod.url && prod.url.includes('matt_tool=80930673') && prod.url.includes('matt_word=vanessaparvati')) {
+                                // Default affiliate format, let prod-custom-link be empty
+                                document.getElementById('prod-custom-link').value = '';
+                                // Extracted ML clean URL
+                                document.getElementById('prod-url').value = prod.url.split('?')[0];
+                            } else {
+                                // Direct custom affiliate link
+                                document.getElementById('prod-custom-link').value = prod.url || '';
+                                document.getElementById('prod-url').value = prod.url || '';
+                            }
+                            
+                            // Show Cancel Button and edit visual states
+                            document.getElementById('form-header-title').innerHTML = `<i class="fa-solid fa-pen-to-square mr-1.5 text-admin-accentGold"></i> Editar Produto #${prod.id}`;
+                            document.getElementById('prod-submit-btn').innerText = 'Salvar Alterações';
+                            document.getElementById('prod-cancel-edit-btn').classList.remove('hidden');
+                            
+                            // Scroll the form into view smoothly
+                            document.getElementById('prod-register-form').scrollIntoView({ behavior: 'smooth' });
+                            showToast('Produto carregado para edição!', 'info');
+                        }
+                    });
+                });
+
+                // === MOTOR DE EXTRAÇÃO MANUAL DE HTML (BYPASS) ===
+                document.getElementById('prod-parse-html-btn').addEventListener('click', () => {
+                    const rawHtml = document.getElementById('prod-raw-html').value.trim();
+                    if (!rawHtml) {
+                        showToast('Cole o código fonte HTML primeiro!', 'error');
+                        return;
+                    }
+
+                    function categorize(title) {
+                        const low = (title||'').toLowerCase();
+                        if (/cafeteira|espremedor|panela|chaleira|copo|liquidificador|frigideira|cozinha/.test(low)) return 'casa';
+                        if (/aspirador|organizador|gaveta|cabide|armario|prateleira/.test(low)) return 'organização';
+                        if (/maquiagem|cabelo|secador|creme|perfume|shampoo|esmalte|batom|pele|beleza/.test(low)) return 'beleza';
+                        if (/carregador|fone|cabo|smartwatch|caixa de som|led|ring light|celular|tablet|notebook|bluetooth/.test(low)) return 'eletrônicos';
+                        return 'utilidades';
+                    }
+
+                    function fillForm({ title, price, oldPrice, imgUrl }) {
+                        if (title) document.getElementById('prod-name').value = title;
+                        if (price > 0) {
+                            document.getElementById('prod-price').value = price.toFixed(2);
+                            document.getElementById('prod-old-price').value = (oldPrice > price ? oldPrice : price * 1.25).toFixed(2);
+                        }
+                        if (imgUrl) document.getElementById('prod-img').value = imgUrl;
+                        const cat = categorize(title);
+                        document.getElementById('prod-category').value = cat;
+                        const emojiMap = { casa:'☕', 'organização':'🧹', beleza:'💄', 'eletrônicos':'⚡', utilidades:'🛍️' };
+                        document.getElementById('prod-emoji').value = emojiMap[cat] || '🛍️';
+                    }
+
+                    function parseJsonLd(html) {
+                        const matches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+                        for (const match of matches) {
+                            try {
+                                const data = JSON.parse(match[1]);
+                                const type = data['@type'] || '';
+                                if (type === 'Product' || type === 'ItemPage') {
+                                    const title = (data.name || '').trim();
+                                    const offers = data.offers;
+                                    let price = 0, oldPrice = 0;
+                                    if (offers) {
+                                        if (Array.isArray(offers)) {
+                                            price = parseFloat(offers[0]?.price) || 0;
+                                        } else {
+                                            price = parseFloat(offers.price) || 0;
+                                        }
+                                    }
+                                    const rawImg = data.image;
+                                    const imgUrl = Array.isArray(rawImg) ? rawImg[0] : (rawImg || '');
+                                    if (title) return { title, price, oldPrice, imgUrl };
+                                }
+                            } catch(e) {}
+                        }
+                        return null;
+                    }
+
+                    function parseMetaTags(html) {
+                        const titleM = html.match(/property=["']og:title["'][^>]*content=["']([^"']{5,})["']/i)
+                                     || html.match(/content=["']([^"']{5,})["'][^>]*property=["']og:title["']/i);
+                        const imgM   = html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+                                     || html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+                        const priceM = html.match(/itemprop=["']price["'][^>]*content=["']([\d.]+)["']/i)
+                                     || html.match(/content=["']([\d.]+)["'][^>]*itemprop=["']price["']/i)
+                                     || html.match(/"price"\s*:\s*"?(\d+\.?\d*)"?/);
+
+                        const title = titleM ? titleM[1].split(' | ')[0].split(' - Frete')[0].trim() : '';
+                        return {
+                            title,
+                            price: priceM ? parseFloat(priceM[1]) : 0,
+                            oldPrice: 0,
+                            imgUrl: imgM ? imgM[1] : ''
+                        };
+                    }
+
+                    try {
+                        let parsed = parseJsonLd(rawHtml);
+                        if (!parsed || !parsed.title) {
+                            parsed = parseMetaTags(rawHtml);
+                        }
+
+                        if (!parsed || !parsed.title) {
+                            throw new Error('Não foi possível extrair dados desse código HTML. Preencha os campos manualmente.');
+                        }
+
+                        fillForm(parsed);
+                        showToast('✅ Dados extraídos com sucesso do código HTML!', 'success');
+                        document.getElementById('manual-html-box').classList.add('hidden');
+                        document.getElementById('prod-raw-html').value = '';
+                    } catch (err) {
+                        showToast(`❌ Falha na extração: ${err.message}`, 'error');
+                    }
+                });
+
+                // === MOTOR DE DETECÇÃO - CORSPROXY + JSON-LD PARSER ===
+                document.getElementById('prod-fetch-btn').addEventListener('click', async () => {
+                    const rawUrl = document.getElementById('prod-url').value.trim();
+
+                    if (!rawUrl) {
+                        showToast('Cole o link do produto primeiro!', 'error');
+                        return;
+                    }
+
+                    const btn = document.getElementById('prod-fetch-btn');
+                    btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-1"></i> Detectando`;
+                    btn.disabled = true;
+
+                    function extractMLBId(str) {
+                        if (!str) return null;
+                        // 1. Prefer item_id or wid in parameters (corresponds to active seller listing ID)
+                        const mParam = str.match(/(?:item_id|wid)[%:=]+(MLB\d+)/i);
+                        if (mParam) return mParam[1].toUpperCase();
+                        
+                        // 2. Fallback to standard MLB matching in URL path
+                        const m = str.match(/MLB[-_]?(\d{7,12})/i);
+                        return m ? 'MLB' + m[1] : null;
+                    }
+
+                    function toCanonicalUrl(url) {
+                        if (url.toLowerCase().includes('/p/mlb')) {
+                            // Catalog URLs are already canonical. Just strip query and hash parameters.
+                            return url.split('?')[0].split('#')[0];
+                        }
+                        const mlbId = extractMLBId(url);
+                        if (mlbId) return `https://produto.mercadolivre.com.br/${mlbId.replace('MLB','MLB-')}`;
+                        return url;
+                    }
+
+                    function categorize(title) {
+                        const low = (title||'').toLowerCase();
+                        if (/cafeteira|espremedor|panela|chaleira|copo|liquidificador|frigideira|cozinha/.test(low)) return 'casa';
+                        if (/aspirador|organizador|gaveta|cabide|armario|prateleira/.test(low)) return 'organização';
+                        if (/maquiagem|cabelo|secador|creme|perfume|shampoo|esmalte|batom|pele|beleza/.test(low)) return 'beleza';
+                        if (/carregador|fone|cabo|smartwatch|caixa de som|led|ring light|celular|tablet|notebook|bluetooth/.test(low)) return 'eletrônicos';
+                        return 'utilidades';
+                    }
+
+                    function fillForm({ title, price, oldPrice, imgUrl }) {
+                        if (title) document.getElementById('prod-name').value = title;
+                        if (price > 0) {
+                            document.getElementById('prod-price').value = price.toFixed(2);
+                            document.getElementById('prod-old-price').value = (oldPrice > price ? oldPrice : price * 1.25).toFixed(2);
+                        }
+                        if (imgUrl) document.getElementById('prod-img').value = imgUrl;
+                        const cat = categorize(title);
+                        document.getElementById('prod-category').value = cat;
+                        const emojiMap = { casa:'☕', 'organização':'🧹', beleza:'💄', 'eletrônicos':'⚡', utilidades:'🛍️' };
+                        document.getElementById('prod-emoji').value = emojiMap[cat] || '🛍️';
+                        
+                        // Fill ID field with MLB ID automatically
+                        const mlbId = extractMLBId(rawUrl);
+                        if (mlbId) document.getElementById('prod-id').value = mlbId;
+                    }
+
+                    const PROXIES = [
+                        url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                        url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+                    ];
+
+                    async function fetchHtml(targetUrl) {
+                        for (const buildProxyUrl of PROXIES) {
+                            try {
+                                const res = await fetch(buildProxyUrl(targetUrl), { 
+                                    signal: AbortSignal.timeout(10000) 
+                                });
+                                if (res.ok) {
+                                    const text = await res.text();
+                                    if (text.length > 5000 && !text.includes('ui-empty-state')) {
+                                        return text;
+                                    }
+                                }
+                            } catch(e) { /* try next */ }
+                        }
+                        return null;
+                    }
+
+                    function parseJsonLd(html) {
+                        const matches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+                        for (const match of matches) {
+                            try {
+                                const data = JSON.parse(match[1]);
+                                const type = data['@type'] || '';
+                                if (type === 'Product' || type === 'ItemPage') {
+                                    const title = (data.name || '').trim();
+                                    const offers = data.offers;
+                                    let price = 0, oldPrice = 0;
+                                    if (offers) {
+                                        if (Array.isArray(offers)) {
+                                            price = parseFloat(offers[0]?.price) || 0;
+                                        } else {
+                                            price = parseFloat(offers.price) || 0;
+                                        }
+                                    }
+                                    const rawImg = data.image;
+                                    const imgUrl = Array.isArray(rawImg) ? rawImg[0] : (rawImg || '');
+                                    if (title) return { title, price, oldPrice, imgUrl };
+                                }
+                            } catch(e) {}
+                        }
+                        return null;
+                    }
+
+                    function parseMetaTags(html) {
+                        const titleM = html.match(/property=["']og:title["'][^>]*content=["']([^"']{5,})["']/i)
+                                     || html.match(/content=["']([^"']{5,})["'][^>]*property=["']og:title["']/i);
+                        const imgM   = html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+                                     || html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+                        const priceM = html.match(/itemprop=["']price["'][^>]*content=["']([\d.]+)["']/i)
+                                     || html.match(/content=["']([\d.]+)["'][^>]*itemprop=["']price["']/i)
+                                     || html.match(/"price"\s*:\s*"?(\d+\.?\d*)"?/);
+
+                        const title = titleM ? titleM[1].split(' | ')[0].split(' - Frete')[0].trim() : '';
+                        return {
+                            title,
+                            price: priceM ? parseFloat(priceM[1]) : 0,
+                            oldPrice: 0,
+                            imgUrl: imgM ? imgM[1] : ''
+                        };
+                    }
+
+                    try {
+                        if (rawUrl.includes('meli.la') || rawUrl.includes('click.linksynergy') || rawUrl.includes('bit.ly')) {
+                            throw new Error('Links encurtados (meli.la) não podem ser detectados automaticamente. Por favor, cole o link original completo ou use o Bypass Código Fonte.');
+                        }
+
+                        if (rawUrl.includes('/social/') || rawUrl.includes('/perfil/') || (!rawUrl.includes('MLB') && !rawUrl.includes('mercadolivre'))) {
+                            throw new Error('Este link parece ser de uma loja, não de um produto. Cole a URL original de um produto.');
+                        }
+
+                        const targetUrl = toCanonicalUrl(rawUrl);
+                        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-1"></i> Carregando...`;
+
+                        const html = await fetchHtml(targetUrl);
+                        if (!html) {
+                            throw new Error('Não foi possível obter dados. Use a caixa de colagem de Código Fonte (Bypass) abaixo para carregar instantaneamente.');
+                        }
+
+                        let parsed = parseJsonLd(html);
+                        if (!parsed || !parsed.title) {
+                            parsed = parseMetaTags(html);
+                        }
+
+                        if (!parsed || !parsed.title) {
+                            const parts = targetUrl.split('/').filter(s => s.includes('-') && s.length > 10 && !/^MLB/i.test(s));
+                            const slugTitle = parts[0] ? parts[0].replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()) : '';
+                            if (!slugTitle) throw new Error('Não foi possível extrair dados. Preencha manualmente ou cole o Código Fonte HTML.');
+                            parsed = { title: slugTitle, price: 0, oldPrice: 0, imgUrl: '' };
+                            fillForm(parsed);
+                            showToast('⚠️ Título parcialmente detectado. Complete o preço e imagem.', 'info');
+                        } else {
+                            fillForm(parsed);
+                            const hasAll = parsed.title && parsed.price > 0 && parsed.imgUrl;
+                            if (hasAll) {
+                                showToast('✅ Produto detectado com sucesso! Verifique e confirme as informações.', 'success');
+                            } else {
+                                showToast('⚠️ Produto parcialmente detectado. Complete os campos em branco.', 'info');
+                            }
+                        }
+
+                    } catch (err) {
+                        console.error('Detecção ML erro:', err);
+                        showToast(`❌ ${err.message}`, 'error');
+                    } finally {
+                        btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-down mr-1"></i> Detectar`;
+                        btn.disabled = false;
+                    }
+                });
+
+                // === MOTOR DE SINCRONIZAÇÃO AUTOMÁTICA DE VITRINE DE AFILIADOS ===
+                const syncBtn = document.getElementById('sync-vanessa-btn');
+                const syncUrlInput = document.getElementById('sync-url');
+                const logContainer = document.getElementById('sync-log-container');
+                const logDetails = document.getElementById('sync-log-details');
+                const statusText = document.getElementById('sync-status-text');
+                const progressBar = document.getElementById('sync-progress-bar');
+                const syncSpinner = document.getElementById('sync-spinner');
+                const syncTimer = document.getElementById('sync-timer');
+
+                syncBtn.addEventListener('click', async () => {
+                    const syncUrl = syncUrlInput.value.trim();
+                    if (!syncUrl) {
+                        showToast('Cole o link da vitrine de afiliados do Mercado Livre!', 'error');
+                        return;
+                    }
+
+                    // Reset controls
+                    syncBtn.disabled = true;
+                    logContainer.classList.remove('hidden');
+                    logDetails.innerHTML = '';
+                    progressBar.style.width = '5%';
+                    syncSpinner.className = 'fa-solid fa-spinner animate-spin text-admin-accentBlue';
+                    statusText.innerText = 'Iniciando Sincronização...';
+                    
+                    let startTime = Date.now();
+                    let timerInterval = setInterval(() => {
+                        let elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                        syncTimer.innerText = `${elapsed}s`;
+                    }, 100);
+
+                    function addLog(msg, type = 'info') {
+                        const line = document.createElement('div');
+                        let icon = '⚡';
+                        let colorClass = 'text-admin-textMuted';
+                        if (type === 'success') { icon = '✅'; colorClass = 'text-emerald-400 font-bold'; }
+                        if (type === 'error') { icon = '❌'; colorClass = 'text-red-400 font-bold'; }
+                        if (type === 'warn') { icon = '⚠️'; colorClass = 'text-amber-400'; }
+                        
+                        line.className = `text-[10px] font-mono leading-relaxed ${colorClass}`;
+                        line.innerHTML = `<span class="mr-1">${icon}</span> ${msg}`;
+                        logDetails.appendChild(line);
+                        logDetails.scrollTop = logDetails.scrollHeight;
+                    }
+
+                    try {
+                        addLog('Conectando ao Mercado Livre via Proxies Autorizados...');
+                        progressBar.style.width = '20%';
+                        
+                        const PROXIES = [
+                            url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                            url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                            url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+                        ];
+
+                        let html = null;
+                        let proxyUsed = '';
+                        
+                        for (let i = 0; i < PROXIES.length; i++) {
+                            const proxyBuilder = PROXIES[i];
+                            const targetUrl = proxyBuilder(syncUrl);
+                            const proxyName = i === 0 ? 'CORSProxy.io' : i === 1 ? 'AllOrigins' : 'CodeTabs';
+                            
+                            addLog(`Tentando conexão com o servidor de proxy: ${proxyName}...`);
+                            try {
+                                const res = await fetch(targetUrl, { signal: AbortSignal.timeout(10000) });
+                                if (res.ok) {
+                                    const text = await res.text();
+                                    if (text.length > 10000 && !text.includes('ui-empty-state')) {
+                                        html = text;
+                                        proxyUsed = proxyName;
+                                        addLog(`Conectado com sucesso através do proxy: ${proxyName}!`, 'success');
+                                        break;
+                                    } else {
+                                        addLog(`Proxy ${proxyName} retornou resposta vazia ou bloqueada.`, 'warn');
+                                    }
+                                } else {
+                                    addLog(`Proxy ${proxyName} falhou com status: ${res.status}`, 'warn');
+                                }
+                            } catch(e) {
+                                addLog(`Timeout ou falha na tentativa do proxy ${proxyName}.`, 'warn');
+                            }
+                        }
+
+                        if (!html) {
+                            throw new Error('Não foi possível obter os dados do Mercado Livre. O servidor está bloqueando as requisições temporariamente. Use o Bypass de Código Fonte para importar individualmente de forma garantida.');
+                        }
+
+                        progressBar.style.width = '50%';
+                        statusText.innerText = 'Extraindo dados da Vitrine...';
+                        addLog('Iniciando decodificação do HTML da Vitrine de Afiliados...');
+
+                        let items = [];
+                        addLog('Analisando State de Prehydration do Mercado Livre...');
+                        
+                        const pattern = /\{"id":"(MLB\d+)","title":"([^"]+)","price":(\d+\.?\d*),"currency_id":"BRL".*?,"thumbnail":"([^"]+)".*?,"permalink":"([^"]+)"/g;
+                        let match;
+                        let count = 0;
+                        
+                        while ((match = pattern.exec(html)) !== null) {
+                            const [_, mlbId, title, price, thumbnail, permalink] = match;
+                            items.push({
+                                mlbId,
+                                title,
+                                price: parseFloat(price),
+                                thumbnail,
+                                permalink
+                            });
+                            count++;
+                        }
+                        
+                        addLog(`Detector Principal encontrou ${count} itens correspondentes no State.`);
+
+                        if (items.length === 0) {
+                            addLog('Detector Principal vazio. Tentando Detector Fallback por propriedades avulsas...', 'warn');
+                            const titleMatches = [...html.matchAll(/"title"\s*:\s*"([^"]+)"/g)].map(m => m[1]);
+                            const permalinkMatches = [...html.matchAll(/"permalink"\s*:\s*"([^"]+)"/g)].map(m => m[1]);
+                            const priceMatches = [...html.matchAll(/"price"\s*:\s*(\d+\.?\d*)/g)].map(m => parseFloat(m[1]));
+                            const thumbnailMatches = [...html.matchAll(/"thumbnail"\s*:\s*"([^"]+)"/g)].map(m => m[1]);
+                            
+                            const limit = Math.min(titleMatches.length, permalinkMatches.length, priceMatches.length, thumbnailMatches.length);
+                            addLog(`Parâmetros parciais detectados: Títulos: ${titleMatches.length}, Links: ${permalinkMatches.length}, Preços: ${priceMatches.length}`);
+                            
+                            for (let i = 0; i < limit; i++) {
+                                const title = titleMatches[i];
+                                if (title && !["Tudo pra você", "Lista de afiliados", "VANESSAPARVATI | Perfil social", "Live Content"].includes(title)) {
+                                    items.push({
+                                        mlbId: 'MLB' + (permalinkMatches[i].match(/MLB[-_]?(\d+)/i) || [0, Date.now()])[1],
+                                        title: title,
+                                        price: priceMatches[i] || 0.0,
+                                        thumbnail: thumbnailMatches[i] || '',
+                                        permalink: permalinkMatches[i] || ''
+                                    });
+                                }
+                            }
+                        }
+
+                        let uniqueItemsMap = {};
+                        items.forEach(item => {
+                            if (item.title && item.price > 0 && item.permalink) {
+                                uniqueItemsMap[item.title] = item;
+                            }
+                        });
+                        const finalItems = Object.values(uniqueItemsMap);
+
+                        if (finalItems.length === 0) {
+                            throw new Error('Nenhum produto foi encontrado na importação.');
+                        }
+
+                        addLog(`Extração concluída! Encontrados ${finalItems.length} produtos únicos válidos.`, 'success');
+                        progressBar.style.width = '75%';
+                        statusText.innerText = 'Convertendo e aplicando tags de comissão...';
+
+                        function categorize(title) {
+                            const low = title.toLowerCase();
+                            if (/cafeteira|liquidificador|espremedor|panela|chaleira|faqueiro|sanduicheira|cozinha|mesa/.test(low)) return 'casa';
+                            if (/aspirador|mop|vassoura|organizador|selador|suporte|cabide|cadeira|prateleira/.test(low)) return 'organização';
+                            if (/fone|led|luminaria|som|bluetooth|ventilador|controle|relógio|carregador|smartwatch/.test(low)) return 'eletrônicos';
+                            if (/maquiagem|pincel|batom|creme|shampoo|perfume|cuidados|pele/.test(low)) return 'beleza';
+                            return 'utilidades';
+                        }
+
+                        function getEmoji(cat) {
+                            const emojiMap = { casa: '☕', 'organização': '🧹', beleza: '💄', 'eletrônicos': '⚡', utilidades: '🛍️' };
+                            return emojiMap[cat] || '🛍️';
+                        }
+
+                        function round(num, decimals) {
+                            const t = Math.pow(10, decimals);
+                            return parseFloat((num * t).toFixed(decimals));
+                        }
+
+                        const syncedProducts = finalItems.map((item, idx) => {
+                            const cat = categorize(item.title);
+                            let basePermalink = item.permalink.split('?')[0];
+                            let affiliateUrl = `${basePermalink}?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true`;
+                            
+                            let img = item.thumbnail;
+                            if (img) {
+                                img = img.replace('-I.', '-O.').replace('-V.', '-O.').replace('-AB.', '-O.');
+                                if (img.startsWith('http://')) {
+                                    img = img.replace('http://', 'https://');
+                                }
+                            }
+
+                            let brand = "Curadoria";
+                            const brandsList = ["Britânia", "Mondial", "Wap", "Tramontina", "Unitermi", "Cadence", "Philco", "Arno", "Samsung", "Xiaomi", "Oster", "Midea"];
+                            for (const b of brandsList) {
+                                if (item.title.toLowerCase().includes(b.toLowerCase())) {
+                                    brand = b;
+                                    break;
+                                }
+                            }
+
+                            const finalId = item.mlbId ? (isNaN(item.mlbId.replace('MLB','')) ? item.mlbId : parseInt(item.mlbId.replace('MLB',''))) : (Date.now() + idx);
+
+                            return {
+                                id: finalId,
+                                name: item.title,
+                                category: cat,
+                                brand: brand,
+                                price: item.price,
+                                oldPrice: round(item.price * 1.25, 2),
+                                badge: idx < 3 ? 'Destaque' : 'Afiliado',
+                                emoji: getEmoji(cat),
+                                glowColor: "rgba(255,26,117,0.3)",
+                                searchKeys: `${item.title.toLowerCase()} ${cat} ${brand} vanessa`,
+                                url: affiliateUrl,
+                                img_url: img
+                            };
+                        });
+
+                        addLog(`Salvando ${syncedProducts.length} produtos de Vanessa no Banco de Dados Local...`);
+                        localStorage.setItem('admin-custom-products', JSON.stringify(syncedProducts));
+
+                        progressBar.style.width = '100%';
+                        statusText.innerText = 'Sincronização Concluída!';
+                        syncSpinner.className = 'fa-solid fa-circle-check text-emerald-400';
+                        addLog(`Vitrine atualizada com sucesso! Todos os ${syncedProducts.length} produtos da Vanessa agora estão na sua loja com o link próprio dela para comissões.`, 'success');
+                        showToast(`✅ Vitrine de Vanessa sincronizada com ${syncedProducts.length} produtos!`, 'success');
+
+                        setTimeout(() => {
+                            loadProductsTab();
+                        }, 1500);
+
+                    } catch (err) {
+                        console.error('Sincronização erro:', err);
+                        statusText.innerText = 'Erro na Sincronização';
+                        syncSpinner.className = 'fa-solid fa-triangle-exclamation text-red-400';
+                        addLog(err.message, 'error');
+                        showToast(`❌ Falha na Sincronização: ${err.message}`, 'error');
+                    } finally {
+                        clearInterval(timerInterval);
+                        syncBtn.disabled = false;
+                    }
+                });
+
+                // Delete custom product
+                document.querySelectorAll('.delete-prod-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = parseInt(btn.getAttribute('data-id')) || btn.getAttribute('data-id');
+                        
+                        customProducts = customProducts.filter(p => p.id !== id);
+                        localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
+                        
+                        showToast('Produto removido com sucesso!', 'info');
+                        
+                        setTimeout(() => {
+                            loadProductsTab();
+                        }, 200);
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>

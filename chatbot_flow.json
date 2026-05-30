@@ -1,0 +1,95 @@
+{
+  "initialState": "start",
+  "states": {
+    "start": {
+      "message": "Olá! Sou a Nessa, sua influenciadora e assistente de achadinhos do Mercado Livre! 🛍️✨ Estou aqui para te ajudar a encontrar os melhores produtos com super descontos e frete rápido. O que você quer encontrar hoje?",
+      "options": [
+        {
+          "text": "🏠 Casa & Organização",
+          "nextState": "home_org"
+        },
+        {
+          "text": "💄 Beleza & Autocuidado",
+          "nextState": "beauty"
+        },
+        {
+          "text": "⚡ Gadgets e Eletrônicos Úteis",
+          "nextState": "electronics"
+        },
+        {
+          "text": "🔥 Achadinhos Imperdíveis do Dia",
+          "nextState": "daily_deals"
+        },
+        {
+          "text": "❓ Como funcionam os links?",
+          "nextState": "how_it_works"
+        }
+      ]
+    },
+    "home_org": {
+      "message": "Para deixar sua casa linda e super organizada, eu selecionei itens incríveis como organizadores de maquiagem em acrílico, Mops de limpeza rápida e mini seladores! Quer que eu filtre essa categoria para você ver no catálogo?",
+      "options": [
+        {
+          "text": "Filtrar Casa & Cozinha ➔",
+          "nextState": "start",
+          "action": "filter_home"
+        },
+        {
+          "text": "Voltar ao início",
+          "nextState": "start"
+        }
+      ]
+    },
+    "beauty": {
+      "message": "Em Beleza e Cuidado Pessoal, separei os queridinhos do momento: Ring Lights para suas fotos brilharem, kits profissionais de pincéis e espelhos com LED! Deseja ver esses achadinhos agora?",
+      "options": [
+        {
+          "text": "Filtrar Beleza ➔",
+          "nextState": "start",
+          "action": "filter_beauty"
+        },
+        {
+          "text": "Voltar ao início",
+          "nextState": "start"
+        }
+      ]
+    },
+    "electronics": {
+      "message": "Tecnologia que facilita a vida e cabe no bolso! Temos fones Bluetooth TWS de alta qualidade, umidificadores ultrassônicos com LED e projetores de estrelas de astronauta. Deseja filtrar os eletrônicos?",
+      "options": [
+        {
+          "text": "Filtrar Eletrônicos ➔",
+          "nextState": "start",
+          "action": "filter_tech"
+        },
+        {
+          "text": "Voltar ao início",
+          "nextState": "start"
+        }
+      ]
+    },
+    "daily_deals": {
+      "message": "Os achadinhos mais quentes de hoje com desconto especial: o Mini Processador Sem Fio (R$ 29,90) e o Umidificador Ultrassônico (R$ 39,90) estão no topo dos mais pedidos com frete grátis dependendo da sua região! Quer ver todas as ofertas no topo?",
+      "options": [
+        {
+          "text": "Ver Ofertas do Dia ➔",
+          "nextState": "start",
+          "action": "filter_offers"
+        },
+        {
+          "text": "Voltar ao início",
+          "nextState": "start"
+        }
+      ]
+    },
+    "how_it_works": {
+      "message": "É super simples! Nós selecionamos todos os dias as melhores ofertas, produtos mais bem avaliados e novidades no Mercado Livre. Quando você clica em 'Compre Aqui', você é redirecionado para o site oficial para comprar de forma 100% segura. Nós ganhamos uma pequena comissão por indicação que nos ajuda a manter este site ativo, sem que você pague nada a mais por isso! 🥰",
+      "options": [
+        {
+          "text": "Entendi! Voltar",
+          "nextState": "start"
+        }
+      ]
+    }
+  }
+}
