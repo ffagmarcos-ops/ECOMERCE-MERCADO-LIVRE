@@ -1665,6 +1665,12 @@
                       para evitar bloqueios de CORS e requisições do Mercado Livre.
                    ==============================================================
                 */
+            // [AJUSTE SISTÊMICO - MAIO 2026]
+            // A declaração de 'loadProductsTab' foi reintroduzida para encapsular a lógica de produtos.
+            // Isso corrige o erro de sintaxe de chave não fechada no final do arquivo e evita exceções
+            // de DOM nulo ao tentar associar ouvintes a botões dinâmicos ('prod-cancel-edit-btn') durante
+            // a inicialização do script no login, restaurando o funcionamento de todo o fluxo administrativo.
+            function loadProductsTab() {
                 let customProducts = JSON.parse(localStorage.getItem('admin-custom-products'));
                 if (!customProducts || customProducts.length < 40) {
                     customProducts = [...DEFAULT_PRODUCTS];
