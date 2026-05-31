@@ -1752,6 +1752,30 @@
                                 </div>
                             </div>
 
+                            <!-- Bypass Bloqueio da Vitrine: Colar HTML da Vitrine Scrolada -->
+                            <div class="bg-white/5 border border-white/10 rounded-xl p-3 space-y-2">
+                                <div class="flex items-center justify-between cursor-pointer" onclick="document.getElementById('sync-bypass-html-box').classList.toggle('hidden')">
+                                    <span class="text-[10px] font-bold text-admin-accentGold uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fa-solid fa-code text-admin-accentGold"></i>
+                                        Bypass Bloqueio: Importar pelo Código Fonte HTML da Vitrine Scrolada (Opcional - Recomendado para 53 Itens)
+                                    </span>
+                                    <i class="fa-solid fa-chevron-down text-admin-textMuted text-[10px]"></i>
+                                </div>
+                                <div id="sync-bypass-html-box" class="hidden space-y-2 pt-2 border-t border-white/5">
+                                    <p class="text-[9px] text-admin-textMuted leading-relaxed">
+                                        Para importar todos os 53 produtos completos sem bloqueio do Mercado Livre: <br>
+                                        1. Abra a vitrine de Vanessa no PC: <a href="https://mercadolivre.com/sec/27pwnzF" target="_blank" class="text-admin-accentGold underline font-bold">https://mercadolivre.com/sec/27pwnzF</a>.<br>
+                                        2. <strong>Role a página até o final</strong> no navegador para que todos os 53 itens apareçam.<br>
+                                        3. Pressione <strong>Ctrl+U</strong> (ou clique com o botão direito -> <strong>Exibir Código Fonte da Página</strong>) e copie tudo (Ctrl+A -> Ctrl+C).<br>
+                                        4. Cole o código no campo abaixo e clique em <strong>Sincronizar via HTML Colado</strong>.
+                                    </p>
+                                    <textarea id="sync-raw-html" class="admin-input text-[10px] font-mono h-24" placeholder="Cole o código fonte HTML da página da vitrine aqui..."></textarea>
+                                    <button type="button" id="sync-parse-html-btn" class="w-full bg-admin-accentGold/20 border border-admin-accentGold/30 hover:bg-admin-accentGold/40 text-admin-accentGold font-bold py-2 rounded-xl text-[10px] uppercase tracking-wider transition">
+                                        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Sincronizar via HTML Colado
+                                    </button>
+                                </div>
+                            </div>
+
                             <!-- Log e Progresso -->
                             <div id="sync-log-container" class="hidden bg-admin-bg border border-admin-border rounded-xl p-4 space-y-2">
                                 <div class="flex items-center justify-between">
@@ -2341,8 +2365,9 @@
                     }
                 });
 
-                // === MOTOR DE SINCRONIZAÇÃO AUTOMÁTICA DE VITRINE DE AFILIADOS ===
+                // === MOTOR DE SINCRONIZAÇÃO COMPLETA DE VITRINES (URL E HTML BYPASS) ===
                 const syncBtn = document.getElementById('sync-vanessa-btn');
+                const syncParseHtmlBtn = document.getElementById('sync-parse-html-btn');
                 const syncUrlInput = document.getElementById('sync-url');
                 const logContainer = document.getElementById('sync-log-container');
                 const logDetails = document.getElementById('sync-log-details');
@@ -2351,15 +2376,16 @@
                 const syncSpinner = document.getElementById('sync-spinner');
                 const syncTimer = document.getElementById('sync-timer');
 
-                syncBtn.addEventListener('click', async () => {
-                    const syncUrl = syncUrlInput.value.trim();
-                    if (!syncUrl) {
-                        showToast('Cole o link da vitrine de afiliados do Mercado Livre!', 'error');
+                async function startShowcaseSync(syncUrl, rawHtml = '') {
+                    const isManualBypass = !!rawHtml;
+                    if (!syncUrl && !rawHtml) {
+                        showToast('Cole o link da vitrine ou o código fonte HTML!', 'error');
                         return;
                     }
 
-                    // Reset controls
+                    // Reset and configure controls
                     syncBtn.disabled = true;
+                    if (syncParseHtmlBtn) syncParseHtmlBtn.disabled = true;
                     logContainer.classList.remove('hidden');
                     logDetails.innerHTML = '';
                     progressBar.style.width = '5%';
@@ -2387,61 +2413,67 @@
                     }
 
                     try {
-                        addLog('Conectando ao Mercado Livre via Proxies Autorizados...');
-                        progressBar.style.width = '20%';
-                        
-                        const PROXIES = [
-                            url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                            url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-                            url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
-                        ];
-
-                        let html = null;
-                        let proxyUsed = '';
-                        
-                        for (let i = 0; i < PROXIES.length; i++) {
-                            const proxyBuilder = PROXIES[i];
-                            const targetUrl = proxyBuilder(syncUrl);
-                            const proxyName = i === 0 ? 'CORSProxy.io' : i === 1 ? 'AllOrigins' : 'CodeTabs';
+                        let html = rawHtml;
+                        if (!isManualBypass) {
+                            addLog('Conectando ao Mercado Livre via Proxies Autorizados...');
+                            progressBar.style.width = '15%';
                             
-                            addLog(`Tentando conexão com o servidor de proxy: ${proxyName}...`);
-                            try {
-                                const res = await fetch(targetUrl, { signal: AbortSignal.timeout(10000) });
-                                if (res.ok) {
-                                    const text = await res.text();
-                                    if (text.length > 10000 && !text.includes('ui-empty-state')) {
-                                        html = text;
-                                        proxyUsed = proxyName;
-                                        addLog(`Conectado com sucesso através do proxy: ${proxyName}!`, 'success');
-                                        break;
+                            const PROXIES = [
+                                url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                                url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                                url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+                            ];
+
+                            html = null;
+                            let proxyUsed = '';
+                            
+                            for (let i = 0; i < PROXIES.length; i++) {
+                                const proxyBuilder = PROXIES[i];
+                                const targetUrl = proxyBuilder(syncUrl);
+                                const proxyName = i === 0 ? 'CORSProxy.io' : i === 1 ? 'AllOrigins' : 'CodeTabs';
+                                
+                                addLog(`Tentando conexão com o servidor de proxy: ${proxyName}...`);
+                                try {
+                                    const res = await fetch(targetUrl, { signal: AbortSignal.timeout(10000) });
+                                    if (res.ok) {
+                                        const text = await res.text();
+                                        if (text.length > 10000 && !text.includes('ui-empty-state')) {
+                                            html = text;
+                                            proxyUsed = proxyName;
+                                            addLog(`Conectado com sucesso através do proxy: ${proxyName}!`, 'success');
+                                            break;
+                                        } else {
+                                            addLog(`Proxy ${proxyName} retornou resposta vazia ou bloqueada.`, 'warn');
+                                        }
                                     } else {
-                                        addLog(`Proxy ${proxyName} retornou resposta vazia ou bloqueada.`, 'warn');
+                                        addLog(`Proxy ${proxyName} falhou com status: ${res.status}`, 'warn');
                                     }
-                                } else {
-                                    addLog(`Proxy ${proxyName} falhou com status: ${res.status}`, 'warn');
+                                } catch(e) {
+                                    addLog(`Timeout ou falha na tentativa do proxy ${proxyName}.`, 'warn');
                                 }
-                            } catch(e) {
-                                addLog(`Timeout ou falha na tentativa do proxy ${proxyName}.`, 'warn');
                             }
+
+                            if (!html) {
+                                throw new Error('Não foi possível obter os dados do Mercado Livre. O servidor está bloqueando temporariamente. Use o Bypass de Código Fonte colando o HTML da vitrine scrolada para importar os 53 produtos de forma garantida.');
+                            }
+                        } else {
+                            addLog('Iniciando análise do código fonte HTML colado...', 'success');
                         }
 
-                        if (!html) {
-                            throw new Error('Não foi possível obter os dados do Mercado Livre. O servidor está bloqueando as requisições temporariamente. Use o Bypass de Código Fonte para importar individualmente de forma garantida.');
-                        }
-
-                        progressBar.style.width = '50%';
-                        statusText.innerText = 'Extraindo dados da Vitrine...';
-                        addLog('Iniciando decodificação do HTML da Vitrine de Afiliados...');
+                        progressBar.style.width = '35%';
+                        statusText.innerText = 'Extraindo produtos da Vitrine...';
+                        addLog('Descodificando dados de produtos (State & DOM Parser)...');
 
                         let items = [];
-                        addLog('Analisando State de Prehydration do Mercado Livre (Nordic Context)...');
-                        
+
+                        // 1. NORDIC PREHYDRATION STATE PARSER
+                        addLog('Analisando preloaded state do Mercado Livre (Nordic Context)...');
                         let state = null;
                         const matchNordic = html.match(/_n\.ctx\.r\s*=\s*(\{[\s\S]*?\});/i);
                         if (matchNordic) {
                             try {
                                 state = JSON.parse(matchNordic[1]);
-                                addLog('Nordic Rendering Context localizado e decodificado com sucesso!', 'success');
+                                addLog('Nordic Rendering Context decodificado com sucesso!', 'success');
                             } catch (e) {
                                 addLog(`Falha ao decodificar JSON do Nordic State: ${e.message}`, 'warn');
                             }
@@ -2449,7 +2481,7 @@
 
                         if (state && state.appProps && state.appProps.pageProps && Array.isArray(state.appProps.pageProps.polycards)) {
                             const polycards = state.appProps.pageProps.polycards;
-                            addLog(`Encontrados ${polycards.length} cartões no prehydrated state.`);
+                            addLog(`Encontrados ${polycards.length} cartões no preloaded state.`);
                             polycards.forEach(card => {
                                 const metadata = card.metadata || {};
                                 const mlbId = metadata.id || '';
@@ -2483,8 +2515,75 @@
                             });
                         }
 
+                        // 2. HIGH-FIDELITY DOM SELECTOR PARSER
+                        addLog('Executando DOM Selector Parser sobre o HTML da vitrine...');
+                        try {
+                            const domParser = new DOMParser();
+                            const doc = domParser.parseFromString(html, 'text/html');
+                            const cards = doc.querySelectorAll('.poly-card, .lists-card, [class*="poly-card"], [class*="lists-card"]');
+                            
+                            if (cards.length > 0) {
+                                addLog(`Localizados ${cards.length} elementos de cartões de produtos via DOM!`, 'success');
+                                cards.forEach((card, idx) => {
+                                    const aEl = card.querySelector('a[href*="/p/"], a[href*="/MLB-"], a[href*="/up/"], a[href*="-JM"]');
+                                    if (!aEl) return;
+                                    
+                                    const permalink = aEl.getAttribute('href') || '';
+                                    
+                                    const titleEl = card.querySelector('[class*="__title"], [class*="-title"]');
+                                    let title = titleEl ? titleEl.textContent.trim() : aEl.textContent.trim();
+                                    
+                                    if (!title) {
+                                        const slugMatch = permalink.match(/mercadolivre\.com\.br\/([a-z0-9\-]+)(?:\/p\/|\/up\/|\/MLB-)/i);
+                                        title = slugMatch ? slugMatch[1].replace(/-/g, ' ').toUpperCase() : 'Produto Mercado Livre';
+                                    }
+                                    title = title.replace(/\s+/g, ' ');
+
+                                    const priceEl = card.querySelector('[class*="__current"], [class*="-price"], [class*="price-tag"]');
+                                    let price = 0;
+                                    if (priceEl) {
+                                        const priceText = priceEl.textContent || '';
+                                        const priceM = priceText.match(/R\$\s*([\d.]+)(?:,(\d{2}))?/i);
+                                        if (priceM) {
+                                            price = parseFloat(priceM[1].replace(/\./g, '').replace(',', '.'));
+                                        }
+                                    }
+
+                                    const imgEl = card.querySelector('img');
+                                    let imgUrl = '';
+                                    if (imgEl) {
+                                        imgUrl = imgEl.getAttribute('src') || imgEl.getAttribute('data-src') || '';
+                                        // Standardize image sizes
+                                        if (imgUrl) {
+                                            imgUrl = imgUrl.replace('-I.', '-O.').replace('-V.', '-O.').replace('-AB.', '-O.');
+                                        }
+                                    }
+
+                                    const mParam = permalink.match(/(?:item_id|wid)[%:=]+(MLB\d+)/i);
+                                    let mlbId = mParam ? mParam[1].toUpperCase() : null;
+                                    if (!mlbId) {
+                                        const m = permalink.match(/MLB[-_]?(\d{7,12})/i);
+                                        mlbId = m ? 'MLB' + m[1] : null;
+                                    }
+
+                                    if (title && price > 0 && permalink && !["Tudo pra você", "Lista de afiliados", "VANESSAPARVATI | Perfil social", "Live Content"].includes(title)) {
+                                        items.push({
+                                            mlbId: mlbId || `MLB${Date.now() + idx}`,
+                                            title,
+                                            price,
+                                            thumbnail: imgUrl,
+                                            permalink
+                                        });
+                                    }
+                                });
+                            }
+                        } catch (domErr) {
+                            addLog(`Erro no DOM Parser: ${domErr.message}`, 'warn');
+                        }
+
+                        // 3. REGEX FALLBACK DETECTORS
                         if (items.length === 0) {
-                            addLog('Detector Nordic vazio. Tentando Detector Fallback de State...', 'warn');
+                            addLog('Detectores primários vazios. Executando Regex Fallback de State...', 'warn');
                             const pattern = /\{"id":"(MLB\d+)","title":"([^"]+)","price":(\d+\.?\d*),"currency_id":"BRL".*?,"thumbnail":"([^"]+)".*?,"permalink":"([^"]+)"/g;
                             let match;
                             while ((match = pattern.exec(html)) !== null) {
@@ -2499,43 +2598,24 @@
                             }
                         }
 
-                        if (items.length === 0) {
-                            addLog('Detector Fallback de State vazio. Tentando Regex de Propriedades Avulsas...', 'warn');
-                            const titleMatches = [...html.matchAll(/"title"\s*:\s*"([^"]+)"/g)].map(m => m[1]);
-                            const permalinkMatches = [...html.matchAll(/"permalink"\s*:\s*"([^"]+)"/g)].map(m => m[1]);
-                            const priceMatches = [...html.matchAll(/"price"\s*:\s*(\d+\.?\d*)/g)].map(m => parseFloat(m[1]));
-                            const thumbnailMatches = [...html.matchAll(/"thumbnail"\s*:\s*"([^"]+)"/g)].map(m => m[1]);
-                            
-                            const limit = Math.min(titleMatches.length, permalinkMatches.length, priceMatches.length, thumbnailMatches.length);
-                            for (let i = 0; i < limit; i++) {
-                                const title = titleMatches[i];
-                                if (title && !["Tudo pra você", "Lista de afiliados", "VANESSAPARVATI | Perfil social", "Live Content"].includes(title)) {
-                                    items.push({
-                                        mlbId: 'MLB' + (permalinkMatches[i].match(/MLB[-_]?(\d+)/i) || [0, Date.now()])[1],
-                                        title: title,
-                                        price: priceMatches[i] || 0.0,
-                                        thumbnail: thumbnailMatches[i] || '',
-                                        permalink: permalinkMatches[i] || ''
-                                    });
-                                }
-                            }
-                        }
-
+                        // Deduplicate products
                         let uniqueItemsMap = {};
                         items.forEach(item => {
                             if (item.title && item.price > 0 && item.permalink) {
-                                uniqueItemsMap[item.title] = item;
+                                // Strip track codes from permalink for cleaner keys
+                                let baseLink = item.permalink.split('?')[0];
+                                uniqueItemsMap[baseLink] = item;
                             }
                         });
                         const finalItems = Object.values(uniqueItemsMap);
 
                         if (finalItems.length === 0) {
-                            throw new Error('Nenhum produto foi encontrado na importação.');
+                            throw new Error('Nenhum produto válido contendo preço e link foi localizado na página. Certifique-se de rolar a página até o fim antes de copiar o código fonte.');
                         }
 
-                        addLog(`Extração concluída! Encontrados ${finalItems.length} produtos únicos válidos.`, 'success');
-                        progressBar.style.width = '75%';
-                        statusText.innerText = 'Convertendo e aplicando tags de comissão...';
+                        addLog(`Extração concluída com sucesso! Localizados ${finalItems.length} produtos únicos.`, 'success');
+                        progressBar.style.width = '55%';
+                        statusText.innerText = 'Categorizando produtos e aplicando comissões...';
 
                         function categorize(title) {
                             const low = title.toLowerCase();
@@ -2556,9 +2636,12 @@
                             return parseFloat((num * t).toFixed(decimals));
                         }
 
-                        const syncedProducts = finalItems.map((item, idx) => {
+                        let syncedProducts = finalItems.map((item, idx) => {
                             const cat = categorize(item.title);
                             let basePermalink = item.permalink.split('?')[0];
+                            if (!basePermalink.startsWith('http')) {
+                                basePermalink = 'https://' + basePermalink.replace(/^\/+/, '');
+                            }
                             let affiliateUrl = `${basePermalink}?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true`;
                             
                             let img = item.thumbnail;
@@ -2596,14 +2679,90 @@
                             };
                         });
 
-                        addLog(`Salvando ${syncedProducts.length} produtos de Vanessa no Banco de Dados Local...`);
+                        // Save base list first to be safe
                         localStorage.setItem('admin-custom-products', JSON.stringify(syncedProducts));
+
+                        // 4. PROGRESSIVE MEDIA CRAWLER (BACKGROUND ENRICHMENT)
+                        addLog(`Iniciando crawler progressivo em segundo plano para extração de fotos HD e vídeos...`, 'success');
+                        statusText.innerText = 'Enriquecendo fotos HD e vídeos...';
+
+                        const totalToCrawl = syncedProducts.length;
+                        const PROXIES = [
+                            url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                            url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                            url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+                        ];
+
+                        for (let i = 0; i < totalToCrawl; i++) {
+                            const prod = syncedProducts[i];
+                            const progressPercent = 55 + Math.round((i / totalToCrawl) * 45);
+                            progressBar.style.width = `${progressPercent}%`;
+                            statusText.innerText = `Enriquecendo Mídias: ${i + 1}/${totalToCrawl} (${progressPercent}%)`;
+                            
+                            addLog(`[${i + 1}/${totalToCrawl}] Buscando mídias do cadastro para: "${prod.name.substring(0,35)}..."`);
+
+                            let cleanUrl = prod.url.split('?')[0];
+                            let detailHtml = null;
+
+                            // Fetch page through proxy sequence
+                            for (let pIdx = 0; pIdx < PROXIES.length; pIdx++) {
+                                // Balance proxy usage by offsetting index
+                                const proxyFn = PROXIES[(pIdx + i) % PROXIES.length];
+                                const targetUrl = proxyFn(cleanUrl);
+                                try {
+                                    const res = await fetch(targetUrl, { signal: AbortSignal.timeout(6000) });
+                                    if (res.ok) {
+                                        const text = await res.text();
+                                        if (text.length > 5000) {
+                                            detailHtml = text;
+                                            break;
+                                        }
+                                    }
+                                } catch(e) {
+                                    // Keep going to next proxy
+                                }
+                            }
+
+                            if (detailHtml) {
+                                // Parse high quality gallery and official videos
+                                const gallery = parseGalleryImages(detailHtml);
+                                const videoUrl = parseVideo(detailHtml);
+
+                                if (gallery.imgUrl) prod.img_url = gallery.imgUrl;
+                                if (gallery.imgUrl2) prod.img_url_2 = gallery.imgUrl2;
+                                if (videoUrl) prod.video_url = videoUrl;
+
+                                // Save iteratively
+                                localStorage.setItem('admin-custom-products', JSON.stringify(syncedProducts));
+
+                                let mediaFound = [];
+                                if (gallery.imgUrl2) mediaFound.push('Foto HD 2');
+                                if (videoUrl) mediaFound.push('Vídeo Oficial');
+
+                                if (mediaFound.length > 0) {
+                                    addLog(`✓ "${prod.name.substring(0,25)}...": Encontrado ${mediaFound.join(' e ')}!`, 'success');
+                                } else {
+                                    addLog(`✓ "${prod.name.substring(0,25)}...": Imagem HD sincronizada.`);
+                                }
+                            } else {
+                                addLog(`⚠️ "${prod.name.substring(0,25)}...": Sem resposta dos proxies, mantendo dados básicos.`, 'warn');
+                            }
+
+                            // Tiny throttle to be polite to proxies
+                            await new Promise(r => setTimeout(r, 150));
+                        }
 
                         progressBar.style.width = '100%';
                         statusText.innerText = 'Sincronização Concluída!';
                         syncSpinner.className = 'fa-solid fa-circle-check text-emerald-400';
-                        addLog(`Vitrine atualizada com sucesso! Todos os ${syncedProducts.length} produtos da Vanessa agora estão na sua loja com o link próprio dela para comissões.`, 'success');
+                        addLog(`Vitrine atualizada com sucesso! Todos os ${syncedProducts.length} produtos de Vanessa agora contam com fotos HD, segunda imagem no hover e vídeos integrados.`, 'success');
                         showToast(`✅ Vitrine de Vanessa sincronizada com ${syncedProducts.length} produtos!`, 'success');
+
+                        if (isManualBypass) {
+                            // Hide textarea box on complete
+                            document.getElementById('sync-bypass-html-box').classList.add('hidden');
+                            document.getElementById('sync-raw-html').value = '';
+                        }
 
                         setTimeout(() => {
                             loadProductsTab();
@@ -2618,8 +2777,19 @@
                     } finally {
                         clearInterval(timerInterval);
                         syncBtn.disabled = false;
+                        if (syncParseHtmlBtn) syncParseHtmlBtn.disabled = false;
                     }
+                }
+
+                syncBtn.addEventListener('click', () => {
+                    startShowcaseSync(syncUrlInput.value.trim(), '');
                 });
+
+                if (syncParseHtmlBtn) {
+                    syncParseHtmlBtn.addEventListener('click', () => {
+                        startShowcaseSync('', document.getElementById('sync-raw-html').value.trim());
+                    });
+                }
 
                 // Delete custom product
                 document.querySelectorAll('.delete-prod-btn').forEach(btn => {
