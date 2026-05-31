@@ -1866,9 +1866,17 @@
                                     </div>
 
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div class="md:col-span-2">
-                                            <label class="admin-label">URL da Imagem do Produto *</label>
-                                            <input type="url" id="prod-img" class="admin-input text-xs" placeholder="https://http2.mlstatic.com/...webp" required>
+                                        <div class="md:col-span-2 space-y-1.5">
+                                            <div class="flex justify-between items-center">
+                                                <label class="admin-label">URL da Imagem do Produto *</label>
+                                                <span class="text-[10px] text-admin-accentGold cursor-pointer hover:underline flex items-center gap-1" onclick="document.getElementById('upload-img-1').click()">
+                                                    <i class="fa-solid fa-cloud-arrow-up"></i> Fazer Upload de Imagem
+                                                </span>
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <input type="url" id="prod-img" class="admin-input text-xs grow" placeholder="https://http2.mlstatic.com/...webp ou cole link" required>
+                                                <input type="file" id="upload-img-1" accept="image/*" class="hidden">
+                                            </div>
                                         </div>
                                         <div>
                                             <label class="admin-label">Emoji / Badge Tag *</label>
@@ -1893,13 +1901,35 @@
 
                                     <!-- Novos Campos de Mídia: Imagem Secundária e Vídeo (YouTube) -->
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-admin-border pt-4">
-                                        <div>
-                                            <label class="admin-label">URL da Imagem Secundária (Opcional - Hover Fading)</label>
-                                            <input type="url" id="prod-img-2" class="admin-input text-xs" placeholder="https://http2.mlstatic.com/...webp">
+                                        <div class="space-y-1.5">
+                                            <div class="flex justify-between items-center">
+                                                <label class="admin-label">URL da Imagem Secundária (Opcional - Hover Fading)</label>
+                                                <span class="text-[10px] text-admin-accentGold cursor-pointer hover:underline flex items-center gap-1" onclick="document.getElementById('upload-img-2').click()">
+                                                    <i class="fa-solid fa-cloud-arrow-up"></i> Fazer Upload
+                                                </span>
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <input type="url" id="prod-img-2" class="admin-input text-xs grow" placeholder="https://http2.mlstatic.com/...webp ou cole link">
+                                                <input type="file" id="upload-img-2" accept="image/*" class="hidden">
+                                            </div>
                                         </div>
                                         <div>
                                             <label class="admin-label">URL do Vídeo do Produto (Opcional - YouTube Link ou MP4)</label>
                                             <input type="url" id="prod-video" class="admin-input text-xs" placeholder="Ex: https://www.youtube.com/watch?v=...">
+                                        </div>
+                                    </div>
+
+                                    <!-- Visualizador / Previews das Imagens -->
+                                    <div class="grid grid-cols-2 gap-4 border-t border-admin-border pt-4">
+                                        <div class="flex flex-col items-center justify-center p-3 bg-white/5 border border-white/5 rounded-xl text-center min-h-[100px] hover:bg-white/10 transition cursor-pointer" onclick="document.getElementById('upload-img-1').click()" title="Clique para fazer upload de Imagem Principal">
+                                            <span class="text-[9px] text-admin-textMuted uppercase font-semibold mb-2">Prévia da Imagem Principal (Clique p/ Upload)</span>
+                                            <img id="preview-img-1" src="" onerror="this.classList.add('hidden')" onload="this.classList.remove('hidden')" class="max-h-20 object-contain rounded bg-white p-1 hidden">
+                                            <span id="preview-placeholder-1" class="text-[10px] text-admin-textMuted"><i class="fa-solid fa-image text-lg block mb-1 text-admin-accentGold animate-pulse"></i> Nenhuma imagem</span>
+                                        </div>
+                                        <div class="flex flex-col items-center justify-center p-3 bg-white/5 border border-white/5 rounded-xl text-center min-h-[100px] hover:bg-white/10 transition cursor-pointer" onclick="document.getElementById('upload-img-2').click()" title="Clique para fazer upload de Imagem Secundária">
+                                            <span class="text-[9px] text-admin-textMuted uppercase font-semibold mb-2">Prévia da Imagem Secundária (Clique p/ Upload)</span>
+                                            <img id="preview-img-2" src="" onerror="this.classList.add('hidden')" onload="this.classList.remove('hidden')" class="max-h-20 object-contain rounded bg-white p-1 hidden">
+                                            <span id="preview-placeholder-2" class="text-[10px] text-admin-textMuted"><i class="fa-solid fa-image text-lg block mb-1 text-admin-accentGold animate-pulse"></i> Nenhuma imagem</span>
                                         </div>
                                     </div>
 
@@ -1953,6 +1983,9 @@
                     document.getElementById('prod-custom-link').value = '';
                     document.getElementById('prod-img-2').value = '';
                     document.getElementById('prod-video').value = '';
+                    
+                    if (window.updatePreview1) window.updatePreview1();
+                    if (window.updatePreview2) window.updatePreview2();
                     
                     document.getElementById('form-header-title').innerHTML = `<i class="fa-solid fa-cart-plus mr-1.5 text-admin-accentBlue"></i> Novo Achadinho`;
                     document.getElementById('prod-submit-btn').innerText = 'Cadastrar Produto';
@@ -2087,6 +2120,9 @@
                                 document.getElementById('prod-url').value = prod.url || '';
                             }
                             
+                            if (window.updatePreview1) window.updatePreview1();
+                            if (window.updatePreview2) window.updatePreview2();
+                            
                             // Show Cancel Button and edit visual states
                             document.getElementById('form-header-title').innerHTML = `<i class="fa-solid fa-pen-to-square mr-1.5 text-admin-accentGold"></i> Editar Produto #${prod.id}`;
                             document.getElementById('prod-submit-btn').innerText = 'Salvar Alterações';
@@ -2098,6 +2134,112 @@
                         }
                     });
                 });
+
+                // --- INICIALIZADOR PREMIUM DE UPLOAD E PRÉVIAS DE IMAGENS ---
+                if (!window.isUploadInitialized) {
+                    window.isUploadInitialized = true;
+                    
+                    // Helper para ler arquivos de upload, comprimir no canvas e preencher base64
+                    const handleImageUpload = (fileInputId, textInputId, previewImgId, placeholderId) => {
+                        const fileInput = document.getElementById(fileInputId);
+                        const textInput = document.getElementById(textInputId);
+                        const previewImg = document.getElementById(previewImgId);
+                        const placeholderEl = document.getElementById(placeholderId);
+
+                        if (!fileInput || !textInput) return;
+
+                        fileInput.addEventListener('change', (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+
+                            if (!file.type.startsWith('image/')) {
+                                showToast('Selecione uma imagem válida!', 'error');
+                                return;
+                            }
+
+                            const reader = new FileReader();
+                            showToast('Comprimindo imagem local...', 'info');
+
+                            reader.onload = (event) => {
+                                const img = new Image();
+                                img.src = event.target.result;
+                                img.onload = () => {
+                                    const canvas = document.createElement('canvas');
+                                    const ctx = canvas.getContext('2d');
+
+                                    // Limite máximo de 600px para manter o tamanho no localStorage leve (máx 30KB)
+                                    const MAX_WIDTH = 600;
+                                    const MAX_HEIGHT = 600;
+                                    let width = img.width;
+                                    let height = img.height;
+
+                                    if (width > height) {
+                                        if (width > MAX_WIDTH) {
+                                            height *= MAX_WIDTH / width;
+                                            width = MAX_WIDTH;
+                                        }
+                                    } else {
+                                        if (height > MAX_HEIGHT) {
+                                            width *= MAX_HEIGHT / height;
+                                            height = MAX_HEIGHT;
+                                        }
+                                    }
+
+                                    canvas.width = width;
+                                    canvas.height = height;
+                                    ctx.drawImage(img, 0, 0, width, height);
+
+                                    // Comprime para formato JPEG leve com qualidade 0.65
+                                    const base64 = canvas.toDataURL('image/jpeg', 0.65);
+                                    
+                                    textInput.value = base64;
+                                    previewImg.src = base64;
+                                    previewImg.classList.remove('hidden');
+                                    if (placeholderEl) placeholderEl.classList.add('hidden');
+
+                                    showToast('✓ Imagem importada com sucesso!', 'success');
+                                };
+                            };
+                            reader.readAsDataURL(file);
+                        });
+                    };
+
+                    // Sincronizador de campos de texto com as caixas de prévia visual
+                    const bindPreviewSync = (textInputId, previewImgId, placeholderId) => {
+                        const textInput = document.getElementById(textInputId);
+                        const previewImg = document.getElementById(previewImgId);
+                        const placeholderEl = document.getElementById(placeholderId);
+
+                        if (!textInput || !previewImg) return () => {};
+
+                        const update = () => {
+                            const val = textInput.value.trim();
+                            if (val) {
+                                previewImg.src = val;
+                                previewImg.classList.remove('hidden');
+                                if (placeholderEl) placeholderEl.classList.add('hidden');
+                            } else {
+                                previewImg.src = '';
+                                previewImg.classList.add('hidden');
+                                if (placeholderEl) placeholderEl.classList.remove('hidden');
+                            }
+                        };
+
+                        textInput.addEventListener('input', update);
+                        textInput.addEventListener('change', update);
+                        return update;
+                    };
+
+                    handleImageUpload('upload-img-1', 'prod-img', 'preview-img-1', 'preview-placeholder-1');
+                    handleImageUpload('upload-img-2', 'prod-img-2', 'preview-img-2', 'preview-placeholder-2');
+
+                    window.updatePreview1 = bindPreviewSync('prod-img', 'preview-img-1', 'preview-placeholder-1');
+                    window.updatePreview2 = bindPreviewSync('prod-img-2', 'preview-img-2', 'preview-placeholder-2');
+                }
+
+                // Dispara sincronização inicial de prévias
+                if (window.updatePreview1) window.updatePreview1();
+                if (window.updatePreview2) window.updatePreview2();
 
                 // --- HELPERS DE EXTRAÇÃO DE PRODUTO ---
                 function categorizeProduct(title) {
