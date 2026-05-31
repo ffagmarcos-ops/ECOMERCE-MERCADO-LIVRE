@@ -2110,8 +2110,46 @@
                 }
 
                 function parseGalleryImages(html) {
-                    const imgMatches = [...html.matchAll(/https:\/\/http2\.mlstatic\.com\/D_NQ_NP_(?:2X_)?([0-9]+-[a-zA-Z0-9_-]+)-(?:O|F|V|AB)\.webp/gi)].map(m => m[1]);
-                    const uniqueImgIds = [...new Set(imgMatches)];
+                    // Try DOM parsing first for the gallery container
+                    try {
+                        const domParser = new DOMParser();
+                        const doc = domParser.parseFromString(html, 'text/html');
+                        const galleryImgs = doc.querySelectorAll('.ui-pdp-gallery img, .ui-pdp-gallery__figure img, [class*="ui-pdp-gallery"] img, .gallery__picture img, img[class*="gallery"]');
+                        let domUrls = [];
+                        galleryImgs.forEach(img => {
+                            let src = img.getAttribute('data-zoom') || img.getAttribute('src') || img.getAttribute('data-src') || '';
+                            if (src && src.includes('mlstatic.com') && !src.startsWith('data:')) {
+                                domUrls.push(src);
+                            }
+                        });
+                        
+                        if (domUrls.length > 0) {
+                            // Standardize and extract IDs
+                            const matches = domUrls.map(url => {
+                                const m = url.match(/D_(?:N)?Q_NP_(?:2X_)?([0-9]+-[a-zA-Z0-9_-]+)-(?:O|F|V|AB|O)\./i);
+                                return m ? m[1] : null;
+                            }).filter(Boolean);
+                            
+                            const unique = [...new Set(matches)];
+                            if (unique.length > 0) {
+                                const imgUrl = `https://http2.mlstatic.com/D_NQ_NP_2X_${unique[0]}-O.webp`;
+                                const imgUrl2 = unique[1] ? `https://http2.mlstatic.com/D_NQ_NP_2X_${unique[1]}-O.webp` : '';
+                                return { imgUrl, imgUrl2 };
+                            }
+                        }
+                    } catch (e) {}
+
+                    // Fallback: Regex Search in HTML
+                    const imgMatches = [...html.matchAll(/https:\/\/http2\.mlstatic\.com\/D_(?:N)?Q_NP_(?:2X_)?([0-9]+-[a-zA-Z0-9_-]+)-(?:O|F|V|AB|O)\.(webp|jpg|jpeg|png)/gi)].map(m => m[1]);
+                    
+                    // Filter to only include product picture IDs (pattern: [digits]-[MLx][digits]_[digits])
+                    // Standard format is e.g. 644611-MLA96137565645_102025
+                    const filteredMatches = imgMatches.filter(id => /[0-9]+-[A-Z]{3}[0-9]+_[0-9]+/i.test(id));
+                    
+                    // Fallback if filter is too strict
+                    const finalMatches = filteredMatches.length > 0 ? filteredMatches : imgMatches;
+                    
+                    const uniqueImgIds = [...new Set(finalMatches)];
                     const imgUrl = uniqueImgIds[0] ? `https://http2.mlstatic.com/D_NQ_NP_2X_${uniqueImgIds[0]}-O.webp` : '';
                     const imgUrl2 = uniqueImgIds[1] ? `https://http2.mlstatic.com/D_NQ_NP_2X_${uniqueImgIds[1]}-O.webp` : '';
                     return { imgUrl, imgUrl2 };
@@ -2552,10 +2590,33 @@
                                     const imgEl = card.querySelector('img');
                                     let imgUrl = '';
                                     if (imgEl) {
-                                        imgUrl = imgEl.getAttribute('src') || imgEl.getAttribute('data-src') || '';
+                                        const dataSrc = imgEl.getAttribute('data-src') || imgEl.getAttribute('data-srcset') || imgEl.getAttribute('srcset') || '';
+                                        const srcAttr = imgEl.getAttribute('src') || '';
+                                        
+                                        if (dataSrc && !dataSrc.startsWith('data:')) {
+                                            imgUrl = dataSrc;
+                                        } else if (srcAttr && !srcAttr.startsWith('data:')) {
+                                            imgUrl = srcAttr;
+                                        } else {
+                                            // Search all attributes for a valid image url
+                                            for (let attr of imgEl.attributes) {
+                                                if (attr.value && attr.value.includes('mlstatic.com') && !attr.value.startsWith('data:')) {
+                                                    imgUrl = attr.value;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        
+                                        if (imgUrl.includes(' ')) {
+                                            imgUrl = imgUrl.split(' ')[0];
+                                        }
+                                        
                                         // Standardize image sizes
                                         if (imgUrl) {
                                             imgUrl = imgUrl.replace('-I.', '-O.').replace('-V.', '-O.').replace('-AB.', '-O.');
+                                            if (imgUrl.startsWith('http://')) {
+                                                imgUrl = imgUrl.replace('http://', 'https://');
+                                            }
                                         }
                                     }
 
