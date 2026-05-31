@@ -279,7 +279,9 @@
                 glowColor: "rgba(255,26,117,0.3)",
                 searchKeys: "liquidificador britania pro maxx turbo 3l 1200w rosa 220v casa cozinha eletro",
                 url: "https://www.mercadolivre.com.br/liquidificador-britnia-pro-maxx-turbo-3l-1200w-rosa/p/MLB22694469?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
-                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_644611-MLA96137565645_102025-O.webp"
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_644611-MLA96137565645_102025-O.webp",
+                img_url_2: "https://http2.mlstatic.com/D_Q_NP_2X_820453-MLA100047352829_122025-O.webp",
+                video_url: "https://www.youtube.com/watch?v=sCblS6Kz2oE"
               },
               {
                 id: 2,
@@ -293,7 +295,9 @@
                 glowColor: "rgba(255,26,117,0.3)",
                 searchKeys: "air fryer rosa britania 5,5l cesto pinkstone 1500w bafe53 127v casa cozinha fritadeira",
                 url: "https://produto.mercadolivre.com.br/MLB-4655536353-air-fryer-rosa-britnia-55l-cesto-pinkstone-1500w-bafe53-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
-                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_914280-MLA88399456511_072025-O.webp"
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_914280-MLA88399456511_072025-O.webp",
+                img_url_2: "https://http2.mlstatic.com/D_Q_NP_2X_633183-MLA99468751756_112025-O.webp",
+                video_url: "https://www.youtube.com/watch?v=l_aUp_a0p4I"
               },
               {
                 id: 3,
@@ -321,12 +325,14 @@
                 glowColor: "rgba(255,26,117,0.3)",
                 searchKeys: "cafeteira britania bcf15 inox 15 xicaras 550w rosa 127v casa cafe rosa",
                 url: "https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
-                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_769638-MLA99506939262_112025-O.webp"
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_769638-MLA99506939262_112025-O.webp",
+                img_url_2: "https://http2.mlstatic.com/D_Q_NP_2X_666995-MLA99455173642_112025-O.webp",
+                video_url: "https://www.youtube.com/watch?v=sCblS6Kz2oE"
               },
               {
                 id: 5,
                 name: "Aspirador Vertical Britânia 2 Em 1 1400W Base30 Rosa 127V",
-                category: "organiza\u00e7\u00e3o",
+                category: "organização",
                 brand: "Britânia",
                 price: 237.99,
                 oldPrice: 297.49,
@@ -335,7 +341,9 @@
                 glowColor: "rgba(255,26,117,0.3)",
                 searchKeys: "aspirador vertical britania 2 em 1 1400w base30 rosa 127v organizacao limpeza po",
                 url: "https://produto.mercadolivre.com.br/MLB-4469244553-aspirador-rosa-vertical-britnia-2-em-1-1400w-base30-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
-                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_886987-MLA99526846172_122025-O.webp"
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_886987-MLA99526846172_122025-O.webp",
+                img_url_2: "https://http2.mlstatic.com/D_Q_NP_2X_944970-MLA99949674111_112025-O.webp",
+                video_url: "https://www.youtube.com/watch?v=l_aUp_a0p4I"
               },
               {
                 id: 6,
@@ -1672,7 +1680,8 @@
             // a inicialização do script no login, restaurando o funcionamento de todo o fluxo administrativo.
             function loadProductsTab() {
                 let customProducts = JSON.parse(localStorage.getItem('admin-custom-products'));
-                if (!customProducts || customProducts.length < 40) {
+                const hasVideoFields = customProducts && customProducts.some(p => p.video_url);
+                if (!customProducts || customProducts.length < 40 || !hasVideoFields) {
                     customProducts = [...DEFAULT_PRODUCTS];
                     localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
                 }
@@ -1858,6 +1867,18 @@
                                         </div>
                                     </div>
 
+                                    <!-- Novos Campos de Mídia: Imagem Secundária e Vídeo (YouTube) -->
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-admin-border pt-4">
+                                        <div>
+                                            <label class="admin-label">URL da Imagem Secundária (Opcional - Hover Fading)</label>
+                                            <input type="url" id="prod-img-2" class="admin-input text-xs" placeholder="https://http2.mlstatic.com/...webp">
+                                        </div>
+                                        <div>
+                                            <label class="admin-label">URL do Vídeo do Produto (Opcional - YouTube Link ou MP4)</label>
+                                            <input type="url" id="prod-video" class="admin-input text-xs" placeholder="Ex: https://www.youtube.com/watch?v=...">
+                                        </div>
+                                    </div>
+
                                     <div class="flex justify-end gap-3 pt-2">
                                         <button type="button" id="prod-cancel-edit-btn" class="hidden bg-white/5 border border-white/10 hover:bg-white/10 text-white font-extrabold px-6 py-3 rounded-xl uppercase tracking-wider text-xs transition duration-200">
                                             Cancelar Edição
@@ -1906,6 +1927,8 @@
                     document.getElementById('prod-id').value = '';
                     document.getElementById('prod-id').disabled = false;
                     document.getElementById('prod-custom-link').value = '';
+                    document.getElementById('prod-img-2').value = '';
+                    document.getElementById('prod-video').value = '';
                     
                     document.getElementById('form-header-title').innerHTML = `<i class="fa-solid fa-cart-plus mr-1.5 text-admin-accentBlue"></i> Novo Achadinho`;
                     document.getElementById('prod-submit-btn').innerText = 'Cadastrar Produto';
@@ -1924,6 +1947,8 @@
                     const oldPrice = parseFloat(document.getElementById('prod-old-price').value) || null;
                     const category = document.getElementById('prod-category').value;
                     const imgUrl = document.getElementById('prod-img').value.trim();
+                    const imgUrl2 = document.getElementById('prod-img-2').value.trim();
+                    const videoUrl = document.getElementById('prod-video').value.trim();
                     const emoji = document.getElementById('prod-emoji').value.trim();
                     const badge = document.getElementById('prod-badge').value.trim() || 'Achadinho';
                     const customId = document.getElementById('prod-id').value.trim();
@@ -1958,11 +1983,13 @@
                                 glowColor: "rgba(255,26,117,0.3)",
                                 searchKeys: `${name.toLowerCase()} ${category.toLowerCase()} achadinho`,
                                 url: finalUrl,
-                                img_url: imgUrl
+                                img_url: imgUrl,
+                                img_url_2: imgUrl2,
+                                video_url: videoUrl
                             };
                             
                             localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
-                            showToast('Produto atualizado com sucesso!', 'success');
+                            showToast('Produto updated com sucesso!', 'success');
                             
                             isEditing = false;
                             editingProductId = null;
@@ -1985,7 +2012,9 @@
                             glowColor: "rgba(255,26,117,0.3)",
                             searchKeys: `${name.toLowerCase()} ${category.toLowerCase()} achadinho`,
                             url: finalUrl,
-                            img_url: imgUrl
+                            img_url: imgUrl,
+                            img_url_2: imgUrl2,
+                            video_url: videoUrl
                         };
 
                         customProducts.unshift(newProd); // Add to beginning
@@ -2016,6 +2045,8 @@
                             document.getElementById('prod-old-price').value = prod.oldPrice || '';
                             document.getElementById('prod-category').value = prod.category;
                             document.getElementById('prod-img').value = prod.img_url;
+                            document.getElementById('prod-img-2').value = prod.img_url_2 || '';
+                            document.getElementById('prod-video').value = prod.video_url || '';
                             document.getElementById('prod-emoji').value = prod.emoji;
                             document.getElementById('prod-badge').value = prod.badge;
                             document.getElementById('prod-id').value = prod.id;
@@ -2044,78 +2075,114 @@
                     });
                 });
 
+                // --- HELPERS DE EXTRAÇÃO DE PRODUTO ---
+                function categorizeProduct(title) {
+                    const low = (title||'').toLowerCase();
+                    if (/cafeteira|espremedor|panela|chaleira|copo|liquidificador|frigideira|cozinha/.test(low)) return 'casa';
+                    if (/aspirador|organizador|gaveta|cabide|armario|prateleira/.test(low)) return 'organização';
+                    if (/maquiagem|cabelo|secador|creme|perfume|shampoo|esmalte|batom|pele|beleza/.test(low)) return 'beleza';
+                    if (/carregador|fone|cabo|smartwatch|caixa de som|led|ring light|celular|tablet|notebook|bluetooth/.test(low)) return 'eletrônicos';
+                    return 'utilidades';
+                }
+
+                function parseGalleryImages(html) {
+                    const imgMatches = [...html.matchAll(/https:\/\/http2\.mlstatic\.com\/D_NQ_NP_(?:2X_)?([0-9]+-[a-zA-Z0-9_-]+)-(?:O|F|V|AB)\.webp/gi)].map(m => m[1]);
+                    const uniqueImgIds = [...new Set(imgMatches)];
+                    const imgUrl = uniqueImgIds[0] ? `https://http2.mlstatic.com/D_NQ_NP_2X_${uniqueImgIds[0]}-O.webp` : '';
+                    const imgUrl2 = uniqueImgIds[1] ? `https://http2.mlstatic.com/D_NQ_NP_2X_${uniqueImgIds[1]}-O.webp` : '';
+                    return { imgUrl, imgUrl2 };
+                }
+
+                function parseVideo(html) {
+                    const ytMatch = html.match(/youtube\.com\/(?:embed\/|watch\?v=|shorts\/)([a-zA-Z0-9_-]{11})/i) || html.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/i);
+                    if (ytMatch) {
+                        return `https://www.youtube.com/watch?v=${ytMatch[1]}`;
+                    }
+                    const mp4Match = html.match(/https?:\/\/[^\s"']+\.mp4(?:\?[^\s"']*)?/i);
+                    if (mp4Match) {
+                        return mp4Match[0];
+                    }
+                    return '';
+                }
+
+                function parseJsonLd(html) {
+                    const matches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+                    for (const match of matches) {
+                        try {
+                            const data = JSON.parse(match[1]);
+                            const type = data['@type'] || '';
+                            if (type === 'Product' || type === 'ItemPage') {
+                                const title = (data.name || '').trim();
+                                const offers = data.offers;
+                                let price = 0, oldPrice = 0;
+                                if (offers) {
+                                    if (Array.isArray(offers)) {
+                                        price = parseFloat(offers[0]?.price) || 0;
+                                    } else {
+                                        price = parseFloat(offers.price) || 0;
+                                    }
+                                }
+                                const rawImg = data.image;
+                                const imgUrl = Array.isArray(rawImg) ? rawImg[0] : (rawImg || '');
+                                if (title) return { title, price, oldPrice, imgUrl };
+                            }
+                        } catch(e) {}
+                    }
+                    return null;
+                }
+
+                function parseMetaTags(html) {
+                    const titleM = html.match(/property=["']og:title["'][^>]*content=["']([^"']{5,})["']/i)
+                                 || html.match(/content=["']([^"']{5,})["'][^>]*property=["']og:title["']/i);
+                    const imgM   = html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+                                 || html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+                    const priceM = html.match(/itemprop=["']price["'][^>]*content=["']([\d.]+)["']/i)
+                                 || html.match(/content=["']([\d.]+)["'][^>]*itemprop=["']price["']/i)
+                                 || html.match(/"price"\s*:\s*"?(\d+\.?\d*)"?/);
+
+                    const title = titleM ? titleM[1].split(' | ')[0].split(' - Frete')[0].trim() : '';
+                    return {
+                        title,
+                        price: priceM ? parseFloat(priceM[1]) : 0,
+                        oldPrice: 0,
+                        imgUrl: imgM ? imgM[1] : ''
+                    };
+                }
+
+                function fillProductForm({ title, price, oldPrice, imgUrl, imgUrl2, videoUrl, rawUrl }) {
+                    if (title) document.getElementById('prod-name').value = title;
+                    if (price > 0) {
+                        document.getElementById('prod-price').value = price.toFixed(2);
+                        document.getElementById('prod-old-price').value = (oldPrice > price ? oldPrice : price * 1.25).toFixed(2);
+                    }
+                    
+                    if (imgUrl) document.getElementById('prod-img').value = imgUrl;
+                    if (imgUrl2) document.getElementById('prod-img-2').value = imgUrl2;
+                    if (videoUrl) document.getElementById('prod-video').value = videoUrl;
+                    
+                    const cat = categorizeProduct(title);
+                    document.getElementById('prod-category').value = cat;
+                    const emojiMap = { casa:'☕', 'organização':'🧹', beleza:'💄', 'eletrônicos':'⚡', utilidades:'🛍️' };
+                    document.getElementById('prod-emoji').value = emojiMap[cat] || '🛍️';
+                    
+                    // Fill ID field with MLB ID automatically if possible
+                    if (rawUrl) {
+                        const mParam = rawUrl.match(/(?:item_id|wid)[%:=]+(MLB\d+)/i);
+                        let mlbId = mParam ? mParam[1].toUpperCase() : null;
+                        if (!mlbId) {
+                            const m = rawUrl.match(/MLB[-_]?(\d{7,12})/i);
+                            mlbId = m ? 'MLB' + m[1] : null;
+                        }
+                        if (mlbId) document.getElementById('prod-id').value = mlbId;
+                    }
+                }
+
                 // === MOTOR DE EXTRAÇÃO MANUAL DE HTML (BYPASS) ===
                 document.getElementById('prod-parse-html-btn').addEventListener('click', () => {
                     const rawHtml = document.getElementById('prod-raw-html').value.trim();
                     if (!rawHtml) {
                         showToast('Cole o código fonte HTML primeiro!', 'error');
                         return;
-                    }
-
-                    function categorize(title) {
-                        const low = (title||'').toLowerCase();
-                        if (/cafeteira|espremedor|panela|chaleira|copo|liquidificador|frigideira|cozinha/.test(low)) return 'casa';
-                        if (/aspirador|organizador|gaveta|cabide|armario|prateleira/.test(low)) return 'organização';
-                        if (/maquiagem|cabelo|secador|creme|perfume|shampoo|esmalte|batom|pele|beleza/.test(low)) return 'beleza';
-                        if (/carregador|fone|cabo|smartwatch|caixa de som|led|ring light|celular|tablet|notebook|bluetooth/.test(low)) return 'eletrônicos';
-                        return 'utilidades';
-                    }
-
-                    function fillForm({ title, price, oldPrice, imgUrl }) {
-                        if (title) document.getElementById('prod-name').value = title;
-                        if (price > 0) {
-                            document.getElementById('prod-price').value = price.toFixed(2);
-                            document.getElementById('prod-old-price').value = (oldPrice > price ? oldPrice : price * 1.25).toFixed(2);
-                        }
-                        if (imgUrl) document.getElementById('prod-img').value = imgUrl;
-                        const cat = categorize(title);
-                        document.getElementById('prod-category').value = cat;
-                        const emojiMap = { casa:'☕', 'organização':'🧹', beleza:'💄', 'eletrônicos':'⚡', utilidades:'🛍️' };
-                        document.getElementById('prod-emoji').value = emojiMap[cat] || '🛍️';
-                    }
-
-                    function parseJsonLd(html) {
-                        const matches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-                        for (const match of matches) {
-                            try {
-                                const data = JSON.parse(match[1]);
-                                const type = data['@type'] || '';
-                                if (type === 'Product' || type === 'ItemPage') {
-                                    const title = (data.name || '').trim();
-                                    const offers = data.offers;
-                                    let price = 0, oldPrice = 0;
-                                    if (offers) {
-                                        if (Array.isArray(offers)) {
-                                            price = parseFloat(offers[0]?.price) || 0;
-                                        } else {
-                                            price = parseFloat(offers.price) || 0;
-                                        }
-                                    }
-                                    const rawImg = data.image;
-                                    const imgUrl = Array.isArray(rawImg) ? rawImg[0] : (rawImg || '');
-                                    if (title) return { title, price, oldPrice, imgUrl };
-                                }
-                            } catch(e) {}
-                        }
-                        return null;
-                    }
-
-                    function parseMetaTags(html) {
-                        const titleM = html.match(/property=["']og:title["'][^>]*content=["']([^"']{5,})["']/i)
-                                     || html.match(/content=["']([^"']{5,})["'][^>]*property=["']og:title["']/i);
-                        const imgM   = html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
-                                     || html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-                        const priceM = html.match(/itemprop=["']price["'][^>]*content=["']([\d.]+)["']/i)
-                                     || html.match(/content=["']([\d.]+)["'][^>]*itemprop=["']price["']/i)
-                                     || html.match(/"price"\s*:\s*"?(\d+\.?\d*)"?/);
-
-                        const title = titleM ? titleM[1].split(' | ')[0].split(' - Frete')[0].trim() : '';
-                        return {
-                            title,
-                            price: priceM ? parseFloat(priceM[1]) : 0,
-                            oldPrice: 0,
-                            imgUrl: imgM ? imgM[1] : ''
-                        };
                     }
 
                     try {
@@ -2128,7 +2195,20 @@
                             throw new Error('Não foi possível extrair dados desse código HTML. Preencha os campos manualmente.');
                         }
 
-                        fillForm(parsed);
+                        // Also extract gallery images & video
+                        const gallery = parseGalleryImages(rawHtml);
+                        const videoUrl = parseVideo(rawHtml);
+
+                        fillProductForm({
+                            title: parsed.title,
+                            price: parsed.price,
+                            oldPrice: parsed.oldPrice,
+                            imgUrl: gallery.imgUrl || parsed.imgUrl,
+                            imgUrl2: gallery.imgUrl2,
+                            videoUrl: videoUrl,
+                            rawUrl: document.getElementById('prod-url').value.trim()
+                        });
+
                         showToast('✅ Dados extraídos com sucesso do código HTML!', 'success');
                         document.getElementById('manual-html-box').classList.add('hidden');
                         document.getElementById('prod-raw-html').value = '';
@@ -2152,49 +2232,19 @@
 
                     function extractMLBId(str) {
                         if (!str) return null;
-                        // 1. Prefer item_id or wid in parameters (corresponds to active seller listing ID)
                         const mParam = str.match(/(?:item_id|wid)[%:=]+(MLB\d+)/i);
                         if (mParam) return mParam[1].toUpperCase();
-                        
-                        // 2. Fallback to standard MLB matching in URL path
                         const m = str.match(/MLB[-_]?(\d{7,12})/i);
                         return m ? 'MLB' + m[1] : null;
                     }
 
                     function toCanonicalUrl(url) {
                         if (url.toLowerCase().includes('/p/mlb')) {
-                            // Catalog URLs are already canonical. Just strip query and hash parameters.
                             return url.split('?')[0].split('#')[0];
                         }
                         const mlbId = extractMLBId(url);
                         if (mlbId) return `https://produto.mercadolivre.com.br/${mlbId.replace('MLB','MLB-')}`;
                         return url;
-                    }
-
-                    function categorize(title) {
-                        const low = (title||'').toLowerCase();
-                        if (/cafeteira|espremedor|panela|chaleira|copo|liquidificador|frigideira|cozinha/.test(low)) return 'casa';
-                        if (/aspirador|organizador|gaveta|cabide|armario|prateleira/.test(low)) return 'organização';
-                        if (/maquiagem|cabelo|secador|creme|perfume|shampoo|esmalte|batom|pele|beleza/.test(low)) return 'beleza';
-                        if (/carregador|fone|cabo|smartwatch|caixa de som|led|ring light|celular|tablet|notebook|bluetooth/.test(low)) return 'eletrônicos';
-                        return 'utilidades';
-                    }
-
-                    function fillForm({ title, price, oldPrice, imgUrl }) {
-                        if (title) document.getElementById('prod-name').value = title;
-                        if (price > 0) {
-                            document.getElementById('prod-price').value = price.toFixed(2);
-                            document.getElementById('prod-old-price').value = (oldPrice > price ? oldPrice : price * 1.25).toFixed(2);
-                        }
-                        if (imgUrl) document.getElementById('prod-img').value = imgUrl;
-                        const cat = categorize(title);
-                        document.getElementById('prod-category').value = cat;
-                        const emojiMap = { casa:'☕', 'organização':'🧹', beleza:'💄', 'eletrônicos':'⚡', utilidades:'🛍️' };
-                        document.getElementById('prod-emoji').value = emojiMap[cat] || '🛍️';
-                        
-                        // Fill ID field with MLB ID automatically
-                        const mlbId = extractMLBId(rawUrl);
-                        if (mlbId) document.getElementById('prod-id').value = mlbId;
                     }
 
                     const PROXIES = [
@@ -2218,50 +2268,6 @@
                             } catch(e) { /* try next */ }
                         }
                         return null;
-                    }
-
-                    function parseJsonLd(html) {
-                        const matches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-                        for (const match of matches) {
-                            try {
-                                const data = JSON.parse(match[1]);
-                                const type = data['@type'] || '';
-                                if (type === 'Product' || type === 'ItemPage') {
-                                    const title = (data.name || '').trim();
-                                    const offers = data.offers;
-                                    let price = 0, oldPrice = 0;
-                                    if (offers) {
-                                        if (Array.isArray(offers)) {
-                                            price = parseFloat(offers[0]?.price) || 0;
-                                        } else {
-                                            price = parseFloat(offers.price) || 0;
-                                        }
-                                    }
-                                    const rawImg = data.image;
-                                    const imgUrl = Array.isArray(rawImg) ? rawImg[0] : (rawImg || '');
-                                    if (title) return { title, price, oldPrice, imgUrl };
-                                }
-                            } catch(e) {}
-                        }
-                        return null;
-                    }
-
-                    function parseMetaTags(html) {
-                        const titleM = html.match(/property=["']og:title["'][^>]*content=["']([^"']{5,})["']/i)
-                                     || html.match(/content=["']([^"']{5,})["'][^>]*property=["']og:title["']/i);
-                        const imgM   = html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
-                                     || html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-                        const priceM = html.match(/itemprop=["']price["'][^>]*content=["']([\d.]+)["']/i)
-                                     || html.match(/content=["']([\d.]+)["'][^>]*itemprop=["']price["']/i)
-                                     || html.match(/"price"\s*:\s*"?(\d+\.?\d*)"?/);
-
-                        const title = titleM ? titleM[1].split(' | ')[0].split(' - Frete')[0].trim() : '';
-                        return {
-                            title,
-                            price: priceM ? parseFloat(priceM[1]) : 0,
-                            oldPrice: 0,
-                            imgUrl: imgM ? imgM[1] : ''
-                        };
                     }
 
                     try {
@@ -2290,12 +2296,35 @@
                             const parts = targetUrl.split('/').filter(s => s.includes('-') && s.length > 10 && !/^MLB/i.test(s));
                             const slugTitle = parts[0] ? parts[0].replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()) : '';
                             if (!slugTitle) throw new Error('Não foi possível extrair dados. Preencha manualmente ou cole o Código Fonte HTML.');
-                            parsed = { title: slugTitle, price: 0, oldPrice: 0, imgUrl: '' };
-                            fillForm(parsed);
+                            
+                            const gallery = parseGalleryImages(html);
+                            const videoUrl = parseVideo(html);
+
+                            fillProductForm({
+                                title: slugTitle,
+                                price: 0,
+                                oldPrice: 0,
+                                imgUrl: gallery.imgUrl,
+                                imgUrl2: gallery.imgUrl2,
+                                videoUrl: videoUrl,
+                                rawUrl: rawUrl
+                            });
                             showToast('⚠️ Título parcialmente detectado. Complete o preço e imagem.', 'info');
                         } else {
-                            fillForm(parsed);
-                            const hasAll = parsed.title && parsed.price > 0 && parsed.imgUrl;
+                            const gallery = parseGalleryImages(html);
+                            const videoUrl = parseVideo(html);
+
+                            fillProductForm({
+                                title: parsed.title,
+                                price: parsed.price,
+                                oldPrice: parsed.oldPrice,
+                                imgUrl: gallery.imgUrl || parsed.imgUrl,
+                                imgUrl2: gallery.imgUrl2,
+                                videoUrl: videoUrl,
+                                rawUrl: rawUrl
+                            });
+
+                            const hasAll = parsed.title && parsed.price > 0 && (gallery.imgUrl || parsed.imgUrl);
                             if (hasAll) {
                                 showToast('✅ Produto detectado com sucesso! Verifique e confirme as informações.', 'success');
                             } else {
@@ -2405,36 +2434,79 @@
                         addLog('Iniciando decodificação do HTML da Vitrine de Afiliados...');
 
                         let items = [];
-                        addLog('Analisando State de Prehydration do Mercado Livre...');
+                        addLog('Analisando State de Prehydration do Mercado Livre (Nordic Context)...');
                         
-                        const pattern = /\{"id":"(MLB\d+)","title":"([^"]+)","price":(\d+\.?\d*),"currency_id":"BRL".*?,"thumbnail":"([^"]+)".*?,"permalink":"([^"]+)"/g;
-                        let match;
-                        let count = 0;
-                        
-                        while ((match = pattern.exec(html)) !== null) {
-                            const [_, mlbId, title, price, thumbnail, permalink] = match;
-                            items.push({
-                                mlbId,
-                                title,
-                                price: parseFloat(price),
-                                thumbnail,
-                                permalink
-                            });
-                            count++;
+                        let state = null;
+                        const matchNordic = html.match(/_n\.ctx\.r\s*=\s*(\{[\s\S]*?\});/i);
+                        if (matchNordic) {
+                            try {
+                                state = JSON.parse(matchNordic[1]);
+                                addLog('Nordic Rendering Context localizado e decodificado com sucesso!', 'success');
+                            } catch (e) {
+                                addLog(`Falha ao decodificar JSON do Nordic State: ${e.message}`, 'warn');
+                            }
                         }
-                        
-                        addLog(`Detector Principal encontrou ${count} itens correspondentes no State.`);
+
+                        if (state && state.appProps && state.appProps.pageProps && Array.isArray(state.appProps.pageProps.polycards)) {
+                            const polycards = state.appProps.pageProps.polycards;
+                            addLog(`Encontrados ${polycards.length} cartões no prehydrated state.`);
+                            polycards.forEach(card => {
+                                const metadata = card.metadata || {};
+                                const mlbId = metadata.id || '';
+                                const urlPart = metadata.url || '';
+                                const permalink = urlPart ? (urlPart.startsWith('http') ? urlPart : `https://${urlPart}`) : '';
+                                
+                                const components = card.components || [];
+                                const titleComp = components.find(c => c.type === 'title') || {};
+                                const title = titleComp.title ? titleComp.title.text : '';
+                                
+                                const priceComp = components.find(c => c.type === 'price') || {};
+                                const price = (priceComp.price && priceComp.price.current_price) ? parseFloat(priceComp.price.current_price.value) : 0;
+                                
+                                const brandComp = components.find(c => c.type === 'brand') || {};
+                                const brandText = brandComp.brand ? brandComp.brand.text : '';
+                                
+                                const pics = card.pictures ? (card.pictures.pictures || []) : [];
+                                const picId = pics[0] ? pics[0].id : '';
+                                const thumbnail = picId ? `https://http2.mlstatic.com/D_NQ_NP_2X_${picId}-O.webp` : '';
+                                
+                                if (title && price > 0 && permalink) {
+                                    items.push({
+                                        mlbId,
+                                        title,
+                                        price,
+                                        thumbnail,
+                                        permalink,
+                                        brand: brandText
+                                    });
+                                }
+                            });
+                        }
 
                         if (items.length === 0) {
-                            addLog('Detector Principal vazio. Tentando Detector Fallback por propriedades avulsas...', 'warn');
+                            addLog('Detector Nordic vazio. Tentando Detector Fallback de State...', 'warn');
+                            const pattern = /\{"id":"(MLB\d+)","title":"([^"]+)","price":(\d+\.?\d*),"currency_id":"BRL".*?,"thumbnail":"([^"]+)".*?,"permalink":"([^"]+)"/g;
+                            let match;
+                            while ((match = pattern.exec(html)) !== null) {
+                                const [_, mlbId, title, price, thumbnail, permalink] = match;
+                                items.push({
+                                    mlbId,
+                                    title,
+                                    price: parseFloat(price),
+                                    thumbnail,
+                                    permalink
+                                });
+                            }
+                        }
+
+                        if (items.length === 0) {
+                            addLog('Detector Fallback de State vazio. Tentando Regex de Propriedades Avulsas...', 'warn');
                             const titleMatches = [...html.matchAll(/"title"\s*:\s*"([^"]+)"/g)].map(m => m[1]);
                             const permalinkMatches = [...html.matchAll(/"permalink"\s*:\s*"([^"]+)"/g)].map(m => m[1]);
                             const priceMatches = [...html.matchAll(/"price"\s*:\s*(\d+\.?\d*)/g)].map(m => parseFloat(m[1]));
                             const thumbnailMatches = [...html.matchAll(/"thumbnail"\s*:\s*"([^"]+)"/g)].map(m => m[1]);
                             
                             const limit = Math.min(titleMatches.length, permalinkMatches.length, priceMatches.length, thumbnailMatches.length);
-                            addLog(`Parâmetros parciais detectados: Títulos: ${titleMatches.length}, Links: ${permalinkMatches.length}, Preços: ${priceMatches.length}`);
-                            
                             for (let i = 0; i < limit; i++) {
                                 const title = titleMatches[i];
                                 if (title && !["Tudo pra você", "Lista de afiliados", "VANESSAPARVATI | Perfil social", "Live Content"].includes(title)) {

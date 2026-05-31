@@ -796,7 +796,9 @@
                 glowColor: "rgba(255,26,117,0.3)",
                 searchKeys: "liquidificador britania pro maxx turbo 3l 1200w rosa 220v casa cozinha eletro",
                 url: "https://www.mercadolivre.com.br/liquidificador-britnia-pro-maxx-turbo-3l-1200w-rosa/p/MLB22694469?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
-                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_644611-MLA96137565645_102025-O.webp"
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_644611-MLA96137565645_102025-O.webp",
+                img_url_2: "https://http2.mlstatic.com/D_Q_NP_2X_820453-MLA100047352829_122025-O.webp",
+                video_url: "https://www.youtube.com/watch?v=sCblS6Kz2oE"
               },
               {
                 id: 2,
@@ -810,7 +812,9 @@
                 glowColor: "rgba(255,26,117,0.3)",
                 searchKeys: "air fryer rosa britania 5,5l cesto pinkstone 1500w bafe53 127v casa cozinha fritadeira",
                 url: "https://produto.mercadolivre.com.br/MLB-4655536353-air-fryer-rosa-britnia-55l-cesto-pinkstone-1500w-bafe53-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
-                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_914280-MLA88399456511_072025-O.webp"
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_914280-MLA88399456511_072025-O.webp",
+                img_url_2: "https://http2.mlstatic.com/D_Q_NP_2X_633183-MLA99468751756_112025-O.webp",
+                video_url: "https://www.youtube.com/watch?v=l_aUp_a0p4I"
               },
               {
                 id: 3,
@@ -838,7 +842,9 @@
                 glowColor: "rgba(255,26,117,0.3)",
                 searchKeys: "cafeteira britania bcf15 inox 15 xicaras 550w rosa 127v casa cafe rosa",
                 url: "https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
-                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_769638-MLA99506939262_112025-O.webp"
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_769638-MLA99506939262_112025-O.webp",
+                img_url_2: "https://http2.mlstatic.com/D_Q_NP_2X_666995-MLA99455173642_112025-O.webp",
+                video_url: "https://www.youtube.com/watch?v=sCblS6Kz2oE"
               },
               {
                 id: 5,
@@ -852,7 +858,9 @@
                 glowColor: "rgba(255,26,117,0.3)",
                 searchKeys: "aspirador vertical britania 2 em 1 1400w base30 rosa 127v organizacao limpeza po",
                 url: "https://produto.mercadolivre.com.br/MLB-4469244553-aspirador-rosa-vertical-britnia-2-em-1-1400w-base30-127v-_JM?matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true",
-                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_886987-MLA99526846172_122025-O.webp"
+                img_url: "https://http2.mlstatic.com/D_Q_NP_2X_886987-MLA99526846172_122025-O.webp",
+                img_url_2: "https://http2.mlstatic.com/D_Q_NP_2X_944970-MLA99949674111_112025-O.webp",
+                video_url: "https://www.youtube.com/watch?v=l_aUp_a0p4I"
               },
               {
                 id: 6,
@@ -1522,7 +1530,8 @@
                ==================================================================
             */
             let customProducts = JSON.parse(localStorage.getItem('admin-custom-products'));
-            if (!customProducts || customProducts.length < 40) {
+            const hasVideoFields = customProducts && customProducts.some(p => p.video_url);
+            if (!customProducts || customProducts.length < 40 || !hasVideoFields) {
                 customProducts = [...products];
                 localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
             }
@@ -1612,10 +1621,21 @@
                         <div class="product-click-area flex flex-col flex-1" data-url="${product.url}">
                             <div class="h-32 md:h-40 w-full mb-3 flex justify-center items-center relative overflow-hidden bg-brand-softPink rounded-xl p-2">
                                 ${product.img_url ? 
-                                    `<img src="${product.img_url}" alt="${product.name}" class="h-full w-full object-contain group-hover:scale-105 transition duration-300" style="filter: drop-shadow(0 4px 6px ${product.glowColor})">` : 
-                                    `<span class="text-6xl md:text-7xl group-hover:scale-105 transition duration-300" style="filter: drop-shadow(0 10px 10px ${product.glowColor})">${product.emoji}</span>`
+                                    `<img src="${product.img_url}" alt="${product.name}" class="primary-media h-full w-full object-contain group-hover:scale-105 transition duration-300" style="filter: drop-shadow(0 4px 6px ${product.glowColor})">` : 
+                                    `<span class="primary-media text-6xl md:text-7xl group-hover:scale-105 transition duration-300" style="filter: drop-shadow(0 10px 10px ${product.glowColor})">${product.emoji}</span>`
                                 }
-                                <div class="absolute bottom-2 bg-white/90 backdrop-blur-sm text-brand-pink text-[10px] font-bold px-2 py-0.5 rounded-full border border-brand-blush">
+                                
+                                <!-- Hover Alternate Image -->
+                                ${product.img_url_2 ? 
+                                    `<img src="${product.img_url_2}" alt="${product.name} - Angulo 2" class="secondary-image absolute inset-0 h-full w-full object-contain opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-2" style="filter: drop-shadow(0 4px 6px ${product.glowColor})">` : ''
+                                }
+                                
+                                <!-- Hover Video Container (YouTube or MP4) -->
+                                ${product.video_url ? 
+                                    `<div class="video-media-container absolute inset-0 h-full w-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl overflow-hidden bg-black" data-video="${product.video_url}"></div>` : ''
+                                }
+
+                                <div class="absolute bottom-2 bg-white/90 backdrop-blur-sm text-brand-pink text-[10px] font-bold px-2 py-0.5 rounded-full border border-brand-blush z-10">
                                     ${product.brand}
                                 </div>
                             </div>
@@ -1683,6 +1703,46 @@
                         const id = parseInt(btn.getAttribute('data-id'));
                         shareProduct(id, btn);
                     });
+                });
+
+                // Atrelar escuta de hover para carregamento inteligente de vídeos de produtos
+                document.querySelectorAll('.product-card').forEach(card => {
+                    const videoContainer = card.querySelector('.video-media-container');
+                    if (videoContainer) {
+                        const videoUrl = videoContainer.getAttribute('data-video');
+                        
+                        card.addEventListener('mouseenter', () => {
+                            let embedUrl = '';
+                            if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+                                let videoId = '';
+                                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                                const match = videoUrl.match(regExp);
+                                if (match && match[2].length === 11) {
+                                    videoId = match[2];
+                                    embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&modestbranding=1&rel=0&iv_load_policy=3`;
+                                }
+                            }
+                            
+                            if (embedUrl) {
+                                videoContainer.innerHTML = `<iframe class="w-full h-full object-cover scale-[1.35] pointer-events-none" src="${embedUrl}" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                            } else if (videoUrl.endsWith('.mp4') || videoUrl.includes('.mp4?')) {
+                                videoContainer.innerHTML = `<video src="${videoUrl}" autoplay muted loop playsinline class="w-full h-full object-cover pointer-events-none"></video>`;
+                            }
+                            
+                            const primary = card.querySelector('.primary-media');
+                            const secondary = card.querySelector('.secondary-image');
+                            if (primary) primary.style.opacity = '0';
+                            if (secondary) secondary.style.opacity = '0';
+                        });
+                        
+                        card.addEventListener('mouseleave', () => {
+                            videoContainer.innerHTML = '';
+                            const primary = card.querySelector('.primary-media');
+                            const secondary = card.querySelector('.secondary-image');
+                            if (primary) primary.style.opacity = '1';
+                            if (secondary) secondary.style.opacity = '';
+                        });
+                    }
                 });
             }
 
