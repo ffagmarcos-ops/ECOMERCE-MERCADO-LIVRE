@@ -1010,6 +1010,7 @@
             let creativeCampaigns = [];
             let creativeFiles = { model: null, product: null, product2: null, product3: null, extra: null };
             let isProcessingQueue = false;
+            let isNessaPreloaded = false;
 
             // 1. Default Colors State
             let brandColors = JSON.parse(localStorage.getItem('admin-colors')) || {
@@ -3139,6 +3140,21 @@
 
             // --- FUNÇÃO CARREGA A ABA DE CRIATIVOS ---
             function loadCreativesTab() {
+                // Preload Nessa model image as default reference if not set yet
+                if (!creativeFiles.model && !isNessaPreloaded) {
+                    isNessaPreloaded = true;
+                    fetch('images/nessa/nessa_full_reference.jpg')
+                        .then(res => res.blob())
+                        .then(blob => {
+                            creativeFiles.model = new File([blob], 'nessa_full_reference.jpg', { type: 'image/jpeg' });
+                            renderReferenceUploads();
+                        })
+                        .catch(err => {
+                            console.warn('Falha ao pre-carregar imagem de Nessa:', err);
+                            isNessaPreloaded = false;
+                        });
+                }
+
                 // Carrega produtos cadastrados da vitrine para o dropdown
                 let customProducts = JSON.parse(localStorage.getItem('admin-custom-products')) || [];
                 const hasVideoFields = customProducts && customProducts.some(p => p.video_url);
