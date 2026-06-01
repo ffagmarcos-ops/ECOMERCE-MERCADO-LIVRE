@@ -2174,6 +2174,22 @@
                     });
                 });
 
+                // Atrelar Clique de Exclusão de Produtos (Delete Product button)
+                document.querySelectorAll('.delete-prod-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = parseInt(btn.getAttribute('data-id')) || btn.getAttribute('data-id');
+                        
+                        customProducts = customProducts.filter(p => p.id !== id);
+                        localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
+                        
+                        showToast('Produto removido com sucesso!', 'info');
+                        
+                        setTimeout(() => {
+                            loadProductsTab();
+                        }, 200);
+                    });
+                });
+
                 // --- INICIALIZADOR PREMIUM DE UPLOAD E PRÉVIAS DE IMAGENS ---
                 if (!window.isUploadInitialized) {
                     window.isUploadInitialized = true;
@@ -3032,6 +3048,7 @@
                         startShowcaseSync('', document.getElementById('sync-raw-html').value.trim());
                     });
                 }
+            } // Close loadProductsTab()
 
 
             // ========================================================
@@ -4237,22 +4254,6 @@
             }
 
 
-                // Delete custom product
-                document.querySelectorAll('.delete-prod-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const id = parseInt(btn.getAttribute('data-id')) || btn.getAttribute('data-id');
-                        
-                        customProducts = customProducts.filter(p => p.id !== id);
-                        localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
-                        
-                        showToast('Produto removido com sucesso!', 'info');
-                        
-                        setTimeout(() => {
-                            loadProductsTab();
-                        }, 200);
-                    });
-                });
-            }
         });
     </script>
 </body>
