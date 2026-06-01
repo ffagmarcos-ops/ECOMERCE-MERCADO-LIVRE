@@ -1110,12 +1110,25 @@
             }
 
             // --- AUTHENTICATION ---
-            loginForm.addEventListener('submit', (e) => {
+            async function sha256(message) {
+                const msgBuffer = new TextEncoder().encode(message);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+
+            loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const user = document.getElementById('login-username').value;
                 const pass = document.getElementById('login-password').value;
 
-                if (user === 'MARCOSF' && pass === '30MARIAFN@') {
+                const hashedUser = await sha256(user);
+                const hashedPass = await sha256(pass);
+
+                const EXPECTED_USER_HASH = 'acba8cd20cf9ee0a01383c0fb45228b9bc7ea008f6f3b554e28c15dd392c06e4';
+                const EXPECTED_PASS_HASH = 'b2146502b2ef2661e51b9731de898469ae75491ecccb7515ce934449608db6bd';
+
+                if (hashedUser === EXPECTED_USER_HASH && hashedPass === EXPECTED_PASS_HASH) {
                     showToast('Acesso autorizado! Carregando painel de configuração...', 'success');
                     
                     loginScreen.classList.add('opacity-0', 'scale-95');
