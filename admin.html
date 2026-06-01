@@ -1006,6 +1006,11 @@
             let isEditing = false;
             let editingProductId = null;
 
+            // --- CREATIVES STATE ---
+            let creativeCampaigns = [];
+            let creativeFiles = { model: null, product: null, product2: null, product3: null, extra: null };
+            let isProcessingQueue = false;
+
             // 1. Default Colors State
             let brandColors = JSON.parse(localStorage.getItem('admin-colors')) || {
                 primaryPink: '#FF1A75', // Primary brand pink/rose
@@ -3019,6 +3024,18 @@
                 }
             }
 
+            function ensureAffiliateLink(url) {
+                if (!url) return '';
+                let trimmed = url.trim();
+                if (trimmed.includes('mercadolivre.com') || trimmed.includes('mercado-livre') || trimmed.includes('meli.la')) {
+                    if (!trimmed.includes('matt_tool=')) {
+                        const separator = trimmed.includes('?') ? '&' : '?';
+                        trimmed = `${trimmed}${separator}matt_tool=80930673&matt_word=vanessaparvati&forceInApp=true`;
+                    }
+                }
+                return trimmed;
+            }
+
             function fileToBase64(file) {
                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
@@ -3314,7 +3331,7 @@
                         id: 'camp-' + Date.now() + Math.random().toString(36).substr(2, 4),
                         productId: id,
                         productName: name,
-                        affiliateLink: link,
+                        affiliateLink: ensureAffiliateLink(link),
                         imgModel: creativeFiles.model,
                         imgProduct: creativeFiles.product,
                         imgProduct2: creativeFiles.product2,
@@ -3368,7 +3385,7 @@
                                 id: 'camp-' + Date.now() + Math.random().toString(36).substr(2, 4),
                                 productId,
                                 productName,
-                                affiliateLink,
+                                affiliateLink: ensureAffiliateLink(affiliateLink),
                                 imgModel: null, imgProduct: null, imgProduct2: null, imgProduct3: null, imgExtra: null,
                                 status: 'idle', results: null, error: ''
                             });
@@ -3945,10 +3962,13 @@
                             res.image_feed.forEach((img, idx) => {
                                 const angleClass = img.angle === 'capa' ? 'col-span-2' : '';
                                 const isReg = img.isRegenerating;
+                                const labelHTML = img.angle === 'capa' 
+                                    ? `<span class="bg-pink-500/20 text-pink-400 border border-pink-500/30 px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider"><i class="fa-solid fa-star text-[7px] mr-0.5 animate-pulse"></i> ${img.title}</span>`
+                                    : `<span class="text-[9px] font-black uppercase text-admin-textMuted tracking-wider">${img.title}</span>`;
                                 feedGridHTML += `
                                     <div class="flex flex-col gap-1.5 ${angleClass}">
                                         <div class="flex justify-between items-center px-1">
-                                            <span class="text-[9px] font-black uppercase text-admin-textMuted tracking-wider">${img.angle === 'capa' ? '✨ ' + img.title : img.title}</span>
+                                            ${labelHTML}
                                             <button class="re-gen-img-btn p-1 rounded bg-white/5 hover:bg-admin-accentBlue/20 text-admin-textMuted hover:text-admin-accentBlue transition" data-camp="${camp.id}" data-format="1:1" data-angle="${img.angle}" ${isReg ? 'disabled' : ''}>
                                                 <i class="fa-solid fa-rotate text-[10px] ${isReg ? 'animate-spin' : ''}"></i>
                                             </button>
@@ -3982,10 +4002,13 @@
                             res.image_story.forEach((img, idx) => {
                                 const angleClass = img.angle === 'capa' ? 'col-span-2' : '';
                                 const isReg = img.isRegenerating;
+                                const labelHTML = img.angle === 'capa' 
+                                    ? `<span class="bg-pink-500/20 text-pink-400 border border-pink-500/30 px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider"><i class="fa-solid fa-star text-[7px] mr-0.5 animate-pulse"></i> ${img.title}</span>`
+                                    : `<span class="text-[9px] font-black uppercase text-admin-textMuted tracking-wider">${img.title}</span>`;
                                 storyGridHTML += `
                                     <div class="flex flex-col gap-1.5 ${angleClass}">
                                         <div class="flex justify-between items-center px-1">
-                                            <span class="text-[9px] font-black uppercase text-admin-textMuted tracking-wider">${img.angle === 'capa' ? '✨ ' + img.title : img.title}</span>
+                                            ${labelHTML}
                                             <button class="re-gen-img-btn p-1 rounded bg-white/5 hover:bg-admin-accentBlue/20 text-admin-textMuted hover:text-admin-accentBlue transition" data-camp="${camp.id}" data-format="9:16" data-angle="${img.angle}" ${isReg ? 'disabled' : ''}>
                                                 <i class="fa-solid fa-rotate text-[10px] ${isReg ? 'animate-spin' : ''}"></i>
                                             </button>
