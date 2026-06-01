@@ -998,7 +998,8 @@
                 { id: 'logo-config', label: 'Logomarca da Página', icon: 'fa-solid fa-store' },
                 { id: 'banners-config', label: 'Banners & Slideshow', icon: 'fa-solid fa-images' },
                 { id: 'cores-config', label: 'Customizar Cores', icon: 'fa-solid fa-palette' },
-                { id: 'produtos-config', label: 'Cadastrar Produtos', icon: 'fa-solid fa-cart-plus' }
+                { id: 'produtos-config', label: 'Cadastrar Produtos', icon: 'fa-solid fa-cart-plus' },
+                { id: 'creatives-config', label: 'Criador de Criativos', icon: 'fa-solid fa-wand-magic-sparkles' }
             ];
 
             let activeTabId = 'logo-config';
@@ -1172,6 +1173,9 @@
                             break;
                         case 'produtos-config':
                             loadProductsTab();
+                            break;
+                        case 'creatives-config':
+                            loadCreativesTab();
                             break;
                     }
                 }, 200);
