@@ -2994,6 +2994,1182 @@
                     });
                 }
 
+
+            // ========================================================
+            // 🎬 CRIADOR DE CRIATIVOS IA (PORT VANILLA JS)
+            // ========================================================
+            
+            // --- FUNÇÕES UTILITÁRIAS DA API GEMINI & IMAGEN ---
+            async function fetchWithRetry(url, options, retries = 5) {
+                const delays = [1000, 2000, 4000, 8000, 16000];
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        const response = await fetch(url, options);
+                        const data = await response.json();
+                        if (!response.ok) throw new Error(data.error?.message || `Erro HTTP! Status: ${response.status}`);
+                        return data;
+                    } catch (e) {
+                        if (i === retries - 1) throw e;
+                        await new Promise(res => setTimeout(res, delays[i]));
+                    }
+                }
+            }
+
+            function fileToBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                });
+            }
+
+            function createPaddedImageBase64(file, targetRatio) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        let targetW, targetH;
+                        if (targetRatio === '1:1') {
+                            const size = Math.max(img.width, img.height);
+                            targetW = size;
+                            targetH = size;
+                        } else if (targetRatio === '9:16') {
+                            const currentRatio = img.width / img.height;
+                            const tr = 9 / 16;
+                            if (currentRatio > tr) {
+                                targetW = img.width;
+                                targetH = Math.round(img.width / tr);
+                            } else {
+                                targetH = img.height;
+                                targetW = Math.round(img.height * tr);
+                            }
+                        } else {
+                            targetW = img.width; 
+                            targetH = img.height;
+                        }
+
+                        canvas.width = targetW;
+                        canvas.height = targetH;
+                        
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, targetW, targetH);
+                        
+                        const dx = (targetW - img.width) / 2;
+                        const dy = (targetH - img.height) / 2;
+                        ctx.drawImage(img, dx, dy);
+                        
+                        const dataUrl = canvas.toDataURL(file.type || 'image/jpeg');
+                        resolve({
+                            mimeType: file.type || 'image/jpeg',
+                            data: dataUrl.split(',')[1]
+                        });
+                    };
+                    img.onerror = reject;
+                    img.src = URL.createObjectURL(file);
+                });
+            }
+
+            function base64ToArrayBuffer(base64) {
+                const binaryString = window.atob(base64);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                return bytes.buffer;
+            }
+
+            function writeString(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            }
+
+            function pcmToWav(pcmData, sampleRate) {
+                const numChannels = 1; 
+                const bitsPerSample = 16;
+                const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+                const blockAlign = numChannels * (bitsPerSample / 8);
+                
+                const wavHeader = new ArrayBuffer(44);
+                const view = new DataView(wavHeader);
+                
+                writeString(view, 0, 'RIFF');
+                view.setUint32(4, 36 + pcmData.byteLength, true);
+                writeString(view, 8, 'WAVE');
+                writeString(view, 12, 'fmt ');
+                view.setUint32(16, 16, true);
+                view.setUint16(20, 1, true);
+                view.setUint16(22, numChannels, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, byteRate, true);
+                view.setUint16(32, blockAlign, true);
+                view.setUint16(34, bitsPerSample, true);
+                writeString(view, 36, 'data');
+                view.setUint32(40, pcmData.byteLength, true);
+                
+                const wavBytes = new Uint8Array(44 + pcmData.byteLength);
+                wavBytes.set(new Uint8Array(wavHeader), 0);
+                wavBytes.set(new Uint8Array(pcmData), 44);
+                return wavBytes;
+            }
+
+            // --- FUNÇÃO CARREGA A ABA DE CRIATIVOS ---
+            function loadCreativesTab() {
+                // Carrega produtos cadastrados da vitrine para o dropdown
+                let customProducts = JSON.parse(localStorage.getItem('admin-custom-products')) || [];
+                const hasVideoFields = customProducts && customProducts.some(p => p.video_url);
+                if (!customProducts || customProducts.length < 40 || !hasVideoFields) {
+                    customProducts = [...DEFAULT_PRODUCTS];
+                }
+
+                let selectOptionsHTML = '<option value="">-- Selecione um produto já cadastrado para preencher os campos --</option>';
+                customProducts.forEach(p => {
+                    selectOptionsHTML += `<option value="${p.id}" data-mlb="${p.id}" data-name="${p.name}" data-url="${p.url}">${p.name.substring(0, 50)}... (ID: ${p.id})</option>`;
+                });
+
+                // Injeta HTML base
+                tabContent.innerHTML = `
+                    <div class="space-y-6 animate-fade-in text-white">
+                        <!-- Header da Aba -->
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <h2 class="text-xl font-bold text-white tracking-wide">Gerador Avançado de Criativos IA</h2>
+                                <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Crie legendas, locuções profissionais em áudio e imagens de divulgação de alta conversão usando inteligência artificial.</p>
+                            </div>
+                            
+                            <!-- Chave de API Gemini -->
+                            <div class="bg-admin-card border border-admin-border p-3 rounded-xl flex items-center gap-3 max-w-sm w-full md:w-auto">
+                                <i class="fa-solid fa-key text-admin-accentGold"></i>
+                                <div class="flex-1">
+                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">Chave de API Gemini</label>
+                                    <input type="password" id="creative-api-key" class="bg-transparent border-none p-0 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-0 w-full font-mono" placeholder="Insira sua API Key...">
+                                </div>
+                                <button id="save-api-key-btn" class="bg-white/5 border border-white/10 hover:border-admin-accentBlue hover:bg-admin-accentBlue hover:text-black text-admin-textMuted text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition">
+                                    Salvar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Painel de Inserção -->
+                        <div class="bg-admin-card border border-admin-border rounded-2xl overflow-hidden shadow-2xl">
+                            <!-- Abas Internas -->
+                            <div class="flex border-b border-admin-border bg-black/20">
+                                <button id="subtab-single-btn" class="flex-1 py-4 text-xs font-bold flex items-center justify-center gap-2 transition-colors border-r border-admin-border bg-white/5 text-white border-b-2 border-admin-accentBlue">
+                                    <i class="fa-solid fa-plus text-admin-accentBlue"></i> Adicionar Produto Único
+                                </button>
+                                <button id="subtab-bulk-btn" class="flex-1 py-4 text-xs font-bold flex items-center justify-center gap-2 transition-colors text-admin-textMuted hover:text-white hover:bg-white/5 border-b-2 border-transparent">
+                                    <i class="fa-solid fa-list-check"></i> Importar Lista em Massa
+                                </button>
+                            </div>
+
+                            <div class="p-5 md:p-6 space-y-6">
+                                <!-- Modo Produto Único -->
+                                <div id="creative-single-form" class="space-y-6">
+                                    <!-- Dropdown de Importação Vitrine -->
+                                    <div class="bg-gradient-to-r from-admin-bg/30 to-admin-accentBlue/5 border border-admin-border rounded-xl p-4 space-y-2">
+                                        <label class="admin-label flex items-center gap-1.5"><i class="fa-solid fa-cart-shopping text-admin-accentBlue"></i> Importar Dados de Produto da Vitrine (Atalho)</label>
+                                        <select id="creative-import-select" class="admin-input text-xs font-semibold cursor-pointer">
+                                            ${selectOptionsHTML}
+                                        </select>
+                                    </div>
+
+                                    <!-- Linha de Entradas -->
+                                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                        <div class="md:col-span-3">
+                                            <label class="admin-label">ID do Produto (Opcional)</label>
+                                            <div class="relative">
+                                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-tag text-xs"></i></span>
+                                                <input type="text" id="creative-prod-id" class="admin-input pl-9" placeholder="Ex: MLB4276008957">
+                                            </div>
+                                        </div>
+                                        <div class="md:col-span-4">
+                                            <label class="admin-label">Nome do Produto</label>
+                                            <input type="text" id="creative-prod-name" class="admin-input" placeholder="Ex: Liquidificador Britânia Rosa">
+                                        </div>
+                                        <div class="md:col-span-5">
+                                            <label class="admin-label">Link do Produto (Afiliado)</label>
+                                            <input type="url" id="creative-prod-link" class="admin-input" placeholder="https://www.mercadolivre.com.br/...">
+                                        </div>
+                                    </div>
+
+                                    <!-- Estúdio de Referências -->
+                                    <div class="bg-gradient-to-br from-admin-bg/40 to-pink-950/5 rounded-xl p-4 md:p-5 border border-admin-border space-y-4">
+                                        <div class="flex items-center gap-2 justify-between flex-wrap">
+                                            <div class="flex items-center gap-2">
+                                                <i class="fa-solid fa-wand-magic-sparkles text-admin-accentGold animate-pulse"></i>
+                                                <h3 class="text-xs font-black uppercase text-white tracking-wider">Estúdio de Referências da IA</h3>
+                                            </div>
+                                            <span class="text-[9px] font-bold text-admin-textMuted uppercase bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg">
+                                                As fotos do produto serão baixadas automaticamente se deixadas em branco!
+                                            </span>
+                                        </div>
+
+                                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3" id="reference-uploads-grid">
+                                            <!-- Preenchido pelo Javascript -->
+                                        </div>
+                                    </div>
+
+                                    <!-- Botão Adicionar -->
+                                    <div class="flex justify-end pt-2 border-t border-admin-border">
+                                        <button id="add-to-queue-btn" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold px-8 py-3.5 rounded-xl uppercase tracking-wider text-xs transition duration-200 shadow-lg shadow-pink-500/10">
+                                            Adicionar à Fila de Geração
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Modo Importação em Massa -->
+                                <div id="creative-bulk-form" class="space-y-4 hidden">
+                                    <p class="text-[10px] uppercase font-bold text-admin-textMuted tracking-wider">Cole sua lista de produtos separando os dados por ponto e vírgula (;) ou barra vertical (|). Exemplo: <code>ID ; Nome do Produto ; Link</code></p>
+                                    <textarea id="creative-bulk-text" class="admin-textarea h-32 font-mono text-xs" placeholder="MLB4276008957 ; Liquidificador Britânia Rosa ; https://mercadolivre.com/...&#10;MLB4655536353 | Air Fryer Rosa Britânia | https://mercadolivre.com/..."></textarea>
+                                    <div class="flex justify-end pt-2 border-t border-admin-border font-bold">
+                                        <button id="import-bulk-btn" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold px-6 py-3.5 rounded-xl uppercase tracking-wider text-xs transition duration-200 shadow-lg shadow-pink-500/10">
+                                            Importar Produtos para a Fila
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fila de Campanhas -->
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between gap-3 flex-wrap">
+                                <h2 class="text-sm font-black uppercase text-white tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-list-check text-admin-accentGold"></i>
+                                    Fila de Geração IA (<span id="creative-queue-count">0</span>)
+                                </h2>
+                                
+                                <button id="process-pending-btn" class="bg-emerald-400 hover:bg-emerald-500 text-black font-extrabold px-5 py-2.5 rounded-xl uppercase tracking-wider text-xs transition duration-200 shadow-lg shadow-emerald-500/10 flex items-center gap-1.5 hidden">
+                                    <i class="fa-solid fa-play"></i> Processar Fila
+                                </button>
+                            </div>
+
+                            <div id="creative-campaigns-container" class="space-y-4">
+                                <!-- Campanhas renderizadas dinamicamente -->
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Carrega chave de API salva
+                const savedApiKey = localStorage.getItem('gemini-api-key') || '';
+                const apiKeyInput = document.getElementById('creative-api-key');
+                if (apiKeyInput) apiKeyInput.value = savedApiKey;
+
+                // Eventos de Chave de API
+                document.getElementById('save-api-key-btn').addEventListener('click', () => {
+                    const key = apiKeyInput.value.trim();
+                    localStorage.setItem('gemini-api-key', key);
+                    showToast('Chave de API salva com sucesso!', 'success');
+                });
+
+                // Evento de Atalho Dropdown
+                document.getElementById('creative-import-select').addEventListener('change', (e) => {
+                    const selected = e.target.options[e.target.selectedIndex];
+                    if (!selected.value) return;
+                    
+                    document.getElementById('creative-prod-id').value = selected.getAttribute('data-mlb') || '';
+                    document.getElementById('creative-prod-name').value = selected.getAttribute('data-name') || '';
+                    document.getElementById('creative-prod-link').value = selected.getAttribute('data-url') || '';
+                });
+
+                // Abas Internas Switching
+                const subtabSingleBtn = document.getElementById('subtab-single-btn');
+                const subtabBulkBtn = document.getElementById('subtab-bulk-btn');
+                const singleForm = document.getElementById('creative-single-form');
+                const bulkForm = document.getElementById('creative-bulk-form');
+
+                subtabSingleBtn.addEventListener('click', () => {
+                    subtabSingleBtn.className = 'flex-1 py-4 text-xs font-bold flex items-center justify-center gap-2 transition-colors border-r border-admin-border bg-white/5 text-white border-b-2 border-admin-accentBlue';
+                    subtabBulkBtn.className = 'flex-1 py-4 text-xs font-bold flex items-center justify-center gap-2 transition-colors text-admin-textMuted hover:text-white hover:bg-white/5 border-b-2 border-transparent';
+                    singleForm.classList.remove('hidden');
+                    bulkForm.classList.add('hidden');
+                });
+
+                subtabBulkBtn.addEventListener('click', () => {
+                    subtabBulkBtn.className = 'flex-1 py-4 text-xs font-bold flex items-center justify-center gap-2 transition-colors border-l border-admin-border bg-white/5 text-white border-b-2 border-admin-accentBlue';
+                    subtabSingleBtn.className = 'flex-1 py-4 text-xs font-bold flex items-center justify-center gap-2 transition-colors text-admin-textMuted hover:text-white hover:bg-white/5 border-b-2 border-transparent';
+                    bulkForm.classList.remove('hidden');
+                    singleForm.classList.add('hidden');
+                });
+
+                // Adicionar Único
+                document.getElementById('add-to-queue-btn').addEventListener('click', () => {
+                    const id = document.getElementById('creative-prod-id').value.trim();
+                    const name = document.getElementById('creative-prod-name').value.trim();
+                    const link = document.getElementById('creative-prod-link').value.trim();
+
+                    if (!name || !link) {
+                        showToast('Nome do produto e Link de afiliado são obrigatórios!', 'error');
+                        return;
+                    }
+
+                    creativeCampaigns.unshift({
+                        id: 'camp-' + Date.now() + Math.random().toString(36).substr(2, 4),
+                        productId: id,
+                        productName: name,
+                        affiliateLink: link,
+                        imgModel: creativeFiles.model,
+                        imgProduct: creativeFiles.product,
+                        imgProduct2: creativeFiles.product2,
+                        imgProduct3: creativeFiles.product3,
+                        imgExtra: creativeFiles.extra,
+                        status: 'idle',
+                        results: null,
+                        error: ''
+                    });
+
+                    // Limpa Inputs e Arquivos
+                    document.getElementById('creative-prod-id').value = '';
+                    document.getElementById('creative-prod-name').value = '';
+                    document.getElementById('creative-prod-link').value = '';
+                    document.getElementById('creative-import-select').value = '';
+                    creativeFiles = { model: null, product: null, product2: null, product3: null, extra: null };
+                    
+                    showToast('Produto adicionado à fila!', 'success');
+                    renderReferenceUploads();
+                    renderCreativeCampaigns();
+                });
+
+                // Importar Massa
+                document.getElementById('import-bulk-btn').addEventListener('click', () => {
+                    const bulkText = document.getElementById('creative-bulk-text').value.trim();
+                    if (!bulkText) {
+                        showToast('Cole o conteúdo da lista primeiro!', 'error');
+                        return;
+                    }
+
+                    const lines = bulkText.split('\n');
+                    let addedCount = 0;
+
+                    lines.forEach(line => {
+                        const parts = line.split(/[;|]/).map(s => s.trim());
+                        if (parts.length >= 2) {
+                            let productId = '';
+                            let productName = '';
+                            let affiliateLink = '';
+
+                            if (parts.length >= 3) {
+                                productId = parts[0];
+                                productName = parts[1];
+                                affiliateLink = parts[2];
+                            } else {
+                                productName = parts[0];
+                                affiliateLink = parts[1];
+                            }
+
+                            creativeCampaigns.push({
+                                id: 'camp-' + Date.now() + Math.random().toString(36).substr(2, 4),
+                                productId,
+                                productName,
+                                affiliateLink,
+                                imgModel: null, imgProduct: null, imgProduct2: null, imgProduct3: null, imgExtra: null,
+                                status: 'idle', results: null, error: ''
+                            });
+                            addedCount++;
+                        }
+                    });
+
+                    document.getElementById('creative-bulk-text').value = '';
+                    showToast(`Adicionados ${addedCount} produtos da lista!`, 'success');
+                    subtabSingleBtn.click();
+                    renderCreativeCampaigns();
+                });
+
+                // Processar Pendentes Fila Loop
+                const processPendingBtn = document.getElementById('process-pending-btn');
+                processPendingBtn.addEventListener('click', async () => {
+                    if (isProcessingQueue) return;
+                    
+                    const apiKey = localStorage.getItem('gemini-api-key') || '';
+                    if (!apiKey) {
+                        showToast('Por favor, configure sua Chave de API Gemini no topo da página!', 'error');
+                        return;
+                    }
+
+                    isProcessingQueue = true;
+                    processPendingBtn.disabled = true;
+                    processPendingBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-1"></i> Processando...`;
+
+                    for (const camp of creativeCampaigns) {
+                        if (camp.status === 'idle' || camp.status === 'error') {
+                            await executeCampaignGeneration(camp);
+                        }
+                    }
+
+                    isProcessingQueue = false;
+                    processPendingBtn.disabled = false;
+                    processPendingBtn.innerHTML = `<i class="fa-solid fa-play"></i> Processar Fila`;
+                    renderCreativeCampaigns();
+                });
+
+                // Renderizadores Iniciais
+                renderReferenceUploads();
+                renderCreativeCampaigns();
+            }
+
+            // --- EXECUTOR DE GERAÇÃO ASÍNCRONO ---
+            async function executeCampaignGeneration(camp) {
+                camp.status = 'processing';
+                camp.error = '';
+                renderCreativeCampaigns();
+
+                const apiKey = localStorage.getItem('gemini-api-key') || '';
+                
+                try {
+                    let autoImgProduct1 = camp.imgProduct;
+                    let autoImgProduct2 = camp.imgProduct2;
+                    let autoImgProduct3 = camp.imgProduct3;
+
+                    // 1. AUTO-CRAWLER MERCADO LIVRE INTEGRADO (PROXIED BLOB CRAWL)
+                    if (!autoImgProduct1) {
+                        let mlbId = camp.productId;
+                        
+                        if (mlbId && /^\d+$/.test(mlbId)) {
+                            mlbId = `MLB${mlbId}`;
+                        }
+                        if (!mlbId && camp.affiliateLink) {
+                            const match = camp.affiliateLink.match(/MLB[-_]?(\d+)/i);
+                            if (match) mlbId = `MLB${match[1]}`;
+                        }
+
+                        if (mlbId) {
+                            try {
+                                let mlRes = await fetch(`https://api.mercadolivre.com/items/${mlbId}`);
+                                let pics = [];
+                                
+                                if (mlRes.ok) {
+                                    const mlData = await mlRes.json();
+                                    pics = mlData.pictures?.slice(0, 3) || [];
+                                } else {
+                                    mlRes = await fetch(`https://api.mercadolibre.com/products/${mlbId}`);
+                                    if (mlRes.ok) {
+                                        const mlData = await mlRes.json();
+                                        pics = mlData.pictures?.slice(0, 3) || [];
+                                    }
+                                }
+
+                                if (pics.length > 0) {
+                                    const fetchedFiles = await Promise.all(pics.map(async (pic, idx) => {
+                                        let url = pic.secure_url || pic.url;
+                                        if (url.startsWith('http://')) url = url.replace('http://', 'https://');
+                                        
+                                        try {
+                                            const imgFetch = await fetch(url);
+                                            const blob = await imgFetch.blob();
+                                            return new File([blob], `ml_auto_${idx}.jpg`, { type: blob.type || 'image/jpeg' });
+                                        } catch (e) {
+                                            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                                            const imgFetchProxy = await fetch(proxyUrl);
+                                            const blobProxy = await imgFetchProxy.blob();
+                                            return new File([blobProxy], `ml_auto_${idx}.jpg`, { type: blobProxy.type || 'image/jpeg' });
+                                        }
+                                    }));
+                                    
+                                    if (fetchedFiles[0]) autoImgProduct1 = fetchedFiles[0];
+                                    if (fetchedFiles[1]) autoImgProduct2 = fetchedFiles[1];
+                                    if (fetchedFiles[2]) autoImgProduct3 = fetchedFiles[2];
+                                }
+                            } catch (e) {
+                                console.warn('Falha na busca automatizada:', e);
+                            }
+                        }
+                    }
+
+                    // 2. GERAÇÃO DE TEXTO E ESTRUTURA COM GEMINI
+                    const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                    const textPrompt = `Você é um copywriter especialista no Mercado Livre.
+                    ID Produto: ${camp.productId || '[Nenhum ID fornecido]'}
+                    Produto: ${camp.productName}
+                    Link: ${camp.affiliateLink}
+                    
+                    Retorne JSON:
+                    1. "social_copy": Uma legenda para Instagram/TikTok seguindo EXATAMENTE esta estrutura e padrão (adapte as partes entre colchetes para o produto atual):
+                       "🔥 ACHADINHOS DE [Categoria do Produto] QUE VALEM MUITO A PENA!
+                       Quer [Benefício principal do produto]? 👇
+                       💬 Comente QUERO que eu te envio o link com desconto no direct
+                       📩 Ou manda o CÓDIGO DO PRODUTO ${camp.productId ? `(${camp.productId})` : ''} no direct pra receber na hora 😉
+                       🚨 Corre porque esses itens estão MUITO procurados e podem esgotar rápido!
+                       ✨ Item desse post:
+                       • ${camp.productName}
+                       💡 Ideal pra quem quer [2 ou 3 benefícios principais] no dia a dia!
+                       🔔 Segue @tdpravoce_achadinhos pra não perder os próximos achadinhos e receber tudo em primeira mão!
+                       #achadinhos #promocoes #ofertas #mercadolivre #[Adicione 3 hashtags relevantes ao produto]"
+                    2. "audio_script": Texto curto (locução máx 30 palavras) para voiceover.
+                    3. "veo_prompt": Prompt EM PORTUGUÊS BRASILEIRO para o Veo 3 focado na AMOSTRA VISUAL do produto. O personagem OBRIGATORIAMENTE NÃO DEVE FALAR (sem movimento labial). Se o produto for um objeto, descreva a câmera em estilo 'b-roll' focando nas mãos do personagem manuseando e mostrando o item em detalhes. Se for roupa/vestuário, descreva o personagem posando, girando ou caminhando para mostrar o caimento. O cenário deve ser realista e a demonstração física deve manter a consistência do personagem referência.
+                    4. "cover_title": Um título criativo, curto e CHOCANTE (máx 5 a 6 palavras) em CAIXA ALTA para estampar na CAPA do post.`;
+
+                    const textData = await fetchWithRetry(textUrl, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: textPrompt }] }],
+                            generationConfig: { 
+                                responseMimeType: "application/json", 
+                                responseSchema: { 
+                                    type: "OBJECT", 
+                                    properties: { 
+                                        social_copy: { type: "STRING" }, 
+                                        audio_script: { type: "STRING" }, 
+                                        veo_prompt: { type: "STRING" }, 
+                                        cover_title: { type: "STRING" } 
+                                    } 
+                                } 
+                            }
+                        })
+                    });
+
+                    const parsedText = JSON.parse(textData.candidates[0].content.parts[0].text);
+                    let audioUrl = '';
+
+                    // 3. VOICE TTS GENERATION (GEMINI AUDIO VOICE MODEL)
+                    if (parsedText.audio_script) {
+                        try {
+                            const audioData = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    contents: [{ parts: [{ text: parsedText.audio_script }] }],
+                                    generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } } },
+                                    model: "gemini-2.5-flash-preview-tts"
+                                })
+                            });
+                            
+                            const audioPart = audioData.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+                            if (audioPart) {
+                                const sampleRate = parseInt(audioPart.mimeType.match(/rate=(\d+)/)?.[1] || 24000, 10);
+                                const wavBuffer = pcmToWav(base64ToArrayBuffer(audioPart.data), sampleRate);
+                                audioUrl = URL.createObjectURL(new Blob([wavBuffer], { type: 'audio/wav' }));
+                            }
+                        } catch (e) {
+                            console.warn("TTS Generation Error:", e);
+                        }
+                    }
+
+                    // 4. MULTI-IMAGE & TEXT-TO-IMAGE GENERATION GENERATOR
+                    let imgFeed = [], imgStory = [];
+                    const hasAnyImage = camp.imgModel || autoImgProduct1 || autoImgProduct2 || autoImgProduct3 || camp.imgExtra;
+
+                    if (hasAnyImage) {
+                        // Image-to-Image / Multi-image fusion
+                        let baseImgForPad = camp.imgModel || autoImgProduct1 || autoImgProduct2 || autoImgProduct3 || camp.imgExtra;
+                        const feedBasePart = await createPaddedImageBase64(baseImgForPad, '1:1');
+                        const storyBasePart = await createPaddedImageBase64(baseImgForPad, '9:16');
+
+                        const getRawPart = async (file) => {
+                            if(!file) return null;
+                            const b64 = await fileToBase64(file);
+                            return { mimeType: file.type, data: b64.split(',')[1] };
+                        };
+
+                        const modelRef = camp.imgModel ? await getRawPart(camp.imgModel) : null;
+                        const productRef1 = autoImgProduct1 ? await getRawPart(autoImgProduct1) : null;
+                        const productRef2 = autoImgProduct2 ? await getRawPart(autoImgProduct2) : null;
+                        const productRef3 = autoImgProduct3 ? await getRawPart(autoImgProduct3) : null;
+                        const extraRef = camp.imgExtra ? await getRawPart(camp.imgExtra) : null;
+
+                        const angles = [
+                            { id: 'frente', desc: 'Visão de FRENTE, modelo encarando a câmera.' },
+                            { id: 'lado', desc: 'Visão de LADO/PERFIL, modelo virada de lado.' },
+                            { id: 'costas', desc: 'Visão de COSTAS, modelo virada de costas para a câmera, mas mostrando o produto.' },
+                            { id: 'proximo', desc: 'Visão muito PRÓXIMA (Close-up), foco total nos detalhes do produto.' }
+                        ];
+
+                        const generateCompositeImg = async (basePart, ratio, angleDesc) => {
+                            const formatText = ratio === '1:1' ? 'QUADRADA (1:1)' : 'VERTICAL DE CELULAR (9:16)';
+                            
+                            const prompt = `Você é um fotógrafo publicitário e artista de efeitos visuais de alto nível.
+                            CRIAR IMAGEM COM FORMATO: A imagem final DEVE ser gerada obrigatoriamente no formato exato ${formatText}.
+                            TAREFA DE FUSÃO E CONSISTÊNCIA: Você recebeu múltiplas referências. 
+                            1. CONSISTÊNCIA DO MODELO: Mantenha exatamente o mesmo rosto, cabelo e tipo físico da pessoa na imagem de referência do Modelo.
+                            2. CONSISTÊNCIA DO PRODUTO: Use as várias referências do Produto para manter todos os detalhes, cores e proporções reais do objeto.
+                            3. AÇÃO: Mostre a modelo VESTINDO, SEGURANDO ou USANDO o produto naturalmente em cena.
+                            4. ÂNGULO OBRIGATÓRIO: ${angleDesc}
+                            5. Qualidade fotográfica publicitária vibrante, sem textos ilegíveis.`;
+                            
+                            let partsPayload = [{ text: prompt }, { inlineData: basePart }];
+                            if (modelRef && camp.imgModel !== baseImgForPad) partsPayload.push({ inlineData: modelRef });
+                            if (productRef1 && autoImgProduct1 !== baseImgForPad) partsPayload.push({ inlineData: productRef1 });
+                            if (productRef2 && autoImgProduct2 !== baseImgForPad) partsPayload.push({ inlineData: productRef2 });
+                            if (productRef3 && autoImgProduct3 !== baseImgForPad) partsPayload.push({ inlineData: productRef3 });
+                            if (extraRef && camp.imgExtra !== baseImgForPad) partsPayload.push({ inlineData: extraRef });
+
+                            const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    contents: [{ parts: partsPayload }], 
+                                    generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } 
+                                })
+                            });
+                            return res.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+                        };
+
+                        // Geração paralela de ângulos Feed
+                        const feedPromises = angles.map(async (a) => {
+                            const b64 = await generateCompositeImg(feedBasePart, '1:1', a.desc);
+                            return { angle: a.id, title: a.id, url: b64 ? `data:image/jpeg;base64,${b64}` : null, isRegenerating: false };
+                        });
+                        imgFeed = await Promise.all(feedPromises);
+
+                        // Geração paralela de ângulos Story
+                        const storyPromises = angles.map(async (a) => {
+                            const b64 = await generateCompositeImg(storyBasePart, '9:16', a.desc);
+                            return { angle: a.id, title: a.id, url: b64 ? `data:image/jpeg;base64,${b64}` : null, isRegenerating: false };
+                        });
+                        imgStory = await Promise.all(storyPromises);
+
+                        // Capa oficial com Título
+                        const coverDesc = `IMAGEM DE CAPA VIRAL ESTILO THUMBNAIL: A modelo deve estar super sorridente e carismática, em um ambiente bem decorado (ex: home office ou sala bonita), interagindo com o produto com entusiasmo. A paleta de cores de toda a imagem, cenário e textos deve ser OBRIGATORIAMENTE focada em tons de BRANCO e ROSA (estilo clean, moderno e feminino). É OBRIGATÓRIO escrever o texto gigante, perfeitamente legível e impactante: "${parsedText.cover_title}". As letras devem ser grandes, brancas ou rosas, muito fáceis de ler, flutuando como uma verdadeira capa de revista ou YouTube. Inserir elementos sutis de encomendas.`;
+                        const coverFeedB64 = await generateCompositeImg(feedBasePart, '1:1', coverDesc);
+                        const coverStoryB64 = await generateCompositeImg(storyBasePart, '9:16', coverDesc);
+                        
+                        imgFeed.unshift({ angle: 'capa', title: 'Capa Oficial', url: coverFeedB64 ? `data:image/jpeg;base64,${coverFeedB64}` : null, isRegenerating: false });
+                        imgStory.unshift({ angle: 'capa', title: 'Capa Oficial', url: coverStoryB64 ? `data:image/jpeg;base64,${coverStoryB64}` : null, isRegenerating: false });
+
+                    } else {
+                        // Text-to-Image (No reference images uploaded)
+                        const angles = [
+                            { id: 'frente', name: 'FRENTE' },
+                            { id: 'lado', name: 'LADO' },
+                            { id: 'costas', name: 'COSTAS' },
+                            { id: 'proximo', name: 'PROXIMO' }
+                        ];
+
+                        const generateTxtImg = async (aspectRatio, angle) => {
+                            const payload = {
+                                instances: { prompt: `Foto macro super realista publicitária de: ${camp.productName}. Visão de ${angle}. Fundo amarelo vibrante estúdio Mercado Livre, iluminação profissional. Sem textos.` },
+                                parameters: { sampleCount: 1, aspectRatio: aspectRatio }
+                            };
+                            const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                            });
+                            return res.predictions?.[0]?.bytesBase64Encoded;
+                        };
+
+                        imgFeed = await Promise.all(angles.map(async (a) => {
+                            const b64 = await generateTxtImg('1:1', a.name);
+                            return { angle: a.id, title: a.id, url: b64 ? `data:image/jpeg;base64,${b64}` : null, isRegenerating: false };
+                        }));
+
+                        imgStory = await Promise.all(angles.map(async (a) => {
+                            const b64 = await generateTxtImg('9:16', a.name);
+                            return { angle: a.id, title: a.id, url: b64 ? `data:image/jpeg;base64,${b64}` : null, isRegenerating: false };
+                        }));
+
+                        const generateCoverTxt = async (aspectRatio) => {
+                            const payload = {
+                                instances: { prompt: `Capa de post viral super atraente. Produto: ${camp.productName}. OBRIGATÓRIO conter o texto gigante, legível e tipográfico: "${parsedText.cover_title}". Ambiente bonito em tons de BRANCO e ROSA.` },
+                                parameters: { sampleCount: 1, aspectRatio: aspectRatio }
+                            };
+                            const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                            });
+                            return res.predictions?.[0]?.bytesBase64Encoded;
+                        };
+
+                        const coverFeedB64 = await generateCoverTxt('1:1');
+                        const coverStoryB64 = await generateCoverTxt('9:16');
+
+                        imgFeed.unshift({ angle: 'capa', title: 'Capa Oficial', url: coverFeedB64 ? `data:image/jpeg;base64,${coverFeedB64}` : null, isRegenerating: false });
+                        imgStory.unshift({ angle: 'capa', title: 'Capa Oficial', url: coverStoryB64 ? `data:image/jpeg;base64,${coverStoryB64}` : null, isRegenerating: false });
+                    }
+
+                    camp.status = 'completed';
+                    camp.results = {
+                        social_copy: parsedText.social_copy,
+                        audio_script: parsedText.audio_script,
+                        veo_prompt: parsedText.veo_prompt,
+                        cover_title: parsedText.cover_title,
+                        audio_url: audioUrl,
+                        image_feed: imgFeed,
+                        image_story: imgStory
+                    };
+                    
+                    showToast(`✅ Geração concluída para "${camp.productName}"!`, 'success');
+
+                } catch (err) {
+                    console.error("Erro na geração da campanha:", err);
+                    camp.status = 'error';
+                    camp.error = err.message || 'Falha ao processar criativos.';
+                    showToast(`❌ Falha no processamento: ${camp.productName}`, 'error');
+                }
+
+                renderCreativeCampaigns();
+            }
+
+            // --- REGERADOR DE IMAGEM INDIVIDUAL ---
+            async function executeSingleImageRegeneration(campId, format, angleObj) {
+                const campaign = creativeCampaigns.find(c => c.id === campId);
+                if (!campaign) return;
+
+                // 1. Ativa estado de carregamento
+                const targetArrayName = format === '1:1' ? 'image_feed' : 'image_story';
+                campaign.results[targetArrayName] = campaign.results[targetArrayName].map(img =>
+                    img.angle === angleObj.angle ? { ...img, isRegenerating: true } : img
+                );
+                renderCreativeCampaigns();
+
+                const apiKey = localStorage.getItem('gemini-api-key') || '';
+                let newB64 = null;
+
+                try {
+                    const hasAnyImage = campaign.imgModel || campaign.imgProduct || campaign.imgProduct2 || campaign.imgProduct3 || campaign.imgExtra;
+
+                    if (hasAnyImage) {
+                        let baseImgForPad = campaign.imgModel || campaign.imgProduct || campaign.imgProduct2 || campaign.imgProduct3 || campaign.imgExtra;
+                        const basePart = await createPaddedImageBase64(baseImgForPad, format);
+
+                        const getRawPart = async (file) => file ? { inlineData: { mimeType: file.type, data: (await fileToBase64(file)).split(',')[1] } } : null;
+                        const modelRef = await getRawPart(campaign.imgModel);
+                        const productRef1 = await getRawPart(campaign.imgProduct);
+                        const productRef2 = await getRawPart(campaign.imgProduct2);
+                        const productRef3 = await getRawPart(campaign.imgProduct3);
+                        const extraRef = await getRawPart(campaign.imgExtra);
+
+                        let partsPayload = [{ inlineData: basePart }];
+                        if (modelRef && campaign.imgModel !== baseImgForPad) partsPayload.push(modelRef);
+                        if (productRef1 && campaign.imgProduct !== baseImgForPad) partsPayload.push(productRef1);
+                        if (productRef2 && campaign.imgProduct2 !== baseImgForPad) partsPayload.push(productRef2);
+                        if (productRef3 && campaign.imgProduct3 !== baseImgForPad) partsPayload.push(productRef3);
+                        if (extraRef && campaign.imgExtra !== baseImgForPad) partsPayload.push(extraRef);
+
+                        let prompt = '';
+                        if (angleObj.angle === 'capa') {
+                            prompt = `IMAGEM DE CAPA VIRAL ESTILO THUMBNAIL: A modelo deve estar super sorridente e carismática, em um ambiente bem decorado (ex: home office ou sala bonita), interagindo com o produto com entusiasmo. A paleta de cores de toda a imagem, cenário e textos deve ser OBRIGATORIAMENTE focada em tons de BRANCO e ROSA (estilo clean, moderno e feminino). É OBRIGATÓRIO escrever o texto gigante, perfeitamente legível e impactante: "${campaign.results.cover_title || 'ACHADINHO INCRÍVEL'}". As letras devem ser grandes, brancas ou rosas, muito fáceis de ler, flutuando como uma verdadeira capa de revista ou YouTube. Inserir elementos sutis de encomendas. O formato OBRIGATÓRIO é ${format === '1:1' ? 'QUADRADO (1:1)' : 'VERTICAL DE CELULAR (9:16)'}.`;
+                        } else {
+                            const descMap = {
+                                'frente': 'Visão de FRENTE, modelo encarando a câmera.',
+                                'lado': 'Visão de LADO/PERFIL, modelo virada de lado.',
+                                'costas': 'Visão de COSTAS, modelo virada de costas para a câmera, mas mostrando o produto.',
+                                'proximo': 'Visão muito PRÓXIMA (Close-up), foco total nos detalhes do produto.'
+                            };
+                            prompt = `Você é um fotógrafo publicitário e artista de efeitos visuais de alto nível.
+                            CRIAR IMAGEM COM FORMATO: A imagem final DEVE ser gerada obrigatoriamente no formato exato ${format === '1:1' ? 'QUADRADA (1:1)' : 'VERTICAL DE CELULAR (9:16)'}.
+                            TAREFA DE FUSÃO E CONSISTÊNCIA: Você recebeu múltiplas referências. 
+                            1. CONSISTÊNCIA DO MODELO: Mantenha exatamente o mesmo rosto, cabelo e tipo físico da pessoa na imagem de referência do Modelo.
+                            2. CONSISTÊNCIA DO PRODUTO: Use as várias referências do Produto para manter todos os detalhes, cores e proporções reais do objeto.
+                            3. AÇÃO: Mostre a modelo VESTINDO, SEGURANDO ou USANDO o produto naturalmente em cena.
+                            4. ÂNGULO OBRIGATÓRIO: ${descMap[angleObj.angle]}
+                            5. Qualidade fotográfica publicitária vibrante, sem textos ilegíveis.`;
+                        }
+
+                        const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                contents: [{ parts: [{ text: prompt }, ...partsPayload] }], 
+                                generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } 
+                            })
+                        });
+                        newB64 = res.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+
+                    } else {
+                        // Fallback text-to-image
+                        let prompt = '';
+                        if (angleObj.angle === 'capa') {
+                            prompt = `Capa de post viral super atraente. Produto: ${campaign.productName}. OBRIGATÓRIO conter o texto gigante, legível e tipográfico: "${campaign.results.cover_title || 'ACHADINHO INCRÍVEL'}". Ambiente bonito em tons de BRANCO e ROSA.`;
+                        } else {
+                            prompt = `Foto macro super realista publicitária de: ${campaign.productName}. Visão de ${angleObj.angle.toUpperCase()}. Fundo amarelo vibrante estúdio Mercado Livre, iluminação profissional. Sem textos.`;
+                        }
+
+                        const payload = {
+                            instances: { prompt },
+                            parameters: { sampleCount: 1, aspectRatio: format }
+                        };
+                        const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                        });
+                        newB64 = res.predictions?.[0]?.bytesBase64Encoded;
+                    }
+
+                    if (newB64) {
+                        campaign.results[targetArrayName] = campaign.results[targetArrayName].map(img =>
+                            img.angle === angleObj.angle ? { ...img, url: `data:image/jpeg;base64,${newB64}`, isRegenerating: false } : img
+                        );
+                        showToast('Imagem regerada com sucesso!', 'success');
+                    } else {
+                        campaign.results[targetArrayName] = campaign.results[targetArrayName].map(img =>
+                            img.angle === angleObj.angle ? { ...img, isRegenerating: false } : img
+                        );
+                        showToast('A API não retornou imagem válida para regeração.', 'warn');
+                    }
+
+                } catch (err) {
+                    console.error("Erro ao regerar imagem:", err);
+                    campaign.results[targetArrayName] = campaign.results[targetArrayName].map(img =>
+                        img.angle === angleObj.angle ? { ...img, isRegenerating: false } : img
+                    );
+                    showToast(`❌ Falha ao regerar imagem: ${err.message}`, 'error');
+                }
+
+                renderCreativeCampaigns();
+            }
+
+            // --- AUXILIAR: RENDER DA GRADE DE ENVIOS DE REFERÊNCIA ---
+            function renderReferenceUploads() {
+                const grid = document.getElementById('reference-uploads-grid');
+                if (!grid) return;
+                grid.innerHTML = '';
+
+                const uploadBoxes = [
+                    { key: 'model', label: '1. Modelo', icon: 'fa-regular fa-user' },
+                    { key: 'product', label: '2. Produto (Principal)', icon: 'fa-solid fa-box' },
+                    { key: 'product2', label: '3. Produto (Extra 1)', icon: 'fa-solid fa-box' },
+                    { key: 'product3', label: '4. Produto (Extra 2)', icon: 'fa-solid fa-box' },
+                    { key: 'extra', label: '5. Cenário/Extra', icon: 'fa-regular fa-image' }
+                ];
+
+                uploadBoxes.forEach(box => {
+                    const file = creativeFiles[box.key];
+                    const boxDiv = document.createElement('div');
+                    boxDiv.className = 'flex flex-col gap-1.5';
+                    
+                    let contentHTML = '';
+                    if (file) {
+                        const objectUrl = URL.createObjectURL(file);
+                        contentHTML = `
+                            <div class="relative h-24 border border-admin-accentBlue/30 rounded-xl overflow-hidden bg-admin-bg/60 group">
+                                <img src="${objectUrl}" class="w-full h-full object-cover opacity-60">
+                                <button class="remove-ref-file-btn absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-black/85 text-red-400 hover:text-red-500 flex items-center justify-center transition border border-white/5" data-key="${box.key}">
+                                    <i class="fa-solid fa-xmark text-xs"></i>
+                                </button>
+                                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <span class="bg-black/85 text-emerald-400 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border border-emerald-500/20">Enviado</span>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        contentHTML = `
+                            <div class="upload-ref-box relative h-24 border-2 border-dashed border-admin-border bg-admin-bg/30 hover:bg-white/5 hover:border-admin-accentBlue/50 rounded-xl flex flex-col items-center justify-center cursor-pointer transition duration-200" data-key="${box.key}">
+                                <input type="file" class="hidden-ref-file-input hidden" accept="image/*" data-key="${box.key}">
+                                <i class="${box.icon} text-lg text-admin-textMuted mb-1 group-hover:text-white"></i>
+                                <span class="text-[9px] font-black text-admin-textMuted uppercase text-center px-1 tracking-wider">Subir Foto</span>
+                            </div>
+                        `;
+                    }
+
+                    boxDiv.innerHTML = `
+                        <label class="text-[10px] font-bold text-admin-textMuted uppercase tracking-wider flex items-center gap-1">
+                            <i class="${box.icon} text-admin-accentBlue"></i> ${box.label}
+                        </label>
+                        ${contentHTML}
+                    `;
+
+                    grid.appendChild(boxDiv);
+                    
+                    // Eventos
+                    const uploadArea = boxDiv.querySelector('.upload-ref-box');
+                    if (uploadArea) {
+                        uploadArea.addEventListener('click', () => {
+                            const input = uploadArea.querySelector('.hidden-ref-file-input');
+                            input.click();
+                        });
+                        const input = uploadArea.querySelector('.hidden-ref-file-input');
+                        input.addEventListener('change', (e) => {
+                            if (e.target.files[0]) {
+                                creativeFiles[box.key] = e.target.files[0];
+                                renderReferenceUploads();
+                            }
+                        });
+                    }
+
+                    const deleteBtn = boxDiv.querySelector('.remove-ref-file-btn');
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            creativeFiles[box.key] = null;
+                            renderReferenceUploads();
+                        });
+                    }
+                });
+            }
+
+            // --- AUXILIAR: RENDER DA FILA DE CAMPANHAS ---
+            function renderCreativeCampaigns() {
+                const countSpan = document.getElementById('creative-queue-count');
+                const processBtn = document.getElementById('process-pending-btn');
+                const container = document.getElementById('creative-campaigns-container');
+                if (!container) return;
+
+                if (countSpan) countSpan.innerText = creativeCampaigns.length;
+
+                // Mostra/Oculta botão Processar Fila
+                const hasPending = creativeCampaigns.some(c => c.status === 'idle' || c.status === 'error');
+                if (processBtn) {
+                    if (hasPending && creativeCampaigns.length > 0) {
+                        processBtn.classList.remove('hidden');
+                    } else {
+                        processBtn.classList.add('hidden');
+                    }
+                }
+
+                if (creativeCampaigns.length === 0) {
+                    container.innerHTML = `
+                        <div class="bg-admin-card border border-admin-border rounded-xl p-8 text-center text-admin-textMuted text-xs uppercase font-bold tracking-wider">
+                            <i class="fa-solid fa-boxes-stacked text-3xl text-admin-border block mb-3 animate-pulse"></i>
+                            Nenhum produto na fila de geração. Insira um produto acima para começar!
+                        </div>
+                    `;
+                    return;
+                }
+
+                let campaignsHTML = '';
+
+                creativeCampaigns.forEach((camp) => {
+                    let statusBadgeHTML = '';
+                    let cardBorderClass = 'border-admin-border bg-admin-card/50';
+
+                    if (camp.status === 'completed') {
+                        statusBadgeHTML = `<span class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] px-2.5 py-1 rounded font-bold uppercase tracking-wider"><i class="fa-regular fa-circle-check mr-1 text-[10px]"></i> Concluído</span>`;
+                    } else if (camp.status === 'processing') {
+                        statusBadgeHTML = `<span class="bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] px-2.5 py-1 rounded font-bold uppercase tracking-wider"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Processando IA</span>`;
+                        cardBorderClass = 'border-admin-accentBlue ring-2 ring-admin-accentBlue/20 bg-admin-card';
+                    } else if (camp.status === 'error') {
+                        statusBadgeHTML = `<span class="bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] px-2.5 py-1 rounded font-bold uppercase tracking-wider"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Falha</span>`;
+                        cardBorderClass = 'border-red-500/50 bg-red-950/5';
+                    } else {
+                        statusBadgeHTML = `<span class="bg-white/5 border border-white/10 text-admin-textMuted text-[9px] px-2.5 py-1 rounded font-bold uppercase tracking-wider">Pendente</span>`;
+                    }
+
+                    // Ações adicionais se concluído
+                    let resultsAreaHTML = '';
+                    if (camp.status === 'completed' && camp.results) {
+                        const res = camp.results;
+
+                        // Imagens Feed
+                        let feedGridHTML = '';
+                        if (Array.isArray(res.image_feed)) {
+                            res.image_feed.forEach((img, idx) => {
+                                const angleClass = img.angle === 'capa' ? 'col-span-2' : '';
+                                const isReg = img.isRegenerating;
+                                feedGridHTML += `
+                                    <div class="flex flex-col gap-1.5 ${angleClass}">
+                                        <div class="flex justify-between items-center px-1">
+                                            <span class="text-[9px] font-black uppercase text-admin-textMuted tracking-wider">${img.angle === 'capa' ? '✨ ' + img.title : img.title}</span>
+                                            <button class="re-gen-img-btn p-1 rounded bg-white/5 hover:bg-admin-accentBlue/20 text-admin-textMuted hover:text-admin-accentBlue transition" data-camp="${camp.id}" data-format="1:1" data-angle="${img.angle}" ${isReg ? 'disabled' : ''}>
+                                                <i class="fa-solid fa-rotate text-[10px] ${isReg ? 'animate-spin' : ''}"></i>
+                                            </button>
+                                        </div>
+                                        <div class="relative aspect-square border border-admin-border rounded-lg bg-admin-bg/40 overflow-hidden group">
+                                            ${isReg ? `
+                                                <div class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-1.5 z-10">
+                                                    <i class="fa-solid fa-spinner animate-spin text-admin-accentBlue text-lg"></i>
+                                                    <span class="text-[8px] font-black uppercase text-admin-accentBlue tracking-widest">IA Gerando</span>
+                                                </div>
+                                            ` : ''}
+                                            ${img.url ? `
+                                                <img src="${img.url}" class="w-full h-full object-cover">
+                                                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                    <a href="${img.url}" download="${camp.productName.substring(0,10)}_feed_${img.angle}.jpg" class="bg-admin-accentBlue text-black font-extrabold px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1">
+                                                        <i class="fa-solid fa-download"></i> Baixar
+                                                    </a>
+                                                </div>
+                                            ` : `
+                                                <div class="w-full h-full flex items-center justify-center text-[10px] text-red-400 font-bold uppercase tracking-wider">Falha</div>
+                                            `}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+
+                        // Imagens Story
+                        let storyGridHTML = '';
+                        if (Array.isArray(res.image_story)) {
+                            res.image_story.forEach((img, idx) => {
+                                const angleClass = img.angle === 'capa' ? 'col-span-2' : '';
+                                const isReg = img.isRegenerating;
+                                storyGridHTML += `
+                                    <div class="flex flex-col gap-1.5 ${angleClass}">
+                                        <div class="flex justify-between items-center px-1">
+                                            <span class="text-[9px] font-black uppercase text-admin-textMuted tracking-wider">${img.angle === 'capa' ? '✨ ' + img.title : img.title}</span>
+                                            <button class="re-gen-img-btn p-1 rounded bg-white/5 hover:bg-admin-accentBlue/20 text-admin-textMuted hover:text-admin-accentBlue transition" data-camp="${camp.id}" data-format="9:16" data-angle="${img.angle}" ${isReg ? 'disabled' : ''}>
+                                                <i class="fa-solid fa-rotate text-[10px] ${isReg ? 'animate-spin' : ''}"></i>
+                                            </button>
+                                        </div>
+                                        <div class="relative aspect-[9/16] border border-admin-border rounded-lg bg-admin-bg/40 overflow-hidden group max-w-[200px] mx-auto w-full">
+                                            ${isReg ? `
+                                                <div class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-1.5 z-10">
+                                                    <i class="fa-solid fa-spinner animate-spin text-admin-accentBlue text-lg"></i>
+                                                    <span class="text-[8px] font-black uppercase text-admin-accentBlue tracking-widest">IA Gerando</span>
+                                                </div>
+                                            ` : ''}
+                                            ${img.url ? `
+                                                <img src="${img.url}" class="w-full h-full object-cover">
+                                                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                    <a href="${img.url}" download="${camp.productName.substring(0,10)}_story_${img.angle}.jpg" class="bg-admin-accentBlue text-black font-extrabold px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1">
+                                                        <i class="fa-solid fa-download"></i> Baixar
+                                                    </a>
+                                                </div>
+                                            ` : `
+                                                <div class="w-full h-full flex items-center justify-center text-[10px] text-red-400 font-bold uppercase tracking-wider">Falha</div>
+                                            `}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+
+                        resultsAreaHTML = `
+                            <div class="p-5 md:p-6 border-t border-admin-border grid grid-cols-1 lg:grid-cols-12 gap-6 bg-black/5">
+                                <!-- Coluna Mídias (Imagens) -->
+                                <div class="lg:col-span-6 space-y-6 max-h-[850px] overflow-y-auto pr-2 border-r border-admin-border/50">
+                                    <h4 class="text-xs font-black uppercase text-white tracking-widest flex items-center gap-1.5"><i class="fa-regular fa-image text-admin-accentBlue"></i> Imagens Publicitárias Geradas</h4>
+                                    
+                                    <!-- Feed -->
+                                    <div class="bg-admin-bg/30 p-3 rounded-xl border border-admin-border/50 space-y-3">
+                                        <span class="text-[10px] font-black uppercase text-admin-accentGold tracking-widest border-b border-admin-border pb-1 block">Feed do Instagram (1:1)</span>
+                                        <div class="grid grid-cols-2 gap-3">
+                                            ${feedGridHTML}
+                                        </div>
+                                    </div>
+
+                                    <!-- Story -->
+                                    <div class="bg-admin-bg/30 p-3 rounded-xl border border-admin-border/50 space-y-3">
+                                        <span class="text-[10px] font-black uppercase text-admin-accentGold tracking-widest border-b border-admin-border pb-1 block">Story & Reels (9:16)</span>
+                                        <div class="grid grid-cols-2 gap-3">
+                                            ${storyGridHTML}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Coluna Textos & Locução -->
+                                <div class="lg:col-span-6 space-y-5">
+                                    <h4 class="text-xs font-black uppercase text-white tracking-widest flex items-center gap-1.5"><i class="fa-solid fa-volume-high text-admin-accentBlue"></i> Locução & Copywriting</h4>
+                                    
+                                    <!-- Locução TTS -->
+                                    ${res.audio_url ? `
+                                        <div class="bg-admin-bg/35 border border-admin-border/55 rounded-xl p-4 space-y-3">
+                                            <div class="flex justify-between items-center border-b border-admin-border/30 pb-2">
+                                                <span class="text-[10px] font-black uppercase text-admin-accentGold tracking-widest">Locução em Áudio Profissional</span>
+                                                <button class="copy-text-btn bg-white/5 hover:bg-admin-accentBlue/20 text-admin-textMuted hover:text-admin-accentBlue text-[9px] font-bold px-2 py-1 rounded transition border border-white/5" data-text="${res.audio_script.replace(/"/g, '&quot;')}">
+                                                    Copiar Locução
+                                                </button>
+                                            </div>
+                                            <audio src="${res.audio_url}" controls class="w-full h-8 custom-audio-player opacity-95"></audio>
+                                            <p class="text-[10px] italic text-admin-textMuted leading-relaxed">"${res.audio_script}"</p>
+                                        </div>
+                                    ` : ''}
+
+                                    <!-- Legenda Redes -->
+                                    <div class="bg-admin-bg/35 border border-admin-border/55 rounded-xl p-4 space-y-3">
+                                        <div class="flex justify-between items-center border-b border-admin-border/30 pb-2">
+                                            <span class="text-[10px] font-black uppercase text-admin-accentGold tracking-widest">Legenda Instagram / TikTok</span>
+                                            <button class="copy-text-btn bg-white/5 hover:bg-admin-accentBlue/20 text-admin-textMuted hover:text-admin-accentBlue text-[9px] font-bold px-2 py-1 rounded transition border border-white/5" data-text="${res.social_copy.replace(/"/g, '&quot;')}">
+                                                Copiar Legenda
+                                            </button>
+                                        </div>
+                                        <pre class="text-[10px] text-white leading-relaxed font-sans whitespace-pre-wrap max-h-48 overflow-y-auto bg-black/20 p-3 rounded-lg border border-admin-border/30 font-medium">${res.social_copy}</pre>
+                                    </div>
+
+                                    <!-- Vídeo B-roll Prompt -->
+                                    <div class="bg-admin-bg/35 border border-admin-border/55 rounded-xl p-4 space-y-3">
+                                        <div class="flex justify-between items-center border-b border-admin-border/30 pb-2">
+                                            <span class="text-[10px] font-black uppercase text-admin-accentGold tracking-widest">Prompt Roteiro B-Roll (Veo 3)</span>
+                                            <button class="copy-text-btn bg-white/5 hover:bg-admin-accentBlue/20 text-admin-textMuted hover:text-admin-accentBlue text-[9px] font-bold px-2 py-1 rounded transition border border-white/5" data-text="${res.veo_prompt.replace(/"/g, '&quot;')}">
+                                                Copiar Prompt
+                                            </button>
+                                        </div>
+                                        <pre class="text-[10px] text-admin-textMuted leading-relaxed font-sans whitespace-pre-wrap bg-black/20 p-3 rounded-lg border border-admin-border/30">${res.veo_prompt}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    campaignsHTML += `
+                        <div class="bg-admin-card border border-admin-border rounded-2xl overflow-hidden transition duration-300 animate-fade-in ${cardBorderClass}">
+                            <!-- Header do Post -->
+                            <div class="p-4 flex flex-wrap justify-between items-center gap-4 bg-black/10">
+                                <div class="flex items-center gap-3">
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            ${camp.productId ? `<span class="bg-admin-accentBlue/10 border border-admin-accentBlue/20 text-admin-accentBlue text-[9px] font-black px-2 py-0.5 rounded font-mono">${camp.productId}</span>` : ''}
+                                            <h3 class="font-bold text-white text-sm">${camp.productName}</h3>
+                                        </div>
+                                        <a href="${camp.affiliateLink}" target="_blank" class="text-[10px] text-admin-accentGold hover:underline flex items-center gap-1 mt-1 font-semibold uppercase tracking-wider">
+                                            <i class="fa-solid fa-link"></i> Ver Link de Afiliado
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-2.5">
+                                    ${statusBadgeHTML}
+                                    ${camp.status === 'idle' || camp.status === 'error' ? `
+                                        <button class="generate-now-btn bg-emerald-400 hover:bg-emerald-500 text-black font-extrabold px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-wider transition" data-id="${camp.id}">Gerar Agora</button>
+                                    ` : ''}
+                                    <button class="remove-camp-btn p-2 text-admin-textMuted hover:text-red-400 transition" data-id="${camp.id}" title="Remover da fila">
+                                        <i class="fa-regular fa-trash-can text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Área de Erro -->
+                            ${camp.status === 'error' ? `
+                                <div class="p-4 bg-red-500/10 border-t border-red-500/20 text-red-400 text-xs font-semibold leading-relaxed">
+                                    ⚠️ <b>Erro no processamento:</b> ${camp.error}
+                                </div>
+                            ` : ''}
+
+                            <!-- Área de Resultados -->
+                            ${resultsAreaHTML}
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = campaignsHTML;
+
+                // Eventos de Ações Dinâmicas
+                container.querySelectorAll('.remove-camp-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-id');
+                        creativeCampaigns = creativeCampaigns.filter(c => c.id !== id);
+                        showToast('Campanha removida da fila!', 'info');
+                        renderCreativeCampaigns();
+                    });
+                });
+
+                container.querySelectorAll('.generate-now-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-id');
+                        const camp = creativeCampaigns.find(c => c.id === id);
+                        if (camp) {
+                            const apiKey = localStorage.getItem('gemini-api-key') || '';
+                            if (!apiKey) {
+                                showToast('Por favor, configure sua Chave de API Gemini no topo da página!', 'error');
+                                return;
+                            }
+                            executeCampaignGeneration(camp);
+                        }
+                    });
+                });
+
+                container.querySelectorAll('.copy-text-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const text = btn.getAttribute('data-text');
+                        navigator.clipboard.writeText(text).then(() => {
+                            showToast('Copiado para a área de transferência!', 'success');
+                        });
+                    });
+                });
+
+                container.querySelectorAll('.re-gen-img-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const campId = btn.getAttribute('data-camp');
+                        const format = btn.getAttribute('data-format');
+                        const angle = btn.getAttribute('data-angle');
+                        
+                        const apiKey = localStorage.getItem('gemini-api-key') || '';
+                        if (!apiKey) {
+                            showToast('Por favor, configure sua Chave de API Gemini no topo da página!', 'error');
+                            return;
+                        }
+                        
+                        executeSingleImageRegeneration(campId, format, { angle });
+                    });
+                });
+            }
+
+
                 // Delete custom product
                 document.querySelectorAll('.delete-prod-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
