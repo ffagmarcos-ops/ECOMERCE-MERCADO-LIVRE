@@ -903,6 +903,22 @@
                         console.error("Erro ao sincronizar banners:", e);
                     }
                 }
+
+                // 3. Sync Category Images from localStorage
+                const storedCategoryImages = localStorage.getItem('admin-categories-images');
+                if (storedCategoryImages) {
+                    try {
+                        const catImages = JSON.parse(storedCategoryImages);
+                        for (const [key, value] of Object.entries(catImages)) {
+                            const img = document.querySelector(`img[alt="${key}"]`);
+                            if (img && value) {
+                                img.src = value;
+                            }
+                        }
+                    } catch(e) {
+                        console.error("Erro ao sincronizar imagens de categorias:", e);
+                    }
+                }
             })();
 
             // ========================================================
@@ -2314,6 +2330,17 @@
                                 document.querySelectorAll('img[src="images/logo.png"]').forEach(img => {
                                     img.src = logo;
                                 });
+                            }
+
+                            // Category Images
+                            const catImages = settings['admin-categories-images'];
+                            if (catImages) {
+                                for (const [key, value] of Object.entries(catImages)) {
+                                    const img = document.querySelector(`img[alt="${key}"]`);
+                                    if (img && value) {
+                                        img.src = value;
+                                    }
+                                }
                             }
                         }
                     }

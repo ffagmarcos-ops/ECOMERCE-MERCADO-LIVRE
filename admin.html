@@ -1086,6 +1086,22 @@
                 }
             ];
 
+            // 3. Default Categories State (The 12 Category Images)
+            let categoryImages = JSON.parse(localStorage.getItem('admin-categories-images')) || {
+                'Casa': 'images/cat_casa_v3_1781623141320.png',
+                'Beleza': 'images/cat_beleza_v3_1781623152823.png',
+                'Eletrônicos': 'images/cat_eletronicos_v3_1781623165092.png',
+                'Organização': 'images/cat_organizacao_v3_1781623177408.png',
+                'Utilidades': 'images/cat_utilidades_1781619700041.png',
+                'Moda': 'images/cat_moda_1781619711744.png',
+                'Esporte': 'images/cat_esporte_1781619723465.png',
+                'Pet Shop': 'images/cat_pet_1781619734032.png',
+                'Infantil': 'images/cat_infantil_1781619777897.png',
+                'Ferramentas': 'images/cat_ferramentas_1781619788977.png',
+                'Games': 'images/cat_games_1781619801270.png',
+                'Livros': 'images/cat_livros_1781619812863.png'
+            };
+
             // --- SELECTORS ---
             const loginScreen = document.getElementById('login-screen');
             const loginForm = document.getElementById('login-form');
@@ -1112,6 +1128,9 @@
                         }
                         if (settings['admin-banners']) {
                             banners = settings['admin-banners'];
+                        }
+                        if (settings['admin-categories-images']) {
+                            categoryImages = settings['admin-categories-images'];
                         }
                         
                         // Apply updates dynamically
@@ -1819,6 +1838,48 @@
                     `;
                 });
 
+                let categoriesHTML = '';
+                const catList = [
+                    { key: 'Casa', label: 'Casa & Cozinha' },
+                    { key: 'Beleza', label: 'Beleza & Cuidados' },
+                    { key: 'Eletrônicos', label: 'Eletrônicos & Gadgets' },
+                    { key: 'Organização', label: 'Organização' },
+                    { key: 'Utilidades', label: 'Utilidades' },
+                    { key: 'Moda', label: 'Moda & Acessórios' },
+                    { key: 'Esporte', label: 'Esporte & Lazer' },
+                    { key: 'Pet Shop', label: 'Pet Shop' },
+                    { key: 'Infantil', label: 'Bebês & Crianças' },
+                    { key: 'Ferramentas', label: 'Ferramentas & Construção' },
+                    { key: 'Games', label: 'Games & Consoles' },
+                    { key: 'Livros', label: 'Livros & Papelaria' }
+                ];
+
+                catList.forEach(cat => {
+                    const currentImg = categoryImages[cat.key] || '';
+                    categoriesHTML += `
+                        <!-- Category Card ${cat.key} -->
+                        <div class="bg-admin-card border border-admin-border rounded-2xl p-4 space-y-3 relative animate-fade-in">
+                            <h3 class="text-xs font-black uppercase text-white tracking-wider border-b border-admin-border pb-2">${cat.label}</h3>
+                            <div class="flex items-center space-x-4">
+                                <div class="h-20 w-20 bg-admin-bg border border-admin-border rounded-xl overflow-hidden relative group shrink-0">
+                                    <img src="${currentImg}" id="category-preview-${cat.key}" class="w-full h-full object-cover" alt="Preview Categoria ${cat.key}">
+                                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition cursor-pointer">
+                                        <label class="cursor-pointer text-[10px] font-bold text-white flex flex-col items-center gap-0.5">
+                                            <i class="fa-solid fa-cloud-arrow-up text-admin-accentBlue text-base"></i>
+                                            Upload
+                                            <input type="file" class="hidden category-file-upload" data-key="${cat.key}" accept="image/*" />
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <label class="admin-label text-[10px]">URL da Imagem</label>
+                                    <input type="text" id="category-url-${cat.key}" class="admin-input text-[11px] font-mono category-url-input" data-key="${cat.key}" value="${currentImg.startsWith('data:') ? '' : currentImg}">
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
                 tabContent.innerHTML = `
                     <div class="space-y-6">
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1838,6 +1899,28 @@
                         
                         <div class="space-y-6">
                             ${bannersHTML}
+                        </div>
+
+                        <!-- SECTION CATEGORIES -->
+                        <div class="border-t border-admin-border pt-8 mt-10 space-y-6">
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div>
+                                    <h2 class="text-xl font-bold text-white tracking-wide">Imagens das Categorias de Produtos</h2>
+                                    <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Altere as imagens dos cards de categoria exibidos na página inicial.</p>
+                                </div>
+                                <div class="flex gap-2.5">
+                                    <button id="categories-reset-btn" class="bg-white/5 border border-white/10 hover:border-red-500/50 hover:bg-red-500/5 text-red-400 font-extrabold px-6 py-2.5 rounded-xl text-xs transition uppercase tracking-wider">
+                                        Restaurar Padrão
+                                    </button>
+                                    <button id="categories-save-btn" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold px-8 py-2.5 rounded-xl text-xs transition uppercase tracking-wider shadow-lg shadow-pink-500/10">
+                                        Salvar Categorias
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                ${categoriesHTML}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1911,6 +1994,73 @@
                     localStorage.setItem('admin-banners', JSON.stringify(banners));
                     saveSettingsToServer({ 'admin-banners': banners });
                     showToast('Todos os 3 banners principais foram atualizados!', 'success');
+                });
+
+                // Handle category image uploads
+                document.querySelectorAll('.category-file-upload').forEach(upload => {
+                    upload.addEventListener('change', (e) => {
+                        const key = upload.getAttribute('data-key');
+                        const file = e.target.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                document.getElementById(`category-preview-${key}`).src = event.target.result;
+                                document.getElementById(`category-url-${key}`).value = ''; // clear link
+                                showToast(`Categoria ${key}: Imagem carregada!`, 'info');
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                });
+
+                // Handle direct URL category preview changes
+                document.querySelectorAll('.category-url-input').forEach(input => {
+                    input.addEventListener('input', (e) => {
+                        const key = input.getAttribute('data-key');
+                        const val = input.value.trim();
+                        if (val) {
+                            document.getElementById(`category-preview-${key}`).src = val;
+                        }
+                    });
+                });
+
+                // Reset Categories
+                document.getElementById('categories-reset-btn').addEventListener('click', () => {
+                    localStorage.removeItem('admin-categories-images');
+                    const defaultCategoryImages = {
+                        'Casa': 'images/cat_casa_v3_1781623141320.png',
+                        'Beleza': 'images/cat_beleza_v3_1781623152823.png',
+                        'Eletrônicos': 'images/cat_eletronicos_v3_1781623165092.png',
+                        'Organização': 'images/cat_organizacao_v3_1781623177408.png',
+                        'Utilidades': 'images/cat_utilidades_1781619700041.png',
+                        'Moda': 'images/cat_moda_1781619711744.png',
+                        'Esporte': 'images/cat_esporte_1781619723465.png',
+                        'Pet Shop': 'images/cat_pet_1781619734032.png',
+                        'Infantil': 'images/cat_infantil_1781619777897.png',
+                        'Ferramentas': 'images/cat_ferramentas_1781619788977.png',
+                        'Games': 'images/cat_games_1781619801270.png',
+                        'Livros': 'images/cat_livros_1781619812863.png'
+                    };
+                    categoryImages = defaultCategoryImages;
+                    saveSettingsToServer({ 'admin-categories-images': defaultCategoryImages });
+                    showToast('Imagens padrão das categorias restauradas!', 'info');
+                    setTimeout(() => {
+                        loadBannersTab();
+                    }, 100);
+                });
+
+                // Save Categories
+                document.getElementById('categories-save-btn').addEventListener('click', () => {
+                    let updatedCategoryImages = {};
+                    catList.forEach(cat => {
+                        const imgSource = document.getElementById(`category-preview-${cat.key}`).src;
+                        updatedCategoryImages[cat.key] = imgSource;
+                    });
+
+                    categoryImages = updatedCategoryImages;
+                    localStorage.setItem('admin-categories-images', JSON.stringify(categoryImages));
+                    saveSettingsToServer({ 'admin-categories-images': categoryImages });
+                    showToast('Imagens das categorias atualizadas com sucesso!', 'success');
                 });
             }
 
