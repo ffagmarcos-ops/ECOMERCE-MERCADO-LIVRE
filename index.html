@@ -249,7 +249,7 @@
             </div>
             
             <div class="p-5 border-b border-brand-blush bg-brand-softPink/30">
-                <p class="text-sm text-gray-500 text-center font-medium">Os seus achados favoritos ficarão salvos aqui para você comprar depois!</p>
+                <p id="saved-count-total" class="text-sm text-gray-500 text-center font-medium">0 achadinhos salvos</p>
             </div>
 
             <!-- Items -->
@@ -1771,7 +1771,7 @@
             const openCartBtnDesktop = document.getElementById('cart-btn-desktop');
             const openCartBtnMobile = document.getElementById('cart-btn-mobile');
             const closeCartBtn = document.getElementById('close-cart-btn');
-            const cartItemsContainer = document.getElementById('cart-items-container');
+            const cartItemsContainer = document.getElementById('cart-items-container') || document.getElementById('cart-items');
             const savedCountTotal = document.getElementById('saved-count-total');
             const cartCountDesktop = document.getElementById('cart-count-desktop');
             const cartCountMobile = document.getElementById('cart-count-mobile');
@@ -2056,12 +2056,20 @@
                 document.body.style.overflow = '';
             }
 
-            openCartBtnDesktop.addEventListener('click', (e) => { e.preventDefault(); openCart(); });
-            openCartBtnMobile.addEventListener('click', (e) => { e.preventDefault(); openCart(); });
-            closeCartBtn.addEventListener('click', closeCart);
-            cartDrawer.addEventListener('click', (e) => {
-                if (e.target === cartDrawer) closeCart();
-            });
+            if (openCartBtnDesktop) {
+                openCartBtnDesktop.addEventListener('click', (e) => { e.preventDefault(); openCart(); });
+            }
+            if (openCartBtnMobile) {
+                openCartBtnMobile.addEventListener('click', (e) => { e.preventDefault(); openCart(); });
+            }
+            if (closeCartBtn) {
+                closeCartBtn.addEventListener('click', closeCart);
+            }
+            if (cartDrawer) {
+                cartDrawer.addEventListener('click', (e) => {
+                    if (e.target === cartDrawer) closeCart();
+                });
+            }
 
             // Carregar favoritos local ao iniciar
             function loadWishlist() {
@@ -2099,6 +2107,7 @@
                 
                 // Efeito bounce no contador do cabeçalho
                 [cartCountDesktop, cartCountMobile].forEach(badge => {
+                    if (!badge) return;
                     badge.classList.remove('scale-100');
                     badge.classList.add('scale-125', 'bg-brand-rose');
                     setTimeout(() => {
@@ -2114,9 +2123,15 @@
 
             function updateWishlistUI() {
                 const totalItems = wishlist.length;
-                cartCountDesktop.textContent = totalItems;
-                cartCountMobile.textContent = totalItems;
-                savedCountTotal.textContent = `${totalItems} ${totalItems === 1 ? 'achadinho' : 'achadinhos'}`;
+                if (cartCountDesktop) cartCountDesktop.textContent = totalItems;
+                if (cartCountMobile) cartCountMobile.textContent = totalItems;
+                if (savedCountTotal) {
+                    savedCountTotal.textContent = `${totalItems} ${totalItems === 1 ? 'achadinho salvo' : 'achadinhos salvos'}`;
+                }
+
+                if (!cartItemsContainer) {
+                    return;
+                }
 
                 cartItemsContainer.innerHTML = '';
 
