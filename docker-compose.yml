@@ -7,12 +7,6 @@ services:
       MARIADB_DATABASE: tudopravoce_db
     volumes:
       - mariadb_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MARIADB_ROOT_PASSWORD --silent"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
     networks:
       - default
 
@@ -20,8 +14,7 @@ services:
     build: .
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     environment:
       PORT: 3000
       DB_HOST: db
@@ -45,8 +38,7 @@ services:
     image: phpmyadmin/phpmyadmin:5
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
