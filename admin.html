@@ -3204,7 +3204,7 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                                     <div>
                                         <label class="admin-label">Vídeo do TikTok (URL ou Iframe)</label>
-                                        <textarea id="embed-tiktok" rows="3" class="admin-input text-xs w-full" placeholder="Cole o link do TikTok ou o código de incorporação..."></textarea>
+                                        <textarea id="embed-tiktok" rows="3" class="admin-input text-xs w-full" placeholder="Ex: https://www.tiktok.com/@gabi.influencerdigital ou código embed..."></textarea>
                                     </div>
                                     <div>
                                         <label class="admin-label">Vídeo do YouTube Shorts (URL ou Iframe)</label>
@@ -3244,7 +3244,7 @@
                 pMeta.value = localStorage.getItem('mk-pixel-meta') || '';
                 pGoogle.value = localStorage.getItem('mk-pixel-google') || '';
                 
-                eTiktok.value = localStorage.getItem('mk-embed-tiktok') || '';
+                eTiktok.value = localStorage.getItem('mk-embed-tiktok') || 'https://www.tiktok.com/@gabi.influencerdigital';
                 eYouTube.value = localStorage.getItem('mk-embed-youtube') || '';
 
                 document.getElementById('marketing-save-btn').addEventListener('click', () => {

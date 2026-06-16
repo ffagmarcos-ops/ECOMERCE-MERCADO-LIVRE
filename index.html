@@ -762,7 +762,7 @@
                     </p>
                     <div class="flex space-x-3 text-lg pt-2">
                         <a href="https://www.instagram.com/tdpravoce_achadinhos/" target="_blank" class="h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="Instagram"><i class="fa-brands fa-instagram"></i></a>
-                        <a href="#" class="h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="TikTok"><i class="fa-brands fa-tiktok"></i></a>
+                        <a href="https://www.tiktok.com/@gabi.influencerdigital" target="_blank" class="h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="TikTok"><i class="fa-brands fa-tiktok"></i></a>
                         <a href="#" target="_blank" class="wa-dynamic-link h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
                     </div>
                 </div>
@@ -2586,7 +2586,7 @@
             }
 
             // 4. Social Media Banners (Sidebar)
-            const rawTiktok = localStorage.getItem('mk-embed-tiktok');
+            const rawTiktok = localStorage.getItem('mk-embed-tiktok') || 'https://www.tiktok.com/@gabi.influencerdigital';
             const rawYoutube = localStorage.getItem('mk-embed-youtube');
             const sidebar = document.getElementById('social-sidebar');
             
@@ -2610,7 +2610,14 @@
                         if (match && match[1]) {
                             ttContainer.innerHTML = `<iframe src="https://www.tiktok.com/embed/v2/${match[1]}" class="w-full h-full" style="border-radius:16px;" frameborder="0" allow="encrypted-media" allowfullscreen></iframe>`;
                         } else {
-                            ttContainer.innerHTML = `<iframe src="${rawTiktok}" class="w-full h-full" style="border-radius:16px;" frameborder="0" allow="encrypted-media" allowfullscreen></iframe>`;
+                            // Se for link de perfil (ex: @username), converte para o embed oficial do perfil
+                            const profileMatch = rawTiktok.match(/@([a-zA-Z0-9_\.]+)/);
+                            if (profileMatch && profileMatch[1] && !rawTiktok.includes('/embed/')) {
+                                const embedUrl = `https://www.tiktok.com/embed/@${profileMatch[1]}`;
+                                ttContainer.innerHTML = `<iframe src="${embedUrl}" class="w-full h-full" style="border-radius:16px;" frameborder="0" allow="encrypted-media" allowfullscreen></iframe>`;
+                            } else {
+                                ttContainer.innerHTML = `<iframe src="${rawTiktok}" class="w-full h-full" style="border-radius:16px;" frameborder="0" allow="encrypted-media" allowfullscreen></iframe>`;
+                            }
                         }
                     }
                 }
