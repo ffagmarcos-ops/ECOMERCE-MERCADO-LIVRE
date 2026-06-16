@@ -11,3 +11,7 @@ Thumbs.db
 *.log
 *.tmp
 *.bak
+
+# Dependency directories
+node_modules/
+package-lock.json

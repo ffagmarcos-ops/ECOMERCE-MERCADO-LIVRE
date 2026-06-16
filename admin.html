@@ -253,6 +253,21 @@
     <!-- ========================================== -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // API Base and Sync Helper
+            const API_BASE = (window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+
+            async function saveSettingsToServer(settings) {
+                try {
+                    await fetch(`${API_BASE}/settings`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(settings)
+                    });
+                } catch(e) {
+                    console.warn("Erro ao salvar configurações no servidor:", e);
+                }
+            }
+
             // Inicializa chave de API padrão se não estiver configurada no navegador (Bypassing GitHub secret scanning via Base64 decoding)
             if (!localStorage.getItem('gemini-api-key')) {
                 localStorage.setItem('gemini-api-key', window.atob('QVEuQWI4Uk42SVRCSEJqazJ2eS15UG1CTWU3elpwcXdDLXM2amNBUVZqMUtaOWZUWFdUYmc='));
@@ -999,6 +1014,7 @@
 
             // --- STATE MANAGEMENT ---
             const tabList = [
+                { id: 'estatisticas-config', label: 'Dashboard & Estatísticas', icon: 'fa-solid fa-chart-line' },
                 { id: 'logo-config', label: 'Logomarca da Página', icon: 'fa-solid fa-store' },
                 { id: 'banners-config', label: 'Banners & Slideshow', icon: 'fa-solid fa-images' },
                 { id: 'cores-config', label: 'Customizar Cores', icon: 'fa-solid fa-palette' },
@@ -1007,7 +1023,7 @@
                 { id: 'creatives-config', label: 'Criador de Criativos', icon: 'fa-solid fa-wand-magic-sparkles' }
             ];
 
-            let activeTabId = 'creatives-config';
+            let activeTabId = 'estatisticas-config';
             let isEditing = false;
             let editingProductId = null;
 
@@ -1079,6 +1095,69 @@
             const tabContent = document.getElementById('tab-content');
             const tabLoading = document.getElementById('tab-loading');
             const toastContainer = document.getElementById('toast-container');
+
+            async function syncAdminDataFromServer() {
+                try {
+                    const settingsRes = await fetch(`${API_BASE}/settings`);
+                    if (settingsRes.ok) {
+                        const settings = await settingsRes.json();
+                        for (const [key, val] of Object.entries(settings)) {
+                            const stringVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+                            localStorage.setItem(key, stringVal);
+                        }
+                        
+                        // Hydrate variables
+                        if (settings['admin-colors']) {
+                            brandColors = settings['admin-colors'];
+                        }
+                        if (settings['admin-banners']) {
+                            banners = settings['admin-banners'];
+                        }
+                        
+                        // Apply updates dynamically
+                        syncLogo();
+                        if (adminPanel && !adminPanel.classList.contains('hidden')) {
+                            loadTab(activeTabId);
+                        }
+                    }
+                } catch(e) {
+                    console.warn("Erro ao buscar configurações do servidor:", e);
+                }
+
+                try {
+                    const productsRes = await fetch(`${API_BASE}/products`);
+                    if (productsRes.ok) {
+                        const dbProducts = await productsRes.json();
+                        if (dbProducts && dbProducts.length > 0) {
+                            const formattedProducts = dbProducts.map(p => ({
+                                id: isNaN(p.id) ? p.id : parseInt(p.id),
+                                name: p.name,
+                                category: p.category,
+                                brand: p.brand,
+                                price: parseFloat(p.price),
+                                oldPrice: p.oldPrice ? parseFloat(p.oldPrice) : null,
+                                badge: p.badge,
+                                emoji: p.emoji,
+                                glowColor: p.glowColor,
+                                searchKeys: p.searchKeys,
+                                url: p.url,
+                                img_url: p.img_url,
+                                img_url_2: p.img_url_2,
+                                video_url: p.video_url
+                            }));
+                            localStorage.setItem('admin-custom-products', JSON.stringify(formattedProducts));
+                            if (activeTabId === 'produtos-config' && adminPanel && !adminPanel.classList.contains('hidden')) {
+                                loadProductsTab();
+                            }
+                        }
+                    }
+                } catch(e) {
+                    console.warn("Erro ao buscar produtos do servidor:", e);
+                }
+            }
+
+            // Sync data from database immediately on load
+            syncAdminDataFromServer();
 
             // --- TOAST NOTIFICATIONS ---
             function showToast(message, type = 'success') {
@@ -1202,6 +1281,9 @@
                     tabContent.classList.remove('opacity-0');
                     
                     switch(tabId) {
+                        case 'estatisticas-config':
+                            loadStatisticsTab();
+                            break;
                         case 'logo-config':
                             loadLogoTab();
                             break;
@@ -1222,6 +1304,284 @@
                             break;
                     }
                 }, 200);
+            }
+
+            // ==========================================
+            // TAB 0: DASHBOARD & ESTATÍSTICAS
+            // ==========================================
+            async function loadStatisticsTab() {
+                let pageViews = 0;
+                let uniqueVisits = 0;
+                let clicks = [];
+                
+                try {
+                    const res = await fetch(`${API_BASE}/stats`);
+                    if (res.ok) {
+                        const stats = await res.json();
+                        pageViews = stats.pageViews || 0;
+                        uniqueVisits = stats.uniqueVisits || 0;
+                        clicks = stats.clicks || [];
+                    }
+                } catch(e) {
+                    console.warn("Erro ao carregar estatísticas do servidor:", e);
+                    pageViews = parseInt(localStorage.getItem('admin-page-views') || '0');
+                    uniqueVisits = parseInt(localStorage.getItem('admin-visits') || '0');
+                    clicks = JSON.parse(localStorage.getItem('admin-clicks')) || [];
+                }
+                
+                const totalClicks = clicks.length;
+                const ctr = pageViews > 0 ? ((totalClicks / pageViews) * 100).toFixed(1) : '0.0';
+
+                // Group clicks by product
+                const productClicksMap = {};
+                clicks.forEach(c => {
+                    if (!c.productId) return;
+                    if (!productClicksMap[c.productId]) {
+                        productClicksMap[c.productId] = {
+                            id: c.productId,
+                            name: c.name || 'Produto Sem Nome',
+                            category: c.category || 'Geral',
+                            price: c.price || 0,
+                            count: 0
+                        };
+                    }
+                    productClicksMap[c.productId].count++;
+                });
+
+                const sortedProducts = Object.values(productClicksMap).sort((a, b) => b.count - a.count);
+
+                // Group clicks by category
+                const categoryClicksMap = {};
+                clicks.forEach(c => {
+                    const cat = c.category || 'Outros';
+                    categoryClicksMap[cat] = (categoryClicksMap[cat] || 0) + 1;
+                });
+
+                // Generate HTML for categories
+                let categoriesHTML = '';
+                const categoriesList = [
+                    { id: 'casa', label: '🏠 Casa & Cozinha' },
+                    { id: 'beleza', label: '💄 Beleza & Cuidados' },
+                    { id: 'eletrônicos', label: '⚡ Eletrônicos' },
+                    { id: 'organização', label: '🧹 Organização' },
+                    { id: 'utilidades', label: '🛍️ Utilidades' },
+                    { id: 'moda', label: '👕 Moda & Acessórios' }
+                ];
+                
+                Object.keys(categoryClicksMap).forEach(cat => {
+                    if (!categoriesList.some(c => c.id === cat)) {
+                        categoriesList.push({ id: cat.toLowerCase(), label: cat });
+                    }
+                });
+
+                categoriesList.forEach(cat => {
+                    const count = categoryClicksMap[cat.id] || categoryClicksMap[cat.label] || 0;
+                    const pct = totalClicks > 0 ? Math.round((count / totalClicks) * 100) : 0;
+                    categoriesHTML += `
+                        <div>
+                            <div class="flex justify-between text-[10px] font-bold text-gray-400 mb-1">
+                                <span>${cat.label}</span>
+                                <span>${count}</span>
+                            </div>
+                            <div class="w-full bg-admin-bg h-1.5 rounded-full overflow-hidden border border-admin-border">
+                                <div class="bg-admin-accentBlue h-full" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // Generate HTML for top products rows
+                let productsRowsHTML = '';
+                const customProducts = JSON.parse(localStorage.getItem('admin-custom-products')) || [];
+
+                sortedProducts.slice(0, 10).forEach((p, idx) => {
+                    const realProd = customProducts.find(item => item.id === p.id);
+                    const imgUrl = realProd ? realProd.img_url : '';
+                    const emoji = realProd ? realProd.emoji : '🎁';
+
+                    productsRowsHTML += `
+                        <tr class="text-xs hover:bg-white/[0.02] transition">
+                            <td class="py-3 px-4 font-black text-admin-accentGold">#${idx + 1}</td>
+                            <td class="py-3 px-4">
+                                <div class="w-8 h-8 rounded-lg border border-admin-border bg-admin-bg flex items-center justify-center overflow-hidden">
+                                    ${imgUrl ? `<img src="${imgUrl}" class="w-full h-full object-cover">` : `<span class="text-sm">${emoji}</span>`}
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 max-w-[180px] truncate">
+                                <div class="font-bold text-gray-200">${p.name}</div>
+                                <div class="text-[9px] font-mono text-admin-textMuted uppercase mt-0.5">ID: ${p.id}</div>
+                            </td>
+                            <td class="py-3 px-4 text-admin-textMuted uppercase font-bold text-[10px]">${p.category}</td>
+                            <td class="py-3 px-4 font-mono font-semibold text-gray-300">R$ ${parseFloat(p.price).toFixed(2)}</td>
+                            <td class="py-3 px-4 text-right font-black text-admin-accentBlue">${p.count}</td>
+                        </tr>
+                    `;
+                });
+
+                if (productsRowsHTML === '') {
+                    productsRowsHTML = `
+                        <tr>
+                        </tr>
+                    `;
+                }
+
+                // Last 5 clicks HTML
+                let lastClicksHTML = '';
+                const last5 = clicks.slice(-5).reverse();
+                last5.forEach(c => {
+                    const date = new Date(c.timestamp);
+                    const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    lastClicksHTML += `
+                        <div class="flex items-center justify-between p-2.5 rounded-lg bg-white/5 border border-white/5 text-xs">
+                            <div class="flex-1 min-w-0 pr-3">
+                                <p class="text-white font-bold truncate">${c.name}</p>
+                                <p class="text-[9px] text-admin-textMuted uppercase tracking-wider font-semibold mt-0.5">${c.category} • R$ ${parseFloat(c.price).toFixed(2)}</p>
+                            </div>
+                            <span class="text-[10px] font-mono text-admin-accentGold shrink-0 font-bold bg-white/5 px-2 py-1 rounded border border-white/5">${timeStr}</span>
+                        </div>
+                    `;
+                });
+
+                if (lastClicksHTML === '') {
+                    lastClicksHTML = `<div class="text-center py-8 text-xs text-admin-textMuted uppercase font-bold">Sem atividades recentes</div>`;
+                }
+
+                // Inject HTML into tabContent
+                tabContent.innerHTML = `
+                    <div class="space-y-6 animate-fade-in text-white">
+                        <!-- Header da Aba -->
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <h2 class="text-xl font-bold text-white tracking-wide">Métricas & Engajamento da Loja</h2>
+                                <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Avalie os cliques dos links de afiliados, visualizações do site e estimativa de comissões.</p>
+                            </div>
+                            <button id="reset-stats-btn" class="shrink-0 bg-red-500/10 border border-red-500/20 hover:bg-red-500 hover:text-white text-red-400 font-extrabold px-5 py-3 rounded-xl uppercase tracking-wider text-xs transition duration-200 shadow-lg flex items-center gap-1.5 self-start md:self-auto">
+                                <i class="fa-solid fa-trash-can"></i> Resetar Métricas
+                            </button>
+                        </div>
+
+                        <!-- Grid de KPIs -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                            <!-- Page Views -->
+                            <div class="bg-admin-card border border-admin-border rounded-2xl p-5 flex items-center gap-4 shadow-xl">
+                                <div class="h-12 w-12 rounded-xl bg-admin-accentBlue/10 border border-admin-accentBlue/20 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-eye text-admin-accentBlue text-lg"></i>
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">Visualizações</label>
+                                    <span class="text-2xl font-black font-mono text-white">${pageViews}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Unique Visits -->
+                            <div class="bg-admin-card border border-admin-border rounded-2xl p-5 flex items-center gap-4 shadow-xl">
+                                <div class="h-12 w-12 rounded-xl bg-admin-accentGold/10 border border-admin-accentGold/20 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-users text-admin-accentGold text-lg"></i>
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">Visitas Únicas</label>
+                                    <span class="text-2xl font-black font-mono text-white">${uniqueVisits}</span>
+                                </div>
+                            </div>
+
+                            <!-- Total Clicks -->
+                            <div class="bg-admin-card border border-admin-border rounded-2xl p-5 flex items-center gap-4 shadow-xl">
+                                <div class="h-12 w-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-arrow-pointer text-blue-400 text-lg"></i>
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">Cliques Totais</label>
+                                    <span class="text-2xl font-black font-mono text-white">${totalClicks}</span>
+                                </div>
+                            </div>
+
+                            <!-- CTR -->
+                            <div class="bg-admin-card border border-admin-border rounded-2xl p-5 flex items-center gap-4 shadow-xl">
+                                <div class="h-12 w-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-percent text-emerald-400 text-lg"></i>
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">CTR Médio</label>
+                                    <span class="text-2xl font-black font-mono text-white">${ctr}%</span>
+                                </div>
+                            </div>
+
+                            <!-- Revenue -->
+                            <div class="bg-admin-card border border-admin-border rounded-2xl p-5 flex items-center gap-4 shadow-xl col-span-1 sm:col-span-2 lg:col-span-1">
+                                <div class="h-12 w-12 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-sack-dollar text-yellow-400 text-lg"></i>
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">Comissão Est. (8.5%)</label>
+                                    <span class="text-lg font-black font-mono text-emerald-400">R$ ${estRevenue.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Column Layout -->
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            <!-- Categorias (Left Column) -->
+                            <div class="bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 lg:col-span-7 space-y-4 shadow-2xl">
+                                <h3 class="text-xs font-black uppercase text-admin-textMuted tracking-wider border-b border-admin-border pb-2">
+                                    <i class="fa-solid fa-tags mr-1.5 text-admin-accentGold"></i> cliques por categoria
+                                </h3>
+                                <div class="space-y-4 max-h-[380px] overflow-y-auto pr-1">
+                                    ${categoriesHTML}
+                                </div>
+                            </div>
+
+                            <!-- Feed Recentes (Right Column) -->
+                            <div class="bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 lg:col-span-5 space-y-4 shadow-2xl">
+                                <h3 class="text-xs font-black uppercase text-admin-textMuted tracking-wider border-b border-admin-border pb-2">
+                                    <i class="fa-solid fa-bolt mr-1.5 text-admin-accentBlue"></i> atividades recentes
+                                </h3>
+                                <div class="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                                    ${lastClicksHTML}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top Clicados (Full Width) -->
+                        <div class="bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 shadow-2xl">
+                            <h3 class="text-xs font-black uppercase text-admin-textMuted tracking-wider border-b border-admin-border pb-2 mb-4">
+                                <i class="fa-solid fa-trophy mr-1.5 text-admin-accentGold"></i> top 10 produtos mais clicados
+                            </h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="border-b border-admin-border text-[9px] font-black uppercase text-admin-textMuted tracking-wider">
+                                            <th class="pb-3 px-4">Posição</th>
+                                            <th class="pb-3 px-4">Foto</th>
+                                            <th class="pb-3 px-4">Nome do Produto / ID</th>
+                                            <th class="pb-3 px-4">Categoria</th>
+                                            <th class="pb-3 px-4">Preço</th>
+                                            <th class="pb-3 px-4 text-right">Cliques</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-admin-border/30">
+                                        ${productsRowsHTML}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Reset button functionality
+                document.getElementById('reset-stats-btn').addEventListener('click', async () => {
+                    if (confirm('Tem certeza de que deseja resetar todas as estatísticas de cliques e acessos da loja? Essa ação não pode ser desfeita.')) {
+                        localStorage.removeItem('admin-page-views');
+                        localStorage.removeItem('admin-visits');
+                        localStorage.removeItem('admin-clicks');
+                        try {
+                            await fetch(`${API_BASE}/stats/reset`, { method: 'POST' });
+                        } catch(e) {
+                            console.warn("Erro ao resetar estatísticas no servidor:", e);
+                        }
+                        showToast('Estatísticas resetadas com sucesso!', 'info');
+                        loadStatisticsTab();
+                    }
+                });
             }
 
             // ==========================================
@@ -1335,12 +1695,13 @@
                     }
                 });
 
-                // Reset Logo to Default
+                 // Reset Logo to Default
                 resetBtn.addEventListener('click', () => {
                     localStorage.removeItem('admin-logo');
                     previewImg.src = 'images/logo.png';
                     urlInput.value = 'images/logo.png';
                     syncLogo();
+                    saveSettingsToServer({ 'admin-logo': 'images/logo.png' });
                     showToast('Logomarca restaurada para o padrão!', 'info');
                 });
 
@@ -1349,6 +1710,7 @@
                     const finalSource = previewImg.src;
                     localStorage.setItem('admin-logo', finalSource);
                     syncLogo();
+                    saveSettingsToServer({ 'admin-logo': finalSource });
                     showToast('Logomarca atualizada com sucesso!', 'success');
                 });
 
@@ -1366,20 +1728,26 @@
                 urlTg.value = localStorage.getItem('link-telegram') || '';
 
                 urlWa.addEventListener('input', (e) => {
-                    localStorage.setItem('link-whatsapp', e.target.value.trim());
+                    const val = e.target.value.trim();
+                    localStorage.setItem('link-whatsapp', val);
+                    saveSettingsToServer({ 'link-whatsapp': val });
                 });
 
                 urlTg.addEventListener('input', (e) => {
-                    localStorage.setItem('link-telegram', e.target.value.trim());
+                    const val = e.target.value.trim();
+                    localStorage.setItem('link-telegram', val);
+                    saveSettingsToServer({ 'link-telegram': val });
                 });
 
                 toggleWa.addEventListener('change', (e) => {
                     localStorage.setItem('show-whatsapp', e.target.checked);
+                    saveSettingsToServer({ 'show-whatsapp': String(e.target.checked) });
                     showToast('Visibilidade do WhatsApp atualizada (atualize a loja para ver)!', 'success');
                 });
 
                 toggleTg.addEventListener('change', (e) => {
                     localStorage.setItem('show-telegram', e.target.checked);
+                    saveSettingsToServer({ 'show-telegram': String(e.target.checked) });
                     showToast('Visibilidade do Telegram atualizada (atualize a loja para ver)!', 'success');
                 });
             }
@@ -1505,14 +1873,16 @@
                 // Reset Banners
                 document.getElementById('banners-reset-btn').addEventListener('click', () => {
                     localStorage.removeItem('admin-banners');
+                    const defaultBanners = [
+                        { id: 1, badge: 'COZINHA CHARMOSA ☕', title: 'Cafeteira Britânia Rosa', subtitle: 'Seu dia começa mais doce e cheio de estilo', imageUrl: 'images/banner_casa.png', affiliateUrl: 'https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599' },
+                        { id: 2, badge: 'CASA IMPECÁVEL 🧹', title: 'Aspirador Vertical Rosa', subtitle: 'Praticidade e rapidez para a limpeza do dia a dia', imageUrl: 'images/banner_tech.png', affiliateUrl: 'https://produto.mercadolivre.com.br/MLB-4469244553-aspirador-rosa-vertical-britnia-2-em-1-1400w-base30-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599' },
+                        { id: 3, badge: 'REFRESCO E CONFORTO 💨', title: 'Ventilador Super Power', subtitle: 'Vento forte e design elegante para os dias quentes', imageUrl: 'images/banner_beleza.png', affiliateUrl: 'https://www.mercadolivre.com.br/ventilador-de-mesa-30cm-super-power-mondial-60w-vsp-30-ap/p/MLB18932161?pdp_filters=item_id%3AMLB5917028234&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599&matt_event_ts=1780069575273&matt_d2id=' }
+                    ];
+                    banners = defaultBanners;
+                    saveSettingsToServer({ 'admin-banners': defaultBanners });
                     showToast('Artes e links dos banners restaurados!', 'info');
                     // Reload tab
                     setTimeout(() => {
-                        banners = JSON.parse(localStorage.getItem('admin-banners')) || [
-                            { id: 1, badge: 'COZINHA CHARMOSA ☕', title: 'Cafeteira Britânia Rosa', subtitle: 'Seu dia começa mais doce e cheio de estilo', imageUrl: 'images/banner_casa.png', affiliateUrl: 'https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599' },
-                            { id: 2, badge: 'CASA IMPECÁVEL 🧹', title: 'Aspirador Vertical Rosa', subtitle: 'Praticidade e rapidez para a limpeza do dia a dia', imageUrl: 'images/banner_tech.png', affiliateUrl: 'https://produto.mercadolivre.com.br/MLB-4469244553-aspirador-rosa-vertical-britnia-2-em-1-1400w-base30-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599' },
-                            { id: 3, badge: 'REFRESCO E CONFORTO 💨', title: 'Ventilador Super Power', subtitle: 'Vento forte e design elegante para os dias quentes', imageUrl: 'images/banner_beleza.png', affiliateUrl: 'https://www.mercadolivre.com.br/ventilador-de-mesa-30cm-super-power-mondial-60w-vsp-30-ap/p/MLB18932161?pdp_filters=item_id%3AMLB5917028234&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599&matt_event_ts=1780069575273&matt_d2id=' }
-                        ];
                         loadBannersTab();
                     }, 100);
                 });
@@ -1539,6 +1909,7 @@
 
                     banners = updatedBanners;
                     localStorage.setItem('admin-banners', JSON.stringify(banners));
+                    saveSettingsToServer({ 'admin-banners': banners });
                     showToast('Todos os 3 banners principais foram atualizados!', 'success');
                 });
             }
@@ -1737,6 +2108,7 @@
                         bgSoftPink: '#FFF5F7',
                         bgBlush: '#FFE4E8'
                     };
+                    saveSettingsToServer({ 'admin-colors': brandColors });
                     loadColorsTab();
                     showToast('Paleta de cores restaurada para o padrão!', 'info');
                 });
@@ -1750,6 +2122,7 @@
                     brandColors.bgBlush = hexBlush.value.trim();
 
                     localStorage.setItem('admin-colors', JSON.stringify(brandColors));
+                    saveSettingsToServer({ 'admin-colors': brandColors });
                     showToast('Paleta de cores salva com sucesso!', 'success');
                 });
             }
@@ -2140,7 +2513,7 @@
                         if (index !== -1) {
                             let newId = customId ? (isNaN(customId) ? customId : parseInt(customId)) : editingProductId;
                             
-                            customProducts[index] = {
+                            const updatedProduct = {
                                 ...customProducts[index],
                                 id: newId,
                                 name: name,
@@ -2157,8 +2530,29 @@
                                 video_url: videoUrl
                             };
                             
+                            customProducts[index] = updatedProduct;
                             localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
-                            showToast('Produto updated com sucesso!', 'success');
+                            
+                            // Sync with backend API
+                            if (String(newId) !== String(editingProductId)) {
+                                // ID changed: delete old first, then POST new
+                                fetch(`${API_BASE}/products/${editingProductId}`, { method: 'DELETE' })
+                                    .then(() => fetch(`${API_BASE}/products`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(updatedProduct)
+                                    }))
+                                    .catch(e => console.warn("Erro ao atualizar produto (mudança de ID) no servidor:", e));
+                            } else {
+                                // Simple PUT
+                                fetch(`${API_BASE}/products/${editingProductId}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(updatedProduct)
+                                }).catch(e => console.warn("Erro ao atualizar produto no servidor:", e));
+                            }
+
+                            showToast('Produto atualizado com sucesso!', 'success');
                             
                             isEditing = false;
                             editingProductId = null;
@@ -2166,29 +2560,68 @@
                             showToast('Erro ao encontrar produto para salvar!', 'error');
                         }
                     } else {
-                        // Create unique product object
-                        let newId = customId ? (isNaN(customId) ? customId : parseInt(customId)) : Date.now();
+                        let newId = customId ? (isNaN(customId) ? customId : parseInt(customId)) : null;
                         
-                        const newProd = {
-                            id: newId,
-                            name: name,
-                            category: category,
-                            brand: "Curadoria",
-                            price: price,
-                            oldPrice: oldPrice || (price * 1.25),
-                            badge: badge,
-                            emoji: emoji,
-                            glowColor: "rgba(255,26,117,0.3)",
-                            searchKeys: `${name.toLowerCase()} ${category.toLowerCase()} achadinho`,
-                            url: finalUrl,
-                            img_url: imgUrl,
-                            img_url_2: imgUrl2,
-                            video_url: videoUrl
-                        };
+                        // Find matching product in existing database
+                        let existingProdIndex = -1;
+                        if (newId !== null) {
+                            existingProdIndex = customProducts.findIndex(p => p.id === newId);
+                        }
+                        if (existingProdIndex === -1 && url) {
+                            const cleanUrl = url.split('?')[0];
+                            existingProdIndex = customProducts.findIndex(p => p.url && p.url.split('?')[0] === cleanUrl);
+                        }
 
-                        customProducts.unshift(newProd); // Add to beginning
-                        localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
-                        showToast('Produto cadastrado e inserido na vitrine!', 'success');
+                        if (existingProdIndex !== -1) {
+                            // Product already exists: update price if different, keep the rest
+                            const existingProd = customProducts[existingProdIndex];
+                            if (existingProd.price !== price) {
+                                existingProd.price = price;
+                                existingProd.oldPrice = oldPrice || (price * 1.25);
+                                localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
+                                
+                                // Send PUT to server to update price
+                                fetch(`${API_BASE}/products/${existingProd.id}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ price: existingProd.price, oldPrice: existingProd.oldPrice })
+                                }).catch(e => console.warn("Erro ao atualizar preço no servidor:", e));
+
+                                showToast('Produto já cadastrado! Preço atualizado com sucesso.', 'success');
+                            } else {
+                                showToast('Produto já cadastrado e preço é idêntico. Nenhuma alteração feita.', 'info');
+                            }
+                        } else {
+                            // Create new product
+                            if (newId === null) newId = Date.now();
+                            const newProd = {
+                                id: newId,
+                                name: name,
+                                category: category,
+                                brand: "Curadoria",
+                                price: price,
+                                oldPrice: oldPrice || (price * 1.25),
+                                badge: badge,
+                                emoji: emoji,
+                                glowColor: "rgba(255,26,117,0.3)",
+                                searchKeys: `${name.toLowerCase()} ${category.toLowerCase()} achadinho`,
+                                url: finalUrl,
+                                img_url: imgUrl,
+                                img_url_2: imgUrl2,
+                                video_url: videoUrl
+                            };
+                            customProducts.unshift(newProd); // Add to beginning
+                            localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
+                            
+                            // Send POST to server
+                            fetch(`${API_BASE}/products`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(newProd)
+                            }).catch(e => console.warn("Erro ao cadastrar produto no servidor:", e));
+
+                            showToast('Produto cadastrado e inserido na vitrine!', 'success');
+                        }
                     }
                     
                     // Reload tab
@@ -2255,6 +2688,11 @@
                         customProducts = customProducts.filter(p => p.id !== id);
                         localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
                         
+                        // Send DELETE to server
+                        fetch(`${API_BASE}/products/${id}`, {
+                            method: 'DELETE'
+                        }).catch(e => console.warn("Erro ao excluir produto no servidor:", e));
+
                         showToast('Produto removido com sucesso!', 'info');
                         
                         setTimeout(() => {
@@ -3020,22 +3458,77 @@
                             };
                         });
 
-                        // Save base list first to be safe
-                        localStorage.setItem('admin-custom-products', JSON.stringify(syncedProducts));
+                        // Load current database and merge synced products
+                        let currentCustomProducts = JSON.parse(localStorage.getItem('admin-custom-products')) || [];
+                        if (currentCustomProducts.length === 0) {
+                            currentCustomProducts = [...DEFAULT_PRODUCTS];
+                        }
+
+                        let productsToEnrich = [];
+
+                        syncedProducts.forEach(syncedProd => {
+                            const cleanSyncedUrl = syncedProd.url.split('?')[0];
+                            let matchIndex = currentCustomProducts.findIndex(p => p.id === syncedProd.id);
+                            if (matchIndex === -1) {
+                                matchIndex = currentCustomProducts.findIndex(p => p.url && p.url.split('?')[0] === cleanSyncedUrl);
+                            }
+
+                            if (matchIndex !== -1) {
+                                const existingProd = currentCustomProducts[matchIndex];
+                                if (existingProd.price !== syncedProd.price) {
+                                    addLog(`Ajustando preço de "${existingProd.name.substring(0, 25)}..." de R$ ${existingProd.price.toFixed(2)} para R$ ${syncedProd.price.toFixed(2)}`, 'warn');
+                                    existingProd.price = syncedProd.price;
+                                    existingProd.oldPrice = syncedProd.oldPrice;
+                                }
+                                if (!existingProd.img_url_2 || !existingProd.video_url) {
+                                    productsToEnrich.push(existingProd);
+                                }
+                            } else {
+                                addLog(`Novo produto detectado: "${syncedProd.name.substring(0, 25)}..."`, 'success');
+                                currentCustomProducts.unshift(syncedProd);
+                                productsToEnrich.push(syncedProd);
+                            }
+                        });
+
+                        localStorage.setItem('admin-custom-products', JSON.stringify(currentCustomProducts));
+
+                        // Send bulk sync to server!
+                        try {
+                            const bulkRes = await fetch(`${API_BASE}/products/sync`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(syncedProducts)
+                            });
+                            if (bulkRes.ok) {
+                                const bulkData = await bulkRes.json();
+                                addLog(`Sincronização com o banco de dados concluída! Inseridos: ${bulkData.inserted}, Atualizados: ${bulkData.updated}`, 'success');
+                            }
+                        } catch(e) {
+                            console.warn("Erro ao sincronizar produtos com o servidor:", e);
+                            addLog(`Erro ao sincronizar com o banco de dados MariaDB: ${e.message}`, 'error');
+                        }
 
                         // 4. PROGRESSIVE MEDIA CRAWLER (BACKGROUND ENRICHMENT)
                         addLog(`Iniciando crawler progressivo em segundo plano para extração de fotos HD e vídeos...`, 'success');
                         statusText.innerText = 'Enriquecendo fotos HD e vídeos...';
 
-                        const totalToCrawl = syncedProducts.length;
+                        const totalToCrawl = productsToEnrich.length;
                         const PROXIES = [
                             url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
                             url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
                             url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
                         ];
 
+                        if (totalToCrawl === 0) {
+                            addLog('Todas as mídias já estão enriquecidas. Pulando crawler.', 'success');
+                        }
+
                         for (let i = 0; i < totalToCrawl; i++) {
-                            const prod = syncedProducts[i];
+                            const prodToEnrich = productsToEnrich[i];
+                            const prodIndex = currentCustomProducts.findIndex(p => p.id === prodToEnrich.id);
+                            if (prodIndex === -1) continue;
+                            const prod = currentCustomProducts[prodIndex];
+
                             const progressPercent = 55 + Math.round((i / totalToCrawl) * 45);
                             progressBar.style.width = `${progressPercent}%`;
                             statusText.innerText = `Enriquecendo Mídias: ${i + 1}/${totalToCrawl} (${progressPercent}%)`;
@@ -3047,7 +3540,6 @@
 
                             // Fetch page through proxy sequence
                             for (let pIdx = 0; pIdx < PROXIES.length; pIdx++) {
-                                // Balance proxy usage by offsetting index
                                 const proxyFn = PROXIES[(pIdx + i) % PROXIES.length];
                                 const targetUrl = proxyFn(cleanUrl);
                                 try {
@@ -3065,7 +3557,6 @@
                             }
 
                             if (detailHtml) {
-                                // Parse high quality gallery and official videos
                                 const gallery = parseGalleryImages(detailHtml);
                                 const videoUrl = parseVideo(detailHtml);
 
@@ -3073,8 +3564,18 @@
                                 if (gallery.imgUrl2) prod.img_url_2 = gallery.imgUrl2;
                                 if (videoUrl) prod.video_url = videoUrl;
 
-                                // Save iteratively
-                                localStorage.setItem('admin-custom-products', JSON.stringify(syncedProducts));
+                                localStorage.setItem('admin-custom-products', JSON.stringify(currentCustomProducts));
+
+                                // Sync the updated crawled details with the server
+                                fetch(`${API_BASE}/products/${prod.id}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        img_url: prod.img_url,
+                                        img_url_2: prod.img_url_2,
+                                        video_url: prod.video_url
+                                    })
+                                }).catch(e => console.warn("Erro ao atualizar mídia enriquecida no servidor:", e));
 
                                 let mediaFound = [];
                                 if (gallery.imgUrl2) mediaFound.push('Foto HD 2');
@@ -3089,14 +3590,13 @@
                                 addLog(`⚠️ "${prod.name.substring(0,25)}...": Sem resposta dos proxies, mantendo dados básicos.`, 'warn');
                             }
 
-                            // Tiny throttle to be polite to proxies
                             await new Promise(r => setTimeout(r, 150));
                         }
 
                         progressBar.style.width = '100%';
                         statusText.innerText = 'Sincronização Concluída!';
                         syncSpinner.className = 'fa-solid fa-circle-check text-emerald-400';
-                        addLog(`Vitrine atualizada com sucesso! Todos os ${syncedProducts.length} produtos de Vanessa agora contam com fotos HD, segunda imagem no hover e vídeos integrados.`, 'success');
+                        addLog(`Vitrine atualizada com sucesso! Todos os ${currentCustomProducts.length} produtos de Vanessa agora contam com fotos HD, segunda imagem no hover e vídeos integrados.`, 'success');
                         showToast(`✅ Vitrine de Vanessa sincronizada com ${syncedProducts.length} produtos!`, 'success');
 
                         if (isManualBypass) {
@@ -3259,6 +3759,17 @@
                     
                     localStorage.setItem('mk-embed-tiktok', eTiktok.value.trim());
                     localStorage.setItem('mk-embed-youtube', eYouTube.value.trim());
+                    
+                    saveSettingsToServer({
+                        'mk-timer-active': String(tTimer.checked),
+                        'mk-timer-text': iText.value.trim(),
+                        'mk-timer-mins': iMins.value.trim() || '120',
+                        'mk-proof-active': String(tProof.checked),
+                        'mk-pixel-meta': pMeta.value.trim(),
+                        'mk-pixel-google': pGoogle.value.trim(),
+                        'mk-embed-tiktok': eTiktok.value.trim(),
+                        'mk-embed-youtube': eYouTube.value.trim()
+                    });
                     
                     showToast('Configurações de Marketing salvas com sucesso!', 'success');
                 });

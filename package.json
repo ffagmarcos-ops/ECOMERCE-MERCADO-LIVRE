@@ -1,0 +1,16 @@
+{
+  "name": "tudo-pra-voce-vitrine-digital",
+  "version": "1.2.0",
+  "description": "Vitrine digital e painel administrativo integrado com banco de dados MariaDB",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mysql2": "^3.9.7"
+  },
+  "author": "Antigravity",
+  "license": "ISC"
+}

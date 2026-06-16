@@ -815,6 +815,24 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
+            // --- TRACKING DE ACESSOS E VISITAS ---
+            (function() {
+                try {
+                    let pageViews = parseInt(localStorage.getItem('admin-page-views') || '0');
+                    pageViews++;
+                    localStorage.setItem('admin-page-views', pageViews.toString());
+
+                    if (!sessionStorage.getItem('session-visit-flag')) {
+                        sessionStorage.setItem('session-visit-flag', 'true');
+                        let uniqueVisits = parseInt(localStorage.getItem('admin-visits') || '0');
+                        uniqueVisits++;
+                        localStorage.setItem('admin-visits', uniqueVisits.toString());
+                    }
+                } catch (e) {
+                    console.error("Erro ao registrar métricas de acesso:", e);
+                }
+            })();
+
             // ========================================================
             // DYNAMIC CONFIGURATION SYNC FROM ADMIN PANEL
             // ========================================================
@@ -1664,6 +1682,9 @@
                   cadastrada ou falhar, há o fallback gracioso para o emoji correspondente.
                ==================================================================
             */
+            // Dynamically load settings and products from the API
+            const API_BASE = (window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+
             let customProducts = JSON.parse(localStorage.getItem('admin-custom-products'));
             const hasVideoFields = customProducts && customProducts.some(p => p.video_url);
             if (!customProducts || customProducts.length < 40 || !hasVideoFields) {
@@ -1671,6 +1692,59 @@
                 localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
             }
             products = customProducts;
+
+            // --- TRACKING DE CLIQUES E ENGAJAMENTO ---
+            window.trackProductClick = function(productId) {
+                try {
+                    const idVal = isNaN(productId) ? productId : parseInt(productId);
+                    const prod = products.find(p => p.id === idVal);
+                    if (!prod) return;
+
+                    let clicks = JSON.parse(localStorage.getItem('admin-clicks')) || [];
+                    const clickData = {
+                        productId: prod.id,
+                        name: prod.name,
+                        category: prod.category,
+                        price: prod.price,
+                        timestamp: Date.now()
+                    };
+                    clicks.push(clickData);
+                    localStorage.setItem('admin-clicks', JSON.stringify(clicks));
+
+                    // Send to backend API
+                    fetch(`${API_BASE}/click`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(clickData)
+                    }).catch(e => console.warn("Erro ao enviar clique de produto para API:", e));
+                } catch (e) {
+                    console.error("Erro ao registrar clique de produto:", e);
+                }
+            };
+
+            window.trackProductClickDirect = function(info) {
+                try {
+                    let clicks = JSON.parse(localStorage.getItem('admin-clicks')) || [];
+                    const clickData = {
+                        productId: info.productId || info.id || "manual",
+                        name: info.name || "Produto Sem Nome",
+                        category: info.category || "Geral",
+                        price: parseFloat(info.price) || 0,
+                        timestamp: Date.now()
+                    };
+                    clicks.push(clickData);
+                    localStorage.setItem('admin-clicks', JSON.stringify(clicks));
+
+                    // Send to backend API
+                    fetch(`${API_BASE}/click`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(clickData)
+                    }).catch(e => console.warn("Erro ao enviar clique direto para API:", e));
+                } catch (e) {
+                    console.error("Erro ao registrar clique direto:", e);
+                }
+            };
 
             // --- ESTADO DA WISHLIST (SALVOS) ---
             let wishlist = [];
@@ -1753,7 +1827,7 @@
                         </button>
                         
                         <!-- Product visual click area -->
-                        <div class="product-click-area flex flex-col flex-1" data-url="${product.url}">
+                        <div class="product-click-area flex flex-col flex-1" data-id="${product.id}" data-url="${product.url}">
                             <div class="h-32 md:h-40 w-full mb-3 flex justify-center items-center relative overflow-hidden bg-brand-softPink rounded-xl p-2">
                                 ${product.img_url ? 
                                     `<img src="${product.img_url}" alt="${product.name}" class="primary-media h-full w-full object-contain group-hover:scale-105 transition duration-300" style="filter: drop-shadow(0 4px 6px ${product.glowColor})">` : 
@@ -1793,7 +1867,7 @@
                         
                         <!-- Actions flex row (Compre Aqui + Compartilhar do Site) -->
                         <div class="flex items-center gap-2 w-full mt-auto">
-                            <button class="buy-now-btn-dynamic flex-1 bg-gradient-to-r from-brand-pink to-brand-rose hover:opacity-95 text-white font-extrabold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center transition shadow-md shadow-brand-pink/10 border-b-2 border-brand-rose" data-url="${product.url}">
+                            <button class="buy-now-btn-dynamic flex-1 bg-gradient-to-r from-brand-pink to-brand-rose hover:opacity-95 text-white font-extrabold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center transition shadow-md shadow-brand-pink/10 border-b-2 border-brand-rose" data-id="${product.id}" data-url="${product.url}">
                                 <i class="fa-solid fa-arrow-up-right-from-square mr-1.5 text-xs text-brand-gold"></i> Compre Aqui
                             </button>
                             <button class="share-toggle-btn w-10 h-10 rounded-xl bg-brand-softPink hover:bg-brand-pink hover:text-white text-brand-pink flex items-center justify-center transition border border-brand-blush shadow-sm shrink-0" data-id="${product.id}" title="Compartilhar do meu site">
@@ -1809,6 +1883,8 @@
                 document.querySelectorAll('.product-click-area').forEach(element => {
                     element.addEventListener('click', () => {
                         const url = element.getAttribute('data-url');
+                        const id = element.getAttribute('data-id');
+                        window.trackProductClick(id);
                         window.open(url, '_blank');
                     });
                 });
@@ -1818,6 +1894,8 @@
                     button.addEventListener('click', (e) => {
                         e.stopPropagation();
                         const url = button.getAttribute('data-url');
+                        const id = button.getAttribute('data-id');
+                        window.trackProductClick(id);
                         window.open(url, '_blank');
                     });
                 });
@@ -2047,7 +2125,7 @@
                     const itemElement = document.createElement('div');
                     itemElement.className = "flex items-center justify-between border-b border-brand-blush pb-4";
                     itemElement.innerHTML = `
-                        <div class="flex items-center space-x-3 cursor-pointer" onclick="window.open('${item.url}', '_blank')">
+                        <div class="flex items-center space-x-3 cursor-pointer" onclick="window.trackProductClick('${item.id}'); window.open('${item.url}', '_blank')">
                             <div class="h-12 w-12 rounded-xl bg-brand-softPink border border-brand-blush flex items-center justify-center overflow-hidden shrink-0">
                                 ${item.img_url ? 
                                     `<img src="${item.img_url}" alt="${item.name}" class="h-full w-full object-contain">` : 
@@ -2066,7 +2144,7 @@
                             <button class="share-wishlist-item-btn p-1.5 hover:bg-brand-softPink rounded-lg text-gray-400 hover:text-brand-pink transition" data-id="${item.id}">
                                 <i class="fa-solid fa-share-nodes text-sm"></i>
                             </button>
-                            <a href="${item.url}" target="_blank" class="bg-brand-pink hover:bg-brand-rose text-white font-extrabold text-[9px] py-1.5 px-2.5 rounded-lg flex items-center uppercase tracking-wide transition border-b border-brand-rose shrink-0">
+                            <a href="${item.url}" target="_blank" onclick="window.trackProductClick('${item.id}')" class="bg-brand-pink hover:bg-brand-rose text-white font-extrabold text-[9px] py-1.5 px-2.5 rounded-lg flex items-center uppercase tracking-wide transition border-b border-brand-rose shrink-0">
                                 Compre Aqui <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[8px] text-brand-gold"></i>
                             </a>
                         </div>
@@ -2180,12 +2258,109 @@
                 }
             }
 
+            async function syncWithBackend() {
+                // 1. Send visit analytics to backend
+                try {
+                    const isUnique = !sessionStorage.getItem('session-visit-flag');
+                    if (isUnique) {
+                        sessionStorage.setItem('session-visit-flag', 'true');
+                    }
+                    const visitRes = await fetch(`${API_BASE}/visit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ isUnique })
+                    });
+                    if (visitRes.ok) {
+                        const data = await visitRes.json();
+                        localStorage.setItem('admin-page-views', data.pageViews.toString());
+                        localStorage.setItem('admin-visits', data.uniqueVisits.toString());
+                    }
+                } catch(e) {
+                    console.warn("Erro ao registrar estatísticas no servidor:", e);
+                }
+
+                // 2. Fetch settings (colors, logo, banners, timers, embeds) from backend
+                try {
+                    const settingsRes = await fetch(`${API_BASE}/settings`);
+                    if (settingsRes.ok) {
+                        const settings = await settingsRes.json();
+                        
+                        // Save settings to localStorage
+                        let changed = false;
+                        for (const [key, val] of Object.entries(settings)) {
+                            const stringVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+                            if (localStorage.getItem(key) !== stringVal) {
+                                localStorage.setItem(key, stringVal);
+                                changed = true;
+                            }
+                        }
+
+                        // Apply settings immediately if anything changed
+                        if (changed) {
+                            // Apply theme colors
+                            const colors = settings['admin-colors'];
+                            if (colors) {
+                                const root = document.documentElement;
+                                if (colors.primaryPink) root.style.setProperty('--brand-pink', colors.primaryPink);
+                                if (colors.brandRose) root.style.setProperty('--brand-rose', colors.brandRose);
+                                if (colors.brandGold) root.style.setProperty('--brand-gold', colors.brandGold);
+                                if (colors.bgSoftPink) root.style.setProperty('--brand-softPink', colors.bgSoftPink);
+                                if (colors.bgBlush) root.style.setProperty('--brand-blush', colors.bgBlush);
+                            }
+                            
+                            // Logo
+                            const logo = settings['admin-logo'];
+                            if (logo) {
+                                document.querySelectorAll('img[src="images/logo.png"]').forEach(img => {
+                                    img.src = logo;
+                                });
+                            }
+                        }
+                    }
+                } catch(e) {
+                    console.warn("Erro ao buscar configurações do servidor:", e);
+                }
+
+                // 3. Fetch products from database
+                try {
+                    const productsRes = await fetch(`${API_BASE}/products`);
+                    if (productsRes.ok) {
+                        const dbProducts = await productsRes.json();
+                        if (dbProducts && dbProducts.length > 0) {
+                            const formattedProducts = dbProducts.map(p => ({
+                                id: isNaN(p.id) ? p.id : parseInt(p.id),
+                                name: p.name,
+                                category: p.category,
+                                brand: p.brand,
+                                price: parseFloat(p.price),
+                                oldPrice: p.oldPrice ? parseFloat(p.oldPrice) : null,
+                                badge: p.badge,
+                                emoji: p.emoji,
+                                glowColor: p.glowColor,
+                                searchKeys: p.searchKeys,
+                                url: p.url,
+                                img_url: p.img_url,
+                                img_url_2: p.img_url_2,
+                                video_url: p.video_url
+                            }));
+                            
+                            products = formattedProducts;
+                            localStorage.setItem('admin-custom-products', JSON.stringify(formattedProducts));
+                            renderProducts();
+                        }
+                    }
+                } catch(e) {
+                    console.warn("Erro ao buscar produtos do servidor:", e);
+                }
+            }
+
             // --- INICIALIZAÇÃO ---
             loadWishlist();
             setupSearch();
             setupCategories();
             renderProducts();
             handleProductQueryLink();
+            syncWithBackend();
 
 
             // --- CAROUSEL SLIDER LOGIC ---
@@ -2255,6 +2430,30 @@
                 carouselContainer.addEventListener('mouseenter', stopSlideShow);
                 carouselContainer.addEventListener('mouseleave', startSlideShow);
             }
+
+            // Track banner clicks
+            slides.forEach((slide, idx) => {
+                slide.addEventListener('click', () => {
+                    const href = slide.getAttribute('href') || '';
+                    if (href) {
+                        const cleanUrl = href.split('?')[0];
+                        const prod = products.find(p => p.url && p.url.split('?')[0] === cleanUrl);
+                        if (prod) {
+                            window.trackProductClick(prod.id);
+                        } else {
+                            let bannerTitle = "Banner " + (idx + 1);
+                            const h2 = slide.querySelector('h2') || slide.querySelector('.banner-title');
+                            if (h2) bannerTitle = h2.textContent.trim();
+                            window.trackProductClickDirect({
+                                id: "banner-" + (idx + 1),
+                                name: bannerTitle,
+                                category: "Banners",
+                                price: 0
+                            });
+                        }
+                    }
+                });
+            });
 
 
             // --- CHATBOT ASSISTENTE VIRTUAL LARI ---
