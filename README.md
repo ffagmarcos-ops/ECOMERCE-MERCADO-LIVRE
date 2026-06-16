@@ -75,5 +75,5 @@ O projeto agora inclui uma stack Docker pronta para Portainer:
 
 ### Observação de arquitetura
 * O servidor foi ajustado para ler configuração de banco via ambiente e aguardar o MariaDB subir antes de inicializar a API.
-* O usuário admin padrão é `MARCOSF` com senha `30MARIAFN@`, salvo automaticamente no banco no boot; os valores podem ser sobrescritos por ambiente.
+* O usuário admin padrão é `admin` com senha `admin123`, salvo automaticamente no banco no boot; os valores podem ser sobrescritos por ambiente.
 * Em Portainer, importe o `docker-compose.yml` como Stack e confirme apenas que a rede externa `traefik` existe.

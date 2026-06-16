@@ -23,8 +23,8 @@ const dbConfig = {
 };
 const dbName = process.env.DB_NAME || 'tudopravoce_db';
 const defaultAdmin = {
-    username: process.env.ADMIN_USERNAME || 'MARCOSF',
-    password: process.env.ADMIN_PASSWORD || '30MARIAFN@',
+    username: process.env.ADMIN_USERNAME || 'admin',
+    password: process.env.ADMIN_PASSWORD || 'admin123',
     displayName: process.env.ADMIN_DISPLAY_NAME || 'Administrador'
 };
 
