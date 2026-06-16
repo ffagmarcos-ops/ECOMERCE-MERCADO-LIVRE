@@ -55,11 +55,16 @@
                     animation: {
                         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                         'glow': 'glow 2s ease-in-out infinite alternate',
+                        'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
                     },
                     keyframes: {
                         glow: {
                             '0%': { boxShadow: '0 0 5px rgba(255, 26, 117, 0.2)' },
                             '100%': { boxShadow: '0 0 20px rgba(255, 26, 117, 0.6)' },
+                        },
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
                         }
                     }
                 }
@@ -106,9 +111,17 @@
     </style>
 </head>
 <body class="bg-[#FAF7F8] text-brand-darkGray font-sans antialiased overflow-x-hidden">
+    <!-- CRONÔMETRO DE ESCASSEZ -->
+    <div id="urgency-timer-banner" class="hidden bg-gradient-to-r from-red-600 to-orange-500 text-white text-center py-2 px-4 z-[60] sticky top-0 font-bold text-sm tracking-wide shadow-md flex justify-center items-center gap-2">
+        <span id="timer-message">🔥 OFERTA RELÂMPAGO! Termina em:</span>
+        <span id="timer-countdown" class="bg-black/20 px-2 py-0.5 rounded ml-2 font-mono text-base">00:00:00</span>
+    </div>
 
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none"></div>
+
+    <!-- Social Proof Container -->
+    <div id="social-proof-container" class="fixed bottom-4 left-4 z-[90] flex flex-col items-start gap-2 pointer-events-none"></div>
 
     <!-- Topbar (Quick Promo & WhatsApp Group Link) -->
     <div class="bg-gradient-to-r from-brand-pink via-brand-rose to-brand-pink text-xs md:text-sm text-white py-2 shadow-sm">
@@ -169,7 +182,7 @@
                         <span class="text-sm font-semibold">Instagram</span>
                     </a>
                     
-                    <a href="https://wa.me/5521967399004" target="_blank" class="flex items-center space-x-2 hover:text-brand-pink transition">
+                    <a href="#" target="_blank" class="wa-dynamic-link flex items-center space-x-2 hover:text-brand-pink transition">
                         <i class="fa-regular fa-paper-plane text-xl text-brand-pink"></i>
                         <span class="text-sm font-semibold">Grupo VIP</span>
                     </a>
@@ -195,7 +208,7 @@
         <!-- Navigation Menu (Desktop) -->
         <nav class="hidden md:block bg-brand-softPink border-t border-brand-blush">
             <div class="container mx-auto px-4">
-                <ul class="flex space-x-8 text-sm font-semibold py-3 text-brand-rose">
+                <ul class="flex space-x-8 text-sm font-semibold py-3 text-brand-rose overflow-x-auto hide-scrollbar whitespace-nowrap">
                     <li>
                         <a href="#catalogo" class="flex items-center space-x-2 text-brand-pink hover:text-brand-rose transition">
                             <i class="fa-solid fa-bag-shopping"></i>
@@ -208,7 +221,14 @@
                     <li><a href="#eletrônicos" class="hover:text-brand-pink transition">Eletrônicos & Gadgets</a></li>
                     <li><a href="#organização" class="hover:text-brand-pink transition">Organização</a></li>
                     <li><a href="#utilidades" class="hover:text-brand-pink transition">Utilidades Úteis</a></li>
-                    <li><a href="https://wa.me/5521967399004" target="_blank" class="text-green-600 font-bold hover:text-green-500 transition flex items-center gap-1.5"><i class="fa-brands fa-whatsapp text-green-500 text-lg"></i> Grupo Tudo pra Você no Zap</a></li>
+                    <li><a href="#moda" class="hover:text-brand-pink transition">Moda & Acessórios</a></li>
+                    <li><a href="#esporte" class="hover:text-brand-pink transition">Esporte & Lazer</a></li>
+                    <li><a href="#pet" class="hover:text-brand-pink transition">Pet Shop</a></li>
+                    <li><a href="#infantil" class="hover:text-brand-pink transition">Bebês & Crianças</a></li>
+                    <li><a href="#ferramentas" class="hover:text-brand-pink transition">Ferramentas & Construção</a></li>
+                    <li><a href="#games" class="hover:text-brand-pink transition">Games & Consoles</a></li>
+                    <li><a href="#livros" class="hover:text-brand-pink transition">Livros & Papelaria</a></li>
+                    <li><a href="#" target="_blank" class="wa-dynamic-link text-green-600 font-bold hover:text-green-500 transition flex items-center gap-1.5"><i class="fa-brands fa-whatsapp text-green-500 text-lg"></i> Grupo Tudo pra Você no Zap</a></li>
                 </ul>
             </div>
         </nav>
@@ -220,40 +240,41 @@
             <!-- Header -->
             <div class="bg-brand-softPink p-5 flex justify-between items-center border-b border-brand-blush">
                 <div class="flex items-center space-x-2 text-brand-pink">
-                    <i class="fa-solid fa-heart text-xl"></i>
-                    <span class="font-extrabold text-brand-rose tracking-wide text-lg">Meus Achadinhos Salvos</span>
+                    <i class="fa-solid fa-heart"></i>
+                    <span class="font-bold text-xl">Sua Lista de Desejos</span>
                 </div>
-                <button id="close-cart-btn" class="text-brand-rose hover:text-brand-pink text-2xl">
+                <button id="close-cart-btn" class="text-brand-rose hover:text-brand-pink text-2xl transition hover:rotate-90">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             
-            <!-- Items List Container -->
-            <div class="flex-1 p-5 overflow-y-auto space-y-4" id="cart-items-container">
-                <!-- Dynamically populated in JS -->
+            <div class="p-5 border-b border-brand-blush bg-brand-softPink/30">
+                <p class="text-sm text-gray-500 text-center font-medium">Os seus achados favoritos ficarão salvos aqui para você comprar depois!</p>
             </div>
 
-            <!-- Footer summary -->
-            <div class="p-5 border-t border-brand-blush bg-brand-softPink/50 space-y-4">
-                <div class="flex justify-between items-center text-sm">
-                    <span class="text-gray-500">Total de itens salvos:</span>
-                    <span class="text-brand-rose font-bold" id="saved-count-total">0 itens</span>
-                </div>
-                <p class="text-[11px] text-gray-500 text-center leading-relaxed"><i class="fa-solid fa-info-circle text-brand-pink mr-0.5"></i> Salve seus achados favoritos para conferir depois ou abrir todas as promoções de uma só vez no Mercado Livre.</p>
-                <button id="checkout-btn" class="w-full bg-gradient-to-r from-brand-pink to-brand-rose text-white hover:opacity-95 font-extrabold py-3.5 rounded-xl text-center uppercase tracking-wider text-sm transition shadow-md shadow-brand-pink/20">
-                    Ir para o Mercado Livre
+            <!-- Items -->
+            <div id="cart-items" class="flex-1 p-5 space-y-4 overflow-y-auto bg-gray-50/50">
+                <!-- Cart items will be rendered here via JS -->
+            </div>
+            
+            <!-- Footer -->
+            <div class="p-5 border-t border-brand-blush bg-white">
+                <button id="checkout-btn" class="w-full bg-brand-pink hover:bg-brand-rose text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-brand-pink/50 transition duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer group">
+                    <span>Finalizar Compra no Mercado Livre</span>
+                    <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition"></i>
                 </button>
+                <p class="text-[10px] text-center text-gray-400 mt-3"><i class="fa-solid fa-shield-halved mr-1"></i> Você será redirecionado para o ambiente seguro do Mercado Livre</p>
             </div>
         </div>
     </div>
 
-    <!-- Mobile Sidebar Menu -->
-    <div id="mobile-menu" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden transition-opacity">
+    <!-- Mobile Menu Drawer -->
+    <div id="mobile-menu" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden transition-opacity">
         <div class="bg-white w-4/5 max-w-sm h-full overflow-y-auto flex flex-col transform -translate-x-full transition-transform duration-300 border-r border-brand-blush" id="mobile-menu-content">
             <div class="bg-brand-softPink p-5 flex justify-between items-center border-b border-brand-blush">
                 <div class="flex items-center space-x-2">
-                    <img src="images/logo.png" alt="Tudo pra Você Logo" class="h-10 w-auto object-contain rounded-lg">
-                    <span class="font-extrabold text-brand-rose tracking-wide text-lg">Tudo pra Você</span>
+                    <img src="images/logo.png" alt="Logo" class="h-8">
+                    <span class="font-bold text-brand-rose">Menu</span>
                 </div>
                 <button id="close-menu-btn" class="text-brand-rose hover:text-brand-pink text-2xl">
                     <i class="fa-solid fa-xmark"></i>
@@ -276,9 +297,16 @@
                     <li><a href="#eletrônicos" class="block hover:text-brand-pink transition"><i class="fa-solid fa-bolt mr-2 text-brand-pink"></i> Eletrônicos & Gadgets</a></li>
                     <li><a href="#organização" class="block hover:text-brand-pink transition"><i class="fa-solid fa-box mr-2 text-brand-pink"></i> Organização</a></li>
                     <li><a href="#utilidades" class="block hover:text-brand-pink transition"><i class="fa-solid fa-screwdriver-wrench mr-2 text-brand-pink"></i> Utilidades Úteis</a></li>
+                    <li><a href="#moda" class="block hover:text-brand-pink transition"><i class="fa-solid fa-shirt mr-2 text-brand-pink"></i> Moda & Acessórios</a></li>
+                    <li><a href="#esporte" class="block hover:text-brand-pink transition"><i class="fa-solid fa-dumbbell mr-2 text-brand-pink"></i> Esporte & Lazer</a></li>
+                    <li><a href="#pet" class="block hover:text-brand-pink transition"><i class="fa-solid fa-paw mr-2 text-brand-pink"></i> Pet Shop</a></li>
+                    <li><a href="#infantil" class="block hover:text-brand-pink transition"><i class="fa-solid fa-baby mr-2 text-brand-pink"></i> Bebês & Crianças</a></li>
+                    <li><a href="#ferramentas" class="block hover:text-brand-pink transition"><i class="fa-solid fa-hammer mr-2 text-brand-pink"></i> Ferramentas & Construção</a></li>
+                    <li><a href="#games" class="block hover:text-brand-pink transition"><i class="fa-solid fa-gamepad mr-2 text-brand-pink"></i> Games & Consoles</a></li>
+                    <li><a href="#livros" class="block hover:text-brand-pink transition"><i class="fa-solid fa-book mr-2 text-brand-pink"></i> Livros & Papelaria</a></li>
                     <li class="border-t border-brand-blush pt-4"><a href="#sobre" class="block hover:text-brand-pink transition"><i class="fa-solid fa-circle-question mr-2"></i> Como Funciona?</a></li>
                     <li><a href="https://www.instagram.com/tdpravoce_achadinhos/" target="_blank" class="block text-brand-pink font-bold hover:text-brand-rose transition"><i class="fa-brands fa-instagram mr-2 text-brand-pink text-lg animate-pulse"></i> Siga no Instagram</a></li>
-                    <li><a href="https://wa.me/5521967399004" target="_blank" class="block text-green-600 font-bold hover:text-green-500 transition"><i class="fa-brands fa-whatsapp mr-2 text-green-500"></i> Grupo VIP Tudo pra Você</a></li>
+                    <li><a href="#" target="_blank" class="wa-dynamic-link block text-green-600 font-bold hover:text-green-500 transition"><i class="fa-brands fa-whatsapp mr-2 text-green-500"></i> Grupo VIP Tudo pra Você</a></li>
                 </ul>
             </nav>
             
@@ -334,40 +362,89 @@
             
             <!-- Horizontal scrollable categories -->
             <div class="flex overflow-x-auto hide-scrollbar space-x-4 md:space-x-6 pb-4">
-                <!-- Category Item -->
-                <a href="#casa" class="flex flex-col items-center min-w-[100px] md:min-w-[120px] group">
-                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-brand-softPink border border-brand-blush group-hover:border-brand-pink/50 flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden bg-gradient-to-b group-hover:from-brand-pink/5">
-                        <span class="text-3xl md:text-4xl mb-1 group-hover:scale-110 transition duration-300">🏠</span>
-                        <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-1">Casa</span>
+                
+                <a href="#casa" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_casa_v3_1781623141320.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Casa">
                     </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Casa &<br>Cozinha</span>
                 </a>
                 
-                <a href="#beleza" class="flex flex-col items-center min-w-[100px] md:min-w-[120px] group">
-                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-brand-softPink border border-brand-blush group-hover:border-brand-pink/50 flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden bg-gradient-to-b group-hover:from-brand-pink/5">
-                        <span class="text-3xl md:text-4xl mb-1 group-hover:scale-110 transition duration-300">💄</span>
-                        <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-1">Beleza</span>
+                <a href="#beleza" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_beleza_v3_1781623152823.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Beleza">
                     </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Beleza &<br>Cuidados</span>
                 </a>
                 
-                <a href="#eletrônicos" class="flex flex-col items-center min-w-[100px] md:min-w-[120px] group">
-                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-brand-softPink border border-brand-blush group-hover:border-brand-pink/50 flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden bg-gradient-to-b group-hover:from-brand-pink/5">
-                        <span class="text-3xl md:text-4xl mb-1 group-hover:scale-110 transition duration-300">⚡</span>
-                        <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-1">Eletrônicos</span>
+                <a href="#eletrônicos" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_eletronicos_v3_1781623165092.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Eletrônicos">
                     </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Eletrônicos &<br>Gadgets</span>
                 </a>
                 
-                <a href="#organização" class="flex flex-col items-center min-w-[100px] md:min-w-[120px] group">
-                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-brand-softPink border border-brand-blush group-hover:border-brand-pink/50 flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden bg-gradient-to-b group-hover:from-brand-pink/5">
-                        <span class="text-3xl md:text-4xl mb-1 group-hover:scale-110 transition duration-300">📦</span>
-                        <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-1">Organização</span>
+                <a href="#organização" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_organizacao_v3_1781623177408.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Organização">
                     </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Organização</span>
                 </a>
 
-                <a href="#utilidades" class="flex flex-col items-center min-w-[100px] md:min-w-[120px] group">
-                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-brand-softPink border border-brand-blush group-hover:border-brand-pink/50 flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden bg-gradient-to-b group-hover:from-brand-pink/5">
-                        <span class="text-3xl md:text-4xl mb-1 group-hover:scale-110 transition duration-300">🛍️</span>
-                        <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-1">Utilidades</span>
+                <a href="#utilidades" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_utilidades_1781619700041.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Utilidades">
                     </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Utilidades</span>
+                </a>
+
+                <a href="#moda" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_moda_1781619711744.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Moda">
+                    </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Moda &<br>Acessórios</span>
+                </a>
+
+                <a href="#esporte" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_esporte_1781619723465.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Esporte">
+                    </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Esporte &<br>Lazer</span>
+                </a>
+
+                <a href="#pet" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_pet_1781619734032.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Pet Shop">
+                    </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Pet Shop</span>
+                </a>
+
+                <a href="#infantil" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_infantil_1781619777897.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Infantil">
+                    </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Bebês &<br>Crianças</span>
+                </a>
+
+                <a href="#ferramentas" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_ferramentas_1781619788977.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Ferramentas">
+                    </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Ferramentas &<br>Construção</span>
+                </a>
+
+                <a href="#games" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_games_1781619801270.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Games">
+                    </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Games &<br>Consoles</span>
+                </a>
+
+                <a href="#livros" class="flex flex-col items-center min-w-[90px] md:min-w-[110px] group">
+                    <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-brand-blush group-hover:border-brand-pink flex flex-col items-center justify-center transition shadow-sm relative overflow-hidden group-hover:shadow-md">
+                        <img src="images/cat_livros_1781619812863.png" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Livros">
+                    </div>
+                    <span class="text-[11px] md:text-xs font-bold text-brand-rose group-hover:text-brand-pink transition mt-2 text-center leading-tight">Livros &<br>Papelaria</span>
                 </a>
             </div>
         </div>
@@ -463,9 +540,40 @@
                 </button>
             </div>
 
-            <!-- Products Grid -->
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="products-grid">
-                <!-- Os produtos serão renderizados dinamicamente via JavaScript -->
+            <!-- Main Content Area (Products + Sidebar) -->
+            <div class="flex flex-col lg:flex-row gap-6">
+                
+                <!-- Products Grid (80% on Desktop) -->
+                <div class="w-full lg:w-[80%] grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="products-grid">
+                    <!-- Os produtos serão renderizados dinamicamente via JavaScript -->
+                </div>
+
+                <!-- Social Media Sidebar (20% on Desktop) -->
+                <aside id="social-sidebar" class="w-full lg:w-[20%] flex flex-col gap-6 hidden">
+                    
+                    <!-- TikTok Widget -->
+                    <div id="sidebar-tiktok-wrapper" class="hidden">
+                        <div class="flex items-center gap-2 mb-2 px-1">
+                            <i class="fa-brands fa-tiktok text-brand-rose"></i>
+                            <h3 class="font-bold text-brand-rose text-sm uppercase tracking-tight">TikTok</h3>
+                        </div>
+                        <div id="sidebar-tiktok-container" class="bg-white rounded-2xl shadow-sm border border-brand-blush overflow-hidden w-full flex justify-center bg-gray-50 aspect-[9/16]">
+                            <!-- Embed content here -->
+                        </div>
+                    </div>
+
+                    <!-- YouTube Widget -->
+                    <div id="sidebar-youtube-wrapper" class="hidden">
+                        <div class="flex items-center gap-2 mb-2 px-1">
+                            <i class="fa-brands fa-youtube text-red-500"></i>
+                            <h3 class="font-bold text-brand-rose text-sm uppercase tracking-tight">YouTube Shorts</h3>
+                        </div>
+                        <div id="sidebar-youtube-container" class="bg-white rounded-2xl shadow-sm border border-brand-blush overflow-hidden w-full flex justify-center bg-gray-50 aspect-[9/16]">
+                            <!-- Embed content here -->
+                        </div>
+                    </div>
+                </aside>
+
             </div>
             
             <div class="mt-8 text-center md:hidden">
@@ -623,9 +731,16 @@
         </div>
     </div>
 
-    <!-- WhatsApp VIP Group Order Floating Widget -->
-    <div class="fixed bottom-6 right-6 z-40 hidden md:block">
-        <a href="https://wa.me/5521967399004" target="_blank" class="flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white font-extrabold px-5 py-3 rounded-full shadow-2xl transition duration-300 transform hover:scale-105 group border border-white/10">
+    <!-- Social VIP Group Widgets -->
+    <div class="fixed bottom-6 right-6 z-40 hidden md:flex flex-col gap-3">
+        <!-- Telegram VIP Group Order Floating Widget -->
+        <a href="#" target="_blank" id="telegram-vip-float" class="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white font-extrabold px-5 py-3 rounded-full shadow-2xl transition duration-300 transform hover:scale-105 group border border-white/10 hidden">
+            <i class="fa-brands fa-telegram text-2xl text-white group-hover:rotate-12 transition duration-300"></i>
+            <span class="text-sm">Grupo Telegram</span>
+        </a>
+        
+        <!-- WhatsApp VIP Group Order Floating Widget -->
+        <a href="#" target="_blank" id="whatsapp-vip-float" class="wa-dynamic-link flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white font-extrabold px-5 py-3 rounded-full shadow-2xl transition duration-300 transform hover:scale-105 group border border-white/10 hidden">
             <i class="fa-brands fa-whatsapp text-2xl text-white group-hover:rotate-12 transition duration-300"></i>
             <span class="text-sm">Entrar no Grupo VIP</span>
         </a>
@@ -648,7 +763,7 @@
                     <div class="flex space-x-3 text-lg pt-2">
                         <a href="https://www.instagram.com/tdpravoce_achadinhos/" target="_blank" class="h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="Instagram"><i class="fa-brands fa-instagram"></i></a>
                         <a href="#" class="h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="TikTok"><i class="fa-brands fa-tiktok"></i></a>
-                        <a href="https://wa.me/5521967399004" target="_blank" class="h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+                        <a href="#" target="_blank" class="wa-dynamic-link h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
                     </div>
                 </div>
 
@@ -660,8 +775,7 @@
                         <li><a href="#ofertas" class="hover:text-brand-pink transition">Ofertas do Dia</a></li>
                         <li><a href="#sobre" class="hover:text-brand-pink transition">Quem Somos</a></li>
                         <li><a href="#como-funciona" class="hover:text-brand-pink transition">Como Funciona</a></li>
-                        <li><a href="https://wa.me/5521967399004" class="hover:text-brand-pink transition text-green-400 font-semibold"><i class="fa-brands fa-whatsapp mr-1 text-green-500"></i> Grupo do WhatsApp</a></li>
-                        <li><a href="admin.html?v=1.1" target="_blank" class="hover:text-brand-pink transition text-brand-pink/90 font-bold"><i class="fa-solid fa-shield-halved mr-1 text-brand-pink"></i> Painel Administrativo</a></li>
+                        <li><a href="#" class="wa-dynamic-link hover:text-brand-pink transition text-green-400 font-semibold"><i class="fa-brands fa-whatsapp mr-1 text-green-500"></i> Grupo do WhatsApp</a></li>
                     </ul>
                 </div>
 
@@ -2006,7 +2120,7 @@
             function setupCategories() {
                 document.querySelectorAll('a[href^="#"]').forEach(link => {
                     const target = link.getAttribute('href').substring(1);
-                    const validCategories = ['casa', 'beleza', 'eletrônicos', 'organização', 'utilidades'];
+                    const validCategories = ['casa', 'beleza', 'eletrônicos', 'organização', 'utilidades', 'moda', 'esporte', 'pet', 'infantil', 'ferramentas', 'games', 'livros'];
                     
                     if (validCategories.includes(target) || target === 'catalogo') {
                         link.addEventListener('click', (e) => {
@@ -2325,6 +2439,238 @@
             mobileMenu.addEventListener('click', (e) => {
                 if (e.target === mobileMenu) closeMobileMenu();
             });
+            // Social VIP Toggles logic
+            const waFloat = document.getElementById('whatsapp-vip-float');
+            const tgFloat = document.getElementById('telegram-vip-float');
+            
+            const waLink = localStorage.getItem('link-whatsapp') || '#';
+            const tgLink = localStorage.getItem('link-telegram') || '#';
+
+            // Atualiza todos os links do WhatsApp na página (agora usando classe)
+            document.querySelectorAll('.wa-dynamic-link').forEach(a => {
+                if (waLink !== '#') a.href = waLink;
+            });
+            // Atualiza o href do float se não for vazio
+            if (waFloat && waLink && waLink !== '#') waFloat.href = waLink;
+            if (tgFloat && tgLink && tgLink !== '#') tgFloat.href = tgLink;
+            
+            if (localStorage.getItem('show-whatsapp') !== 'false') {
+                waFloat.classList.remove('hidden');
+                waFloat.classList.add('flex');
+            } else {
+                waFloat.classList.add('hidden');
+                waFloat.classList.remove('flex');
+            }
+            
+            if (localStorage.getItem('show-telegram') === 'true') {
+                tgFloat.classList.remove('hidden');
+                tgFloat.classList.add('flex');
+            } else {
+                tgFloat.classList.add('hidden');
+                tgFloat.classList.remove('flex');
+            }
+
+            // =====================================
+            // MARKETING & CONVERSÃO LOGIC
+            // =====================================
+            
+            // 1. Cronômetro de Escassez
+            if (localStorage.getItem('mk-timer-active') === 'true') {
+                const timerBanner = document.getElementById('urgency-timer-banner');
+                const timerMsg = document.getElementById('timer-message');
+                const timerCount = document.getElementById('timer-countdown');
+                
+                if (timerBanner) timerBanner.classList.remove('hidden');
+                if (timerMsg) timerMsg.textContent = localStorage.getItem('mk-timer-text') || '🔥 OFERTA RELÂMPAGO! Termina em:';
+                
+                const mins = parseInt(localStorage.getItem('mk-timer-mins')) || 120;
+                let duration = mins * 60;
+                
+                let endTime = localStorage.getItem('mk-timer-end');
+                const now = Math.floor(Date.now() / 1000);
+                
+                if (!endTime || now > parseInt(endTime)) {
+                    endTime = now + duration;
+                    localStorage.setItem('mk-timer-end', endTime);
+                }
+                
+                function updateTimer() {
+                    const currentNow = Math.floor(Date.now() / 1000);
+                    let diff = parseInt(endTime) - currentNow;
+                    
+                    if (diff <= 0) {
+                        endTime = currentNow + duration;
+                        localStorage.setItem('mk-timer-end', endTime);
+                        diff = duration;
+                    }
+                    
+                    const h = Math.floor(diff / 3600);
+                    const m = Math.floor((diff % 3600) / 60);
+                    const s = diff % 60;
+                    
+                    if (timerCount) timerCount.textContent = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                }
+                
+                updateTimer();
+                setInterval(updateTimer, 1000);
+            }
+
+            // 2. Popups de Prova Social
+            if (localStorage.getItem('mk-proof-active') === 'true') {
+                const names = ['Maria', 'João', 'Ana', 'Carlos', 'Fernanda', 'Lucas', 'Juliana', 'Pedro', 'Beatriz', 'Rafael', 'Márcia', 'Tiago'];
+                const cities = ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Curitiba', 'Porto Alegre', 'Salvador', 'Fortaleza', 'Recife', 'Brasília', 'Goiânia', 'Manaus', 'Campinas'];
+                const products = ['Fritadeira Air Fryer', 'Aspirador de Pó Vertical', 'Smart TV 50"', 'Cafeteira Expresso', 'Kit Potes Herméticos', 'Ventilador de Mesa', 'Mochila Notebook', 'Fone de Ouvido Bluetooth', 'Caixa de Som JBL', 'Copo Térmico'];
+                
+                function showSocialProof() {
+                    const name = names[Math.floor(Math.random() * names.length)];
+                    const city = cities[Math.floor(Math.random() * cities.length)];
+                    const product = products[Math.floor(Math.random() * products.length)];
+                    const time = Math.floor(Math.random() * 50) + 1;
+                    
+                    const el = document.createElement('div');
+                    el.className = 'bg-white text-gray-800 border-l-4 border-green-500 rounded shadow-xl p-3 flex items-center gap-3 animate-fade-in-up w-64 md:w-80 pointer-events-auto transition-all duration-500';
+                    el.innerHTML = `
+                        <div class="bg-green-100 text-green-600 rounded-full p-2 flex items-center justify-center w-8 h-8">
+                            <i class="fa-solid fa-cart-shopping text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-xs font-bold leading-tight">${name} de ${city}</p>
+                            <p class="text-[10px] text-gray-500 leading-tight">acabou de comprar</p>
+                            <p class="text-xs font-semibold text-brand-pink truncate w-40 md:w-56">${product}</p>
+                            <p class="text-[9px] text-gray-400 mt-0.5">${time} min atrás</p>
+                        </div>
+                        <button class="text-gray-300 hover:text-gray-500 self-start" onclick="this.parentElement.remove()">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    `;
+                    
+                    const container = document.getElementById('social-proof-container');
+                    if(container) {
+                        container.appendChild(el);
+                        
+                        setTimeout(() => {
+                            el.style.opacity = '0';
+                            el.style.transform = 'translateY(10px)';
+                            setTimeout(() => el.remove(), 500);
+                        }, 5000);
+                    }
+                    
+                    setTimeout(showSocialProof, Math.random() * 15000 + 10000);
+                }
+                
+                setTimeout(showSocialProof, 3000);
+            }
+
+            // 3. Integração de Pixels
+            const metaId = localStorage.getItem('mk-pixel-meta');
+            const googleId = localStorage.getItem('mk-pixel-google');
+            
+            if (metaId) {
+                console.log('Injetando Meta Pixel ID: ' + metaId);
+                !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
+                if(typeof fbq === 'function') {
+                    fbq('init', metaId);
+                    fbq('track', 'PageView');
+                }
+            }
+            if (googleId) {
+                console.log('Injetando Google Analytics ID: ' + googleId);
+                const script = document.createElement('script');
+                script.src = `https://www.googletagmanager.com/gtag/js?id=${googleId}`;
+                script.async = true;
+                document.head.appendChild(script);
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', googleId);
+            }
+
+            // 4. Social Media Banners (Sidebar)
+            const rawTiktok = localStorage.getItem('mk-embed-tiktok');
+            const rawYoutube = localStorage.getItem('mk-embed-youtube');
+            const sidebar = document.getElementById('social-sidebar');
+            
+            if (sidebar && (rawTiktok || rawYoutube)) {
+                sidebar.classList.remove('hidden');
+                
+                // TikTok
+                if (rawTiktok) {
+                    const ttWrapper = document.getElementById('sidebar-tiktok-wrapper');
+                    const ttContainer = document.getElementById('sidebar-tiktok-container');
+                    ttWrapper.classList.remove('hidden');
+                    
+                    if (rawTiktok.includes('<iframe') || rawTiktok.includes('<blockquote')) {
+                        ttContainer.innerHTML = rawTiktok;
+                        // Ajusta a altura e bordas
+                        const iframes = ttContainer.querySelectorAll('iframe, blockquote');
+                        iframes.forEach(i => { i.style.width = '100%'; i.style.height = '100%'; i.style.border = 'none'; i.style.borderRadius = '16px'; });
+                    } else {
+                        // Extrai ID do video do link (ex: /video/12345)
+                        const match = rawTiktok.match(/video\/(\d+)/);
+                        if (match && match[1]) {
+                            ttContainer.innerHTML = `<iframe src="https://www.tiktok.com/embed/v2/${match[1]}" class="w-full h-full" style="border-radius:16px;" frameborder="0" allow="encrypted-media" allowfullscreen></iframe>`;
+                        } else {
+                            ttContainer.innerHTML = `<iframe src="${rawTiktok}" class="w-full h-full" style="border-radius:16px;" frameborder="0" allow="encrypted-media" allowfullscreen></iframe>`;
+                        }
+                    }
+                }
+                
+                // YouTube
+                if (rawYoutube) {
+                    const ytWrapper = document.getElementById('sidebar-youtube-wrapper');
+                    const ytContainer = document.getElementById('sidebar-youtube-container');
+                    ytWrapper.classList.remove('hidden');
+                    
+                    if (rawYoutube.includes('<iframe')) {
+                        ytContainer.innerHTML = rawYoutube;
+                        const iframes = ytContainer.querySelectorAll('iframe');
+                        iframes.forEach(i => { i.style.width = '100%'; i.style.height = '100%'; i.style.border = 'none'; i.style.borderRadius = '16px'; });
+                    } else {
+                        // Extrai ID do YouTube (shorts ou video)
+                        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#\&\?]*).*/;
+                        const match = rawYoutube.match(regExp);
+                        if (match && match[2].length === 11) {
+                            ytContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${match[2]}?autoplay=0&loop=1&playlist=${match[2]}" class="w-full h-full object-cover" style="border-radius:16px;" frameborder="0" allowfullscreen></iframe>`;
+                        } else {
+                            ytContainer.innerHTML = `<iframe src="${rawYoutube}" class="w-full h-full object-cover" style="border-radius:16px;" frameborder="0" allowfullscreen></iframe>`;
+                        }
+                    }
+                }
+            }
+
+            // Acesso secreto ao Painel Administrativo
+            // Método 1: Atalho Alt + Shift + A
+            document.addEventListener('keydown', (e) => {
+                if (e.altKey && e.shiftKey && e.code === 'KeyA') {
+                    window.open('admin.html?v=1.1', '_blank');
+                }
+            });
+
+            // Método 2: Clicar/Tocar no logotipo da loja 5 vezes em menos de 3 segundos
+            let logoClicks = 0;
+            let logoClickTimeout;
+            document.addEventListener('click', (e) => {
+                const imgEl = e.target.closest('img');
+                if (imgEl) {
+                    const src = imgEl.getAttribute('src') || '';
+                    const storedLogo = localStorage.getItem('admin-logo');
+                    const isLogo = src.includes('logo.png') || (storedLogo && imgEl.src === storedLogo);
+                    
+                    if (isLogo) {
+                        logoClicks++;
+                        clearTimeout(logoClickTimeout);
+                        if (logoClicks >= 5) {
+                            logoClicks = 0;
+                            window.open('admin.html?v=1.1', '_blank');
+                        } else {
+                            logoClickTimeout = setTimeout(() => {
+                                logoClicks = 0;
+                            }, 3000);
+                        }
+                    }
+                }
+            });
+
         });
     </script>
 </body>

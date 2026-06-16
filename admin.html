@@ -1003,6 +1003,7 @@
                 { id: 'banners-config', label: 'Banners & Slideshow', icon: 'fa-solid fa-images' },
                 { id: 'cores-config', label: 'Customizar Cores', icon: 'fa-solid fa-palette' },
                 { id: 'produtos-config', label: 'Cadastrar Produtos', icon: 'fa-solid fa-cart-plus' },
+                { id: 'marketing-config', label: 'Marketing & SEO', icon: 'fa-solid fa-bullhorn' },
                 { id: 'creatives-config', label: 'Criador de Criativos', icon: 'fa-solid fa-wand-magic-sparkles' }
             ];
 
@@ -1213,6 +1214,9 @@
                         case 'produtos-config':
                             loadProductsTab();
                             break;
+                        case 'marketing-config':
+                            loadMarketingTab();
+                            break;
                         case 'creatives-config':
                             loadCreativesTab();
                             break;
@@ -1265,6 +1269,30 @@
                                 <div>
                                     <label class="admin-label">URL da Imagem da Logo (Link Direto)</label>
                                     <input type="text" id="logo-url-input" class="admin-input text-xs" placeholder="https://exemplo.com/sua-logo.png" value="${currentLogo.startsWith('data:') ? '' : currentLogo}">
+                                </div>
+
+                                <div class="mt-6 pt-6 border-t border-admin-border">
+                                    <h3 class="text-sm font-bold text-white mb-4 uppercase tracking-wider">Redes Sociais (Grupos VIP)</h3>
+                                    <div class="flex items-center gap-6 mb-4">
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" id="toggle-whatsapp" class="form-checkbox h-5 w-5 text-green-500 rounded border-admin-border bg-admin-bg focus:ring-green-500 focus:ring-offset-admin-card">
+                                            <span class="text-xs font-semibold text-gray-300">Botão WhatsApp</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" id="toggle-telegram" class="form-checkbox h-5 w-5 text-blue-500 rounded border-admin-border bg-admin-bg focus:ring-blue-500 focus:ring-offset-admin-card">
+                                            <span class="text-xs font-semibold text-gray-300">Botão Telegram</span>
+                                        </label>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="admin-label">Link do WhatsApp</label>
+                                            <input type="text" id="url-whatsapp" class="admin-input text-xs" placeholder="https://wa.me/..." value="">
+                                        </div>
+                                        <div>
+                                            <label class="admin-label">Link do Telegram</label>
+                                            <input type="text" id="url-telegram" class="admin-input text-xs" placeholder="https://t.me/..." value="">
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="flex justify-end pt-2 gap-3">
@@ -1322,6 +1350,37 @@
                     localStorage.setItem('admin-logo', finalSource);
                     syncLogo();
                     showToast('Logomarca atualizada com sucesso!', 'success');
+                });
+
+                // Social Toggles Logic
+                const toggleWa = document.getElementById('toggle-whatsapp');
+                const toggleTg = document.getElementById('toggle-telegram');
+                const urlWa = document.getElementById('url-whatsapp');
+                const urlTg = document.getElementById('url-telegram');
+
+                // Default WhatsApp to true, Telegram to false if not set
+                toggleWa.checked = localStorage.getItem('show-whatsapp') !== 'false';
+                toggleTg.checked = localStorage.getItem('show-telegram') === 'true';
+
+                urlWa.value = localStorage.getItem('link-whatsapp') || '';
+                urlTg.value = localStorage.getItem('link-telegram') || '';
+
+                urlWa.addEventListener('input', (e) => {
+                    localStorage.setItem('link-whatsapp', e.target.value.trim());
+                });
+
+                urlTg.addEventListener('input', (e) => {
+                    localStorage.setItem('link-telegram', e.target.value.trim());
+                });
+
+                toggleWa.addEventListener('change', (e) => {
+                    localStorage.setItem('show-whatsapp', e.target.checked);
+                    showToast('Visibilidade do WhatsApp atualizada (atualize a loja para ver)!', 'success');
+                });
+
+                toggleTg.addEventListener('change', (e) => {
+                    localStorage.setItem('show-telegram', e.target.checked);
+                    showToast('Visibilidade do Telegram atualizada (atualize a loja para ver)!', 'success');
                 });
             }
 
@@ -1732,23 +1791,23 @@
                 let productsRowsHTML = '';
                 customProducts.forEach((prod, index) => {
                     productsRowsHTML += `
-                        <tr class="border-b border-admin-border hover:bg-white/5 transition duration-150">
-                            <td class="py-3 px-4">
-                                <img src="${prod.img_url}" class="h-10 w-10 object-contain rounded bg-white p-0.5" onerror="this.src='https://placehold.co/40x40/151518/ffffff?text=Prod'">
+                        <tr class="border-b border-admin-border/40 hover:bg-white/5 transition duration-150">
+                            <td class="py-4 px-4">
+                                <img src="${prod.img_url}" class="h-16 w-16 object-contain rounded-xl bg-white p-1 border border-admin-border/50 shadow-inner" onerror="this.src='https://placehold.co/64x64/151518/ffffff?text=Prod'">
                             </td>
-                            <td class="py-3 px-4">
-                                <div class="text-xs font-bold text-white max-w-xs truncate">${prod.name}</div>
-                                <div class="text-[9px] text-admin-textMuted uppercase font-semibold mt-0.5">ID: ${prod.id}</div>
+                            <td class="py-4 px-4">
+                                <div class="text-sm font-bold text-white max-w-md md:max-w-xl truncate" title="${prod.name}">${prod.name}</div>
+                                <div class="text-[10px] text-admin-textMuted uppercase font-semibold mt-1">ID: ${prod.id}</div>
                             </td>
-                            <td class="py-3 px-4 text-[10px] font-black uppercase text-admin-accentGold">${prod.category}</td>
-                            <td class="py-3 px-4 text-xs font-mono text-white">R$ ${prod.price.toFixed(2)}</td>
-                            <td class="py-3 px-4">
-                                <div class="flex gap-2">
-                                    <button class="edit-prod-btn h-8 w-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white transition flex items-center justify-center" data-id="${prod.id}" title="Editar Produto">
-                                        <i class="fa-solid fa-pen text-xs"></i>
+                            <td class="py-4 px-4 text-xs font-black uppercase text-admin-accentGold">${prod.category}</td>
+                            <td class="py-4 px-4 text-sm font-mono text-white">R$ ${prod.price.toFixed(2)}</td>
+                            <td class="py-4 px-4">
+                                <div class="flex justify-end gap-2">
+                                    <button class="edit-prod-btn px-3.5 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white transition flex items-center gap-1.5 text-xs font-bold" data-id="${prod.id}" title="Editar Produto">
+                                        <i class="fa-solid fa-pen text-[10px]"></i> Editar
                                     </button>
-                                    <button class="delete-prod-btn h-8 w-8 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition flex items-center justify-center" data-id="${prod.id}" title="Excluir Produto">
-                                        <i class="fa-solid fa-trash-can text-xs"></i>
+                                    <button class="delete-prod-btn px-3.5 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition flex items-center gap-1.5 text-xs font-bold" data-id="${prod.id}" title="Excluir Produto">
+                                        <i class="fa-solid fa-trash-can text-[10px]"></i> Excluir
                                     </button>
                                 </div>
                             </td>
@@ -1837,10 +1896,10 @@
                             </div>
                         </div>
                         
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start animate-fade-in">
+                        <div class="space-y-8 animate-fade-in">
                             
-                            <!-- Left: Form Box (Span 2) -->
-                            <div class="lg:col-span-2 bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 space-y-5">
+                            <!-- Form Box (Full Width) -->
+                            <div class="bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 space-y-5">
                                 <h3 id="form-header-title" class="text-xs font-black uppercase text-admin-textMuted tracking-wider mb-2 border-b border-admin-border pb-2">
                                     <i class="fa-solid fa-cart-plus mr-1.5 text-admin-accentBlue"></i> Novo Achadinho
                                 </h3>
@@ -1904,6 +1963,13 @@
                                                 <option value="eletrônicos">⚡ Eletrônicos & Gadgets</option>
                                                 <option value="organização">📦 Organização</option>
                                                 <option value="utilidades">🛍️ Utilidades Úteis</option>
+                                                <option value="moda">👕 Moda & Acessórios</option>
+                                                <option value="esporte">⚽ Esporte & Lazer</option>
+                                                <option value="pet">🐾 Pet Shop</option>
+                                                <option value="infantil">🧸 Bebês & Crianças</option>
+                                                <option value="ferramentas">🔨 Ferramentas & Construção</option>
+                                                <option value="games">🎮 Games & Consoles</option>
+                                                <option value="livros">📚 Livros & Papelaria</option>
                                             </select>
                                         </div>
                                     </div>
@@ -1987,23 +2053,26 @@
                                 </form>
                             </div>
 
-                            <!-- Right: Products List Box (Span 1) -->
-                            <div class="lg:col-span-1 bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 flex flex-col justify-between max-h-[500px]">
+                            <!-- Bottom: Products List Box (Full Width) -->
+                            <div class="bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 flex flex-col justify-between max-h-[800px] overflow-hidden">
                                 <div class="space-y-4 flex flex-col h-full overflow-hidden">
-                                    <h3 class="text-xs font-black uppercase text-admin-textMuted tracking-wider mb-2 border-b border-admin-border pb-2"><i class="fa-solid fa-list mr-1.5 text-admin-accentGold"></i> Todos os Produtos (${customProducts.length})</h3>
+                                    <h3 class="text-xs font-black uppercase text-admin-textMuted tracking-wider mb-2 border-b border-admin-border pb-2 flex items-center justify-between">
+                                        <span><i class="fa-solid fa-list mr-1.5 text-admin-accentGold"></i> Todos os Produtos (${customProducts.length})</span>
+                                        <span class="text-[10px] text-admin-textMuted normal-case font-medium">Role para ver mais</span>
+                                    </h3>
                                     
                                     <div class="flex-1 overflow-y-auto pr-1">
                                         <table class="w-full text-left border-collapse">
                                             <thead>
-                                                <tr class="border-b border-admin-border text-[9px] font-black uppercase text-admin-textMuted tracking-wider">
-                                                    <th class="pb-2">Foto</th>
-                                                    <th class="pb-2">Nome/ID</th>
-                                                    <th class="pb-2">Cat</th>
-                                                    <th class="pb-2">Preço</th>
-                                                    <th class="pb-2">Ações</th>
+                                                <tr class="border-b border-admin-border text-[10px] font-black uppercase text-admin-textMuted tracking-wider">
+                                                    <th class="pb-3 px-4">Foto</th>
+                                                    <th class="pb-3 px-4">Nome / ID</th>
+                                                    <th class="pb-3 px-4">Categoria</th>
+                                                    <th class="pb-3 px-4">Preço</th>
+                                                    <th class="pb-3 px-4 text-right">Ações</th>
                                                 </tr>
                                             </thead>
-                                            <tbody id="custom-products-tbody">
+                                            <tbody id="custom-products-tbody" class="divide-y divide-admin-border/30">
                                                 ${productsRowsHTML}
                                             </tbody>
                                         </table>
@@ -2881,15 +2950,25 @@
 
                         function categorize(title) {
                             const low = title.toLowerCase();
-                            if (/cafeteira|liquidificador|espremedor|panela|chaleira|faqueiro|sanduicheira|cozinha|mesa/.test(low)) return 'casa';
-                            if (/aspirador|mop|vassoura|organizador|selador|suporte|cabide|cadeira|prateleira/.test(low)) return 'organização';
-                            if (/fone|led|luminaria|som|bluetooth|ventilador|controle|relógio|carregador|smartwatch/.test(low)) return 'eletrônicos';
-                            if (/maquiagem|pincel|batom|creme|shampoo|perfume|cuidados|pele/.test(low)) return 'beleza';
+                            if (/cafeteira|liquidificador|espremedor|panela|chaleira|faqueiro|sanduicheira|cozinha|mesa|prato|copo|garfo/.test(low)) return 'casa';
+                            if (/aspirador|mop|vassoura|organizador|selador|suporte|cabide|cadeira|prateleira|cesto|gaveta/.test(low)) return 'organização';
+                            if (/fone|led|luminaria|som|bluetooth|ventilador|relógio|carregador|smartwatch|televisão|tv|monitor|computador|notebook|celular|smartphone|tablet/.test(low)) return 'eletrônicos';
+                            if (/maquiagem|pincel|batom|creme|shampoo|perfume|cuidados|pele|cabelo|secador|chapinha/.test(low)) return 'beleza';
+                            if (/vestido|camisa|calça|sapato|bota|jaqueta|blusa|bolsa|moda|tênis|roupa/.test(low)) return 'moda';
+                            if (/bola|chuteira|raquete|academia|fitness|peso|musculação|esporte|bicicleta|suplemento|whey/.test(low)) return 'esporte';
+                            if (/ração|cachorro|gato|coleira|pet|brinquedo pet|caminha|areia|arranhador/.test(low)) return 'pet';
+                            if (/brinquedo|bebê|fralda|carrinho de bebê|mamadeira|chupeta|infantil|lego|boneca|carrinho|pelúcia/.test(low)) return 'infantil';
+                            if (/furadeira|chave de fenda|martelo|parafuso|ferramenta|serra|alicate|trena|parafusadeira/.test(low)) return 'ferramentas';
+                            if (/playstation|xbox|nintendo|jogo|game|console|controle|headset gamer/.test(low)) return 'games';
+                            if (/livro|caderno|papelaria|caneta|lápis|marcador|agenda|mochila|estojo/.test(low)) return 'livros';
                             return 'utilidades';
                         }
 
                         function getEmoji(cat) {
-                            const emojiMap = { casa: '☕', 'organização': '🧹', beleza: '💄', 'eletrônicos': '⚡', utilidades: '🛍️' };
+                            const emojiMap = { 
+                                casa: '☕', 'organização': '🧹', beleza: '💄', 'eletrônicos': '⚡', utilidades: '🛍️',
+                                moda: '👕', esporte: '⚽', pet: '🐾', infantil: '🧸', ferramentas: '🔨', games: '🎮', livros: '📚'
+                            };
                             return emojiMap[cat] || '🛍️';
                         }
 
@@ -3053,6 +3132,137 @@
                     });
                 }
             } // Close loadProductsTab()
+
+            // ==========================================
+            // TAB 6: MARKETING & SEO
+            // ==========================================
+            function loadMarketingTab() {
+                tabContent.innerHTML = `
+                    <div class="space-y-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-white tracking-wide">Marketing & Conversão</h2>
+                            <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Configure provas sociais, cronômetros de urgência e rastreamento de pixels.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                            
+                            <!-- Card: Escassez -->
+                            <div class="bg-admin-card rounded-2xl p-6 border border-admin-border animate-fade-in space-y-4">
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-stopwatch text-admin-accentGold"></i> Cronômetro de Escassez</h3>
+                                <p class="text-xs text-gray-400">Ative uma barra fixa no topo da loja com contagem regressiva para gerar urgência nas compras.</p>
+                                
+                                <label class="flex items-center gap-2 cursor-pointer pt-2">
+                                    <input type="checkbox" id="toggle-timer" class="form-checkbox h-5 w-5 text-admin-accentGold rounded border-admin-border bg-admin-bg focus:ring-admin-accentGold focus:ring-offset-admin-card">
+                                    <span class="text-xs font-semibold text-gray-300">Habilitar Cronômetro no Topo</span>
+                                </label>
+
+                                <div class="space-y-3 pt-2">
+                                    <div>
+                                        <label class="admin-label">Mensagem da Barra</label>
+                                        <input type="text" id="timer-text" class="admin-input text-xs" placeholder="🔥 OFERTA RELÂMPAGO! Termina em:">
+                                    </div>
+                                    <div>
+                                        <label class="admin-label">Minutos Restantes (Reinicia quando zera)</label>
+                                        <input type="number" id="timer-minutes" class="admin-input text-xs" placeholder="120" min="1">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card: Prova Social -->
+                            <div class="bg-admin-card rounded-2xl p-6 border border-admin-border animate-fade-in space-y-4">
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-users text-admin-accentBlue"></i> Popups de Prova Social</h3>
+                                <p class="text-xs text-gray-400">Exiba pequenos alertas simulando compras recentes para despertar o interesse de novos clientes.</p>
+                                
+                                <label class="flex items-center gap-2 cursor-pointer pt-2">
+                                    <input type="checkbox" id="toggle-social-proof" class="form-checkbox h-5 w-5 text-admin-accentBlue rounded border-admin-border bg-admin-bg focus:ring-admin-accentBlue focus:ring-offset-admin-card">
+                                    <span class="text-xs font-semibold text-gray-300">Habilitar Popups de Compra</span>
+                                </label>
+                            </div>
+
+                            <!-- Card: Pixels -->
+                            <div class="bg-admin-card rounded-2xl p-6 border border-admin-border animate-fade-in space-y-4 md:col-span-2">
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-chart-line text-green-500"></i> Integração de Pixels (Tráfego Pago)</h3>
+                                <p class="text-xs text-gray-400">Insira seus IDs de rastreamento para campanhas de remarketing. O código será injetado automaticamente na loja.</p>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                    <div>
+                                        <label class="admin-label">Meta Pixel ID (Facebook/Instagram)</label>
+                                        <input type="text" id="pixel-meta" class="admin-input text-xs" placeholder="Ex: 123456789012345">
+                                    </div>
+                                    <div>
+                                        <label class="admin-label">Google Analytics ID (GA4)</label>
+                                        <input type="text" id="pixel-google" class="admin-input text-xs" placeholder="Ex: G-XXXXXXXXXX">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card: Mídias Sociais -->
+                            <div class="bg-admin-card rounded-2xl p-6 border border-admin-border animate-fade-in space-y-4 md:col-span-2">
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2"><i class="fa-brands fa-tiktok text-white"></i> <i class="fa-brands fa-youtube text-red-500 ml-1"></i> Banners de Vídeo Verticais</h3>
+                                <p class="text-xs text-gray-400">Insira os links de compartilhamento de vídeo ou código de embed (iframe) dos seus canais para exibi-los em uma barra lateral na loja.</p>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                    <div>
+                                        <label class="admin-label">Vídeo do TikTok (URL ou Iframe)</label>
+                                        <textarea id="embed-tiktok" rows="3" class="admin-input text-xs w-full" placeholder="Cole o link do TikTok ou o código de incorporação..."></textarea>
+                                    </div>
+                                    <div>
+                                        <label class="admin-label">Vídeo do YouTube Shorts (URL ou Iframe)</label>
+                                        <textarea id="embed-youtube" rows="3" class="admin-input text-xs w-full" placeholder="Cole o link do YouTube Shorts ou o código de incorporação..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="flex justify-end pt-4">
+                            <button id="marketing-save-btn" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold px-8 py-2.5 rounded-xl text-xs transition uppercase tracking-wider shadow-lg shadow-pink-500/10">
+                                Salvar Configurações
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                // Logic
+                const tTimer = document.getElementById('toggle-timer');
+                const iText = document.getElementById('timer-text');
+                const iMins = document.getElementById('timer-minutes');
+                
+                const tProof = document.getElementById('toggle-social-proof');
+                const pMeta = document.getElementById('pixel-meta');
+                const pGoogle = document.getElementById('pixel-google');
+                const eTiktok = document.getElementById('embed-tiktok');
+                const eYouTube = document.getElementById('embed-youtube');
+
+                // Load
+                tTimer.checked = localStorage.getItem('mk-timer-active') === 'true';
+                iText.value = localStorage.getItem('mk-timer-text') || '🔥 OFERTA RELÂMPAGO! Termina em:';
+                iMins.value = localStorage.getItem('mk-timer-mins') || '120';
+                
+                tProof.checked = localStorage.getItem('mk-proof-active') === 'true';
+                
+                pMeta.value = localStorage.getItem('mk-pixel-meta') || '';
+                pGoogle.value = localStorage.getItem('mk-pixel-google') || '';
+                
+                eTiktok.value = localStorage.getItem('mk-embed-tiktok') || '';
+                eYouTube.value = localStorage.getItem('mk-embed-youtube') || '';
+
+                document.getElementById('marketing-save-btn').addEventListener('click', () => {
+                    localStorage.setItem('mk-timer-active', tTimer.checked);
+                    localStorage.setItem('mk-timer-text', iText.value.trim());
+                    localStorage.setItem('mk-timer-mins', iMins.value.trim() || '120');
+                    
+                    localStorage.setItem('mk-proof-active', tProof.checked);
+                    
+                    localStorage.setItem('mk-pixel-meta', pMeta.value.trim());
+                    localStorage.setItem('mk-pixel-google', pGoogle.value.trim());
+                    
+                    localStorage.setItem('mk-embed-tiktok', eTiktok.value.trim());
+                    localStorage.setItem('mk-embed-youtube', eYouTube.value.trim());
+                    
+                    showToast('Configurações de Marketing salvas com sucesso!', 'success');
+                });
+            }
 
 
             // ========================================================
