@@ -1111,6 +1111,38 @@
             const tabContent = document.getElementById('tab-content');
             const tabLoading = document.getElementById('tab-loading');
             const toastContainer = document.getElementById('toast-container');
+            const adminSessionKey = 'admin-authenticated';
+            const adminUserKey = 'admin-user';
+
+            function showAdminPanel() {
+                loginScreen.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => {
+                    loginScreen.classList.add('hidden');
+                    adminPanel.classList.remove('hidden');
+                    setTimeout(() => {
+                        adminPanel.classList.remove('opacity-0');
+                        adminPanel.classList.add('opacity-100');
+                        renderTabs();
+                        loadTab(activeTabId);
+                    }, 50);
+                }, 500);
+            }
+
+            function showLoginScreen() {
+                adminPanel.classList.add('opacity-0');
+                setTimeout(() => {
+                    adminPanel.classList.add('hidden');
+                    loginScreen.classList.remove('hidden');
+                    setTimeout(() => {
+                        loginScreen.classList.remove('opacity-0', 'scale-95');
+                        loginScreen.classList.add('opacity-100', 'scale-100');
+                    }, 50);
+                }, 500);
+            }
+
+            if (sessionStorage.getItem(adminSessionKey) === 'true') {
+                showAdminPanel();
+            }
 
             async function syncAdminDataFromServer() {
                 try {
@@ -1213,54 +1245,38 @@
             }
 
             // --- AUTHENTICATION ---
-            async function sha256(message) {
-                const msgBuffer = new TextEncoder().encode(message);
-                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-                const hashArray = Array.from(new Uint8Array(hashBuffer));
-                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            }
-
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const user = document.getElementById('login-username').value;
+                const user = document.getElementById('login-username').value.trim();
                 const pass = document.getElementById('login-password').value;
 
-                const hashedUser = await sha256(user);
-                const hashedPass = await sha256(pass);
+                try {
+                    const response = await fetch(`${API_BASE}/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: user, password: pass })
+                    });
 
-                const EXPECTED_USER_HASH = 'acba8cd20cf9ee0a01383c0fb45228b9bc7ea008f6f3b554e28c15dd392c06e4';
-                const EXPECTED_PASS_HASH = 'b2146502b2ef2661e51b9731de898469ae75491ecccb7515ce934449608db6bd';
+                    const payload = await response.json();
 
-                if (hashedUser === EXPECTED_USER_HASH && hashedPass === EXPECTED_PASS_HASH) {
+                    if (response.ok && payload.success) {
                     showToast('Acesso autorizado! Carregando painel de configuração...', 'success');
-                    
-                    loginScreen.classList.add('opacity-0', 'scale-95');
-                    setTimeout(() => {
-                        loginScreen.classList.add('hidden');
-                        adminPanel.classList.remove('hidden');
-                        setTimeout(() => {
-                            adminPanel.classList.remove('opacity-0');
-                            adminPanel.classList.add('opacity-100');
-                            renderTabs();
-                            loadTab(activeTabId);
-                        }, 50);
-                    }, 500);
-                } else {
-                    showToast('Usuário ou senha incorretos!', 'error');
+                        sessionStorage.setItem(adminSessionKey, 'true');
+                        sessionStorage.setItem(adminUserKey, JSON.stringify(payload.user || {}));
+                        showAdminPanel();
+                    } else {
+                        showToast('Usuário ou senha incorretos!', 'error');
+                    }
+                } catch (error) {
+                    showToast('Falha ao autenticar no servidor.', 'error');
                 }
             });
 
             logoutBtn.addEventListener('click', () => {
+                sessionStorage.removeItem(adminSessionKey);
+                sessionStorage.removeItem(adminUserKey);
                 showToast('Desconectado com sucesso!', 'info');
-                adminPanel.classList.add('opacity-0');
-                setTimeout(() => {
-                    adminPanel.classList.add('hidden');
-                    loginScreen.classList.remove('hidden');
-                    setTimeout(() => {
-                        loginScreen.classList.remove('opacity-0', 'scale-95');
-                        loginScreen.classList.add('opacity-100', 'scale-100');
-                    }, 50);
-                }, 500);
+                showLoginScreen();
             });
 
             // --- TAB RENDER LOGIC ---

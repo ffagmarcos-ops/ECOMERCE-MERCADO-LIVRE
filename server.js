@@ -2,6 +2,7 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,11 +22,54 @@ const dbConfig = {
     port: Number(process.env.DB_PORT || 3306)
 };
 const dbName = process.env.DB_NAME || 'tudopravoce_db';
+const defaultAdmin = {
+    username: process.env.ADMIN_USERNAME || 'MARCOSF',
+    password: process.env.ADMIN_PASSWORD || '30MARIAFN@',
+    displayName: process.env.ADMIN_DISPLAY_NAME || 'Administrador'
+};
 
 let pool;
 
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function normalizeIdentifier(value) {
+    return String(value || '').trim();
+}
+
+function createPasswordRecord(password, salt = crypto.randomBytes(16).toString('hex')) {
+    const hash = crypto.scryptSync(String(password), salt, 64).toString('hex');
+    return { salt, hash };
+}
+
+function verifyPassword(password, salt, expectedHash) {
+    const hash = crypto.scryptSync(String(password), salt, 64);
+    const expectedBuffer = Buffer.from(expectedHash, 'hex');
+    if (hash.length !== expectedBuffer.length) {
+        return false;
+    }
+    return crypto.timingSafeEqual(hash, expectedBuffer);
+}
+
+async function ensureTable(query) {
+    await pool.query(query);
+}
+
+async function seedAdminUser() {
+    const credentials = createPasswordRecord(defaultAdmin.password);
+    await pool.query(
+        `INSERT INTO admin_users (username, display_name, password_salt, password_hash, role, is_active)
+         VALUES (?, ?, ?, ?, 'admin', 1)
+         ON DUPLICATE KEY UPDATE
+            display_name = VALUES(display_name),
+            password_salt = VALUES(password_salt),
+            password_hash = VALUES(password_hash),
+            role = VALUES(role),
+            is_active = VALUES(is_active),
+            updated_at = CURRENT_TIMESTAMP`,
+        [defaultAdmin.username, defaultAdmin.displayName, credentials.salt, credentials.hash]
+    );
 }
 
 async function initDB() {
@@ -103,51 +147,70 @@ async function initDB() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
 
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS admin_users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(100) NOT NULL UNIQUE,
+                display_name VARCHAR(150) NOT NULL,
+                password_salt VARCHAR(64) NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                role VARCHAR(50) NOT NULL DEFAULT 'admin',
+                is_active TINYINT(1) NOT NULL DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+
         console.log("Database tables verified/created successfully.");
 
-        // 4. Seed products if empty
-        const [rows] = await pool.query("SELECT COUNT(*) as count FROM products");
-        if (rows[0].count === 0) {
-            console.log("Products table is empty. Initializing seed from default_products.json...");
-            const defaultProductsPath = path.join(__dirname, 'default_products.json');
-            if (fs.existsSync(defaultProductsPath)) {
-                const rawData = fs.readFileSync(defaultProductsPath, 'utf8');
-                const products = JSON.parse(rawData);
-                let seedCount = 0;
-                for (const p of products) {
-                    try {
-                        await pool.query(
-                            `INSERT INTO products 
-                            (id, name, category, brand, price, oldPrice, badge, emoji, glowColor, searchKeys, url, img_url, img_url_2, video_url) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                            [
-                                String(p.id),
-                                p.name,
-                                p.category || '',
-                                p.brand || '',
-                                p.price || 0,
-                                p.oldPrice || null,
-                                p.badge || '',
-                                p.emoji || '',
-                                p.glowColor || '',
-                                p.searchKeys || '',
-                                p.url || '',
-                                p.img_url || '',
-                                p.img_url_2 || '',
-                                p.video_url || ''
-                            ]
-                        );
-                        seedCount++;
-                    } catch (err) {
-                        console.error(`Error seeding product ID ${p.id}:`, err.message);
-                    }
+        await seedAdminUser();
+
+        // 4. Seed products when missing, without overwriting customizations already in the database
+        const defaultProductsPath = path.join(__dirname, 'default_products.json');
+        if (fs.existsSync(defaultProductsPath)) {
+            const rawData = fs.readFileSync(defaultProductsPath, 'utf8');
+            const products = JSON.parse(rawData);
+            const [existingProducts] = await pool.query("SELECT id FROM products");
+            const existingIds = new Set(existingProducts.map(row => String(row.id)));
+            let insertedCount = 0;
+
+            for (const p of products) {
+                const productId = String(p.id);
+                if (existingIds.has(productId)) {
+                    continue;
                 }
-                console.log(`Successfully seeded ${seedCount} products.`);
-            } else {
-                console.warn("default_products.json not found. Skipping seeding.");
+
+                try {
+                    await pool.query(
+                        `INSERT INTO products
+                        (id, name, category, brand, price, oldPrice, badge, emoji, glowColor, searchKeys, url, img_url, img_url_2, video_url)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            productId,
+                            p.name,
+                            p.category || '',
+                            p.brand || '',
+                            p.price || 0,
+                            p.oldPrice || null,
+                            p.badge || '',
+                            p.emoji || '',
+                            p.glowColor || '',
+                            p.searchKeys || '',
+                            p.url || '',
+                            p.img_url || '',
+                            p.img_url_2 || '',
+                            p.video_url || ''
+                        ]
+                    );
+                    insertedCount++;
+                } catch (err) {
+                    console.error(`Error seeding product ID ${p.id}:`, err.message);
+                }
             }
+
+            console.log(`Default products synchronized. ${insertedCount} new products inserted.`);
         } else {
-            console.log(`Database already contains ${rows[0].count} products. Seeding skipped.`);
+            console.warn("default_products.json not found. Skipping product synchronization.");
         }
 
     } catch (err) {
@@ -362,6 +425,45 @@ app.post('/api/settings', async (req, res) => {
             );
         }
         res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Authentication API
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const username = normalizeIdentifier(req.body?.username);
+        const password = normalizeIdentifier(req.body?.password);
+
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password are required.' });
+        }
+
+        const [rows] = await pool.query(
+            'SELECT id, username, display_name, password_salt, password_hash, role, is_active FROM admin_users WHERE username = ? LIMIT 1',
+            [username]
+        );
+
+        if (rows.length === 0 || Number(rows[0].is_active) !== 1) {
+            return res.status(401).json({ error: 'Invalid credentials.' });
+        }
+
+        const adminUser = rows[0];
+        const isValid = verifyPassword(password, adminUser.password_salt, adminUser.password_hash);
+        if (!isValid) {
+            return res.status(401).json({ error: 'Invalid credentials.' });
+        }
+
+        res.json({
+            success: true,
+            user: {
+                id: adminUser.id,
+                username: adminUser.username,
+                displayName: adminUser.display_name,
+                role: adminUser.role
+            }
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
