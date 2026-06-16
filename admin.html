@@ -1366,6 +1366,8 @@
                 
                 const totalClicks = clicks.length;
                 const ctr = pageViews > 0 ? ((totalClicks / pageViews) * 100).toFixed(1) : '0.0';
+                const clickedValue = clicks.reduce((sum, c) => sum + (parseFloat(c.price) || 0), 0);
+                const estRevenue = clickedValue * 0.085;
 
                 // Group clicks by product
                 const productClicksMap = {};
