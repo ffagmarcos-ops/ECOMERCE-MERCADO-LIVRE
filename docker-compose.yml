@@ -26,6 +26,7 @@ services:
       DB_RETRY_DELAY_MS: 3000
     labels:
       - traefik.enable=true
+      - traefik.docker.network=traefik
       - traefik.http.routers.achadinhos.rule=Host(`achadinhos.digmidia.com`)
       - traefik.http.routers.achadinhos.entrypoints=websecure
       - traefik.http.routers.achadinhos.tls=true
@@ -45,6 +46,7 @@ services:
       PMA_ABSOLUTE_URI: https://phpmyadmin.achadinhos.digmidia.com
     labels:
       - traefik.enable=true
+      - traefik.docker.network=traefik
       - traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.achadinhos.digmidia.com`)
       - traefik.http.routers.phpmyadmin.entrypoints=websecure
       - traefik.http.routers.phpmyadmin.tls=true
