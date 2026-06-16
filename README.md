@@ -54,3 +54,25 @@ O portal foi desenvolvido sob uma estética moderna, limpa e extremamente sofist
 1. **Estrutura e Marcação:** HTML5 Semântico e robusto.
 2. **Estilização e Responsividade:** CSS3 moderno estruturado sob variáveis customizadas (`:root var(--...)`) integradas ao sistema de re-estilização e responsividade premium (Mobile-First completo).
 3. **Lógica e Persistência:** Vanilla Javascript puro ES6 (sem dependências pesadas, garantindo carregamento extremamente rápido) com persistência reativa local em `localStorage`.
+
+---
+
+## 🚀 Deploy no Portainer
+
+O projeto agora inclui uma stack Docker pronta para Portainer:
+* `Dockerfile`: gera a imagem do app Node/Express.
+* `docker-compose.yml`: sobe a aplicação, um banco MariaDB dedicado e o phpMyAdmin.
+* `.env.example`: referência opcional com os valores padrão do projeto.
+
+### Domínios publicados
+* `https://achadinhos.digmidia.com` aponta para a vitrine e o painel.
+* `https://phpmyadmin.achadinhos.digmidia.com` aponta para o phpMyAdmin.
+
+### Variáveis principais
+* O stack já sobe pronta com os domínios `achadinhos.digmidia.com` e `phpmyadmin.achadinhos.digmidia.com`.
+* O banco usa a senha padrão já embutida no compose para agilizar o deploy interno.
+* A rede externa do proxy usada pelo stack é `traefik`.
+
+### Observação de arquitetura
+* O servidor foi ajustado para ler configuração de banco via ambiente e aguardar o MariaDB subir antes de inicializar a API.
+* Em Portainer, importe o `docker-compose.yml` como Stack e confirme apenas que a rede externa `traefik` existe.

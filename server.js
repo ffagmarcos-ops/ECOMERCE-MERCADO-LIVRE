@@ -13,21 +13,41 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Serve static files
 app.use(express.static(__dirname));
 
-// DB credentials as requested
+// DB configuration via environment for local and Portainer deployments
 const dbConfig = {
-    host: 'localhost',
-    user: 'root',
-    password: '30mariafn@',
-    port: 3306
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '30mariafn@',
+    port: Number(process.env.DB_PORT || 3306)
 };
-const dbName = 'tudopravoce_db';
+const dbName = process.env.DB_NAME || 'tudopravoce_db';
 
 let pool;
 
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function initDB() {
     try {
+        const maxAttempts = Number(process.env.DB_RETRY_ATTEMPTS || 10);
+        const retryDelayMs = Number(process.env.DB_RETRY_DELAY_MS || 3000);
+
         // 1. Connect without database to ensure it exists
-        const initialConnection = await mysql.createConnection(dbConfig);
+        let initialConnection;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                initialConnection = await mysql.createConnection(dbConfig);
+                break;
+            } catch (err) {
+                if (attempt === maxAttempts) {
+                    throw err;
+                }
+                console.log(`Waiting for database (${attempt}/${maxAttempts})...`);
+                await delay(retryDelayMs);
+            }
+        }
+
         await initialConnection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
         await initialConnection.end();
         console.log(`Database "${dbName}" verified/created successfully.`);
@@ -435,6 +455,10 @@ app.post('/api/stats/reset', async (req, res) => {
 // Admin redirect helper
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+app.get('/health', (req, res) => {
+    res.json({ ok: true });
 });
 
 // Fallback index route
