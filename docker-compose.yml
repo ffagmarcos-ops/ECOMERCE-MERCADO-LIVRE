@@ -27,9 +27,14 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik
+      - traefik.http.routers.achadinhos-http.rule=Host(`achadinhos.digmidia.com`)
+      - traefik.http.routers.achadinhos-http.entrypoints=web
+      - traefik.http.routers.achadinhos-http.middlewares=achadinhos-https-redirect
+      - traefik.http.middlewares.achadinhos-https-redirect.redirectscheme.scheme=https
       - traefik.http.routers.achadinhos.rule=Host(`achadinhos.digmidia.com`)
       - traefik.http.routers.achadinhos.entrypoints=websecure
       - traefik.http.routers.achadinhos.tls=true
+      - traefik.http.routers.achadinhos.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
       - traefik.http.services.achadinhos.loadbalancer.server.port=3000
     networks:
       - default
@@ -47,9 +52,14 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik
+      - traefik.http.routers.achadinhos-phpmyadmin-http.rule=Host(`phpmyadmin.achadinhos.digmidia.com`)
+      - traefik.http.routers.achadinhos-phpmyadmin-http.entrypoints=web
+      - traefik.http.routers.achadinhos-phpmyadmin-http.middlewares=achadinhos-phpmyadmin-https-redirect
+      - traefik.http.middlewares.achadinhos-phpmyadmin-https-redirect.redirectscheme.scheme=https
       - traefik.http.routers.achadinhos-phpmyadmin.rule=Host(`phpmyadmin.achadinhos.digmidia.com`)
       - traefik.http.routers.achadinhos-phpmyadmin.entrypoints=websecure
       - traefik.http.routers.achadinhos-phpmyadmin.tls=true
+      - traefik.http.routers.achadinhos-phpmyadmin.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
       - traefik.http.routers.achadinhos-phpmyadmin.service=achadinhos-phpmyadmin
       - traefik.http.services.achadinhos-phpmyadmin.loadbalancer.server.port=80
     networks:
