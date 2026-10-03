@@ -139,7 +139,7 @@
                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
                             <i class="fa-regular fa-user"></i>
                         </span>
-                        <input type="text" id="login-username" class="admin-input pl-10" placeholder="Nome de usuário" required value="admin">
+                        <input type="text" id="login-username" class="admin-input pl-10" placeholder="Nome de usuário" autocomplete="username" required>
                     </div>
                 </div>
 
@@ -149,7 +149,10 @@
                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
                             <i class="fa-solid fa-lock"></i>
                         </span>
-                        <input type="password" id="login-password" class="admin-input pl-10" placeholder="••••••••" required value="admin123">
+                        <input type="password" id="login-password" class="admin-input pl-10 pr-12" placeholder="••••••••" autocomplete="current-password" required>
+                        <button type="button" id="toggle-password-visibility" class="absolute inset-y-0 right-0 px-3.5 flex items-center text-gray-500 hover:text-white transition" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">
+                            <i class="fa-regular fa-eye" aria-hidden="true"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -159,11 +162,6 @@
                         <span>Lembrar-me</span>
                     </label>
                     <a href="#" class="hover:text-white transition">Esqueceu a senha?</a>
-                </div>
-
-                <!-- Credential Hints -->
-                <div class="bg-admin-bg/60 border border-admin-border/50 rounded-xl p-3 text-[11px] text-admin-textMuted leading-relaxed">
-                    🔑 <span class="font-bold text-white">Dica:</span> Use o usuário padrão <code class="text-admin-accentGold font-bold">admin</code> e a senha <code class="text-admin-accentGold font-bold">admin123</code> para acessar.
                 </div>
 
                 <button type="submit" class="w-full bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold py-3.5 rounded-xl uppercase tracking-wider text-xs transition duration-300 transform hover:scale-[1.02] shadow-lg shadow-pink-500/10">
@@ -1105,6 +1103,8 @@
             // --- SELECTORS ---
             const loginScreen = document.getElementById('login-screen');
             const loginForm = document.getElementById('login-form');
+            const loginPassword = document.getElementById('login-password');
+            const passwordVisibilityBtn = document.getElementById('toggle-password-visibility');
             const adminPanel = document.getElementById('admin-panel');
             const logoutBtn = document.getElementById('logout-btn');
             const tabsContainer = document.getElementById('admin-tabs');
@@ -1245,6 +1245,17 @@
             }
 
             // --- AUTHENTICATION ---
+            passwordVisibilityBtn.addEventListener('click', () => {
+                const isPasswordVisible = loginPassword.type === 'text';
+                loginPassword.type = isPasswordVisible ? 'password' : 'text';
+                passwordVisibilityBtn.setAttribute('aria-pressed', String(!isPasswordVisible));
+                passwordVisibilityBtn.setAttribute('aria-label', isPasswordVisible ? 'Mostrar senha' : 'Ocultar senha');
+                passwordVisibilityBtn.title = isPasswordVisible ? 'Mostrar senha' : 'Ocultar senha';
+                passwordVisibilityBtn.querySelector('i').className = isPasswordVisible
+                    ? 'fa-regular fa-eye'
+                    : 'fa-regular fa-eye-slash';
+            });
+
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const user = document.getElementById('login-username').value.trim();
