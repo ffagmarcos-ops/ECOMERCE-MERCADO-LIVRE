@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel Administrativo | Tudo pra Você</title>
+    <link rel="icon" href="images/logo.png">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -300,6 +301,56 @@
                 return true;
             }
 
+            function readFileAsDataUrl(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = () => reject(reader.error || new Error('Não foi possível ler a imagem.'));
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            async function optimizeImageFile(file, { maxDimension = 1600, quality = 0.82 } = {}) {
+                let image;
+                let releaseImage;
+
+                if (typeof createImageBitmap === 'function') {
+                    image = await createImageBitmap(file);
+                    releaseImage = () => image.close();
+                } else {
+                    image = await new Promise((resolve, reject) => {
+                        const objectUrl = URL.createObjectURL(file);
+                        const element = new Image();
+                        element.onload = () => {
+                            URL.revokeObjectURL(objectUrl);
+                            resolve(element);
+                        };
+                        element.onerror = () => {
+                            URL.revokeObjectURL(objectUrl);
+                            reject(new Error('Não foi possível abrir a imagem.'));
+                        };
+                        element.src = objectUrl;
+                    });
+                    releaseImage = () => {};
+                }
+
+                try {
+                    const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.round(image.width * scale));
+                    canvas.height = Math.max(1, Math.round(image.height * scale));
+                    const context = canvas.getContext('2d');
+                    if (!context) throw new Error('Não foi possível preparar a imagem.');
+
+                    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+                    const optimized = canvas.toDataURL('image/webp', quality);
+                    const optimizedSize = Math.max(0, optimized.length - optimized.indexOf(',') - 1) * 0.75;
+                    return optimizedSize < file.size ? optimized : await readFileAsDataUrl(file);
+                } finally {
+                    releaseImage();
+                }
+            }
+
             function cacheSettingLocally(key, value) {
                 const serialized = typeof value === 'object' ? JSON.stringify(value) : String(value);
                 if (/data:image\/(png|jpeg|webp);base64,/i.test(serialized)) {
@@ -310,6 +361,7 @@
             }
 
             let logoImageSource = localStorage.getItem('admin-logo') || 'images/logo.png';
+            let faviconImageSource = localStorage.getItem('admin-favicon') || 'images/logo.png';
 
             // Inicializa chave de API padrão se não estiver configurada no navegador (Bypassing GitHub secret scanning via Base64 decoding)
             if (!localStorage.getItem('gemini-api-key')) {
@@ -325,6 +377,12 @@
                 }
             }
             syncLogo();
+
+            function syncFavicon() {
+                const favicon = document.querySelector('link[rel~="icon"]');
+                if (favicon && faviconImageSource) favicon.href = faviconImageSource;
+            }
+            syncFavicon();
 
             // --- DEFAULT PRODUCTS DATABASE (THE 16 ORIGINAL PORTAL PRODUCTS) ---
             const DEFAULT_PRODUCTS = [
@@ -1202,6 +1260,9 @@
                         if (settings['admin-logo']) {
                             logoImageSource = settings['admin-logo'];
                         }
+                        if (settings['admin-favicon']) {
+                            faviconImageSource = settings['admin-favicon'];
+                        }
                         if (settings['admin-colors']) {
                             brandColors = settings['admin-colors'];
                         }
@@ -1214,6 +1275,7 @@
                         
                         // Apply updates dynamically
                         syncLogo();
+                        syncFavicon();
                         if (adminPanel && !adminPanel.classList.contains('hidden')) {
                             loadTab(activeTabId);
                         }
@@ -1881,6 +1943,26 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center bg-admin-card rounded-2xl p-6 border border-admin-border animate-fade-in">
+                            <div class="flex flex-col items-center justify-center p-6 bg-admin-bg border border-admin-border rounded-2xl h-32 relative overflow-hidden">
+                                <span class="text-[9px] uppercase tracking-wider text-admin-textMuted font-black absolute top-3">Preview do Favicon</span>
+                                <img src="${faviconImageSource}" id="favicon-preview-img" class="w-12 h-12 object-contain" alt="Preview do favicon">
+                            </div>
+                            <div class="md:col-span-2 space-y-4">
+                                <div>
+                                    <h2 class="text-xl font-bold text-white tracking-wide">Favicon do Site</h2>
+                                    <p class="text-xs text-admin-textMuted mt-1">Escolha o ícone exibido na aba do navegador.</p>
+                                </div>
+                                <label class="flex flex-col items-center justify-center w-full h-20 border border-dashed border-admin-border rounded-xl cursor-pointer hover:border-admin-accentBlue/50 hover:bg-white/5 transition">
+                                    <span class="text-xs text-gray-400 font-medium">Carregar imagem (PNG, JPG ou WebP)</span>
+                                    <input type="file" id="favicon-file-upload" class="hidden" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp">
+                                </label>
+                                <div class="flex justify-end gap-3">
+                                    <button id="favicon-reset-btn" class="bg-white/5 border border-white/10 hover:border-red-500/50 hover:bg-red-500/5 text-red-400 font-extrabold px-5 py-2.5 rounded-xl text-xs transition uppercase tracking-wider">Restaurar Padrão</button>
+                                    <button id="favicon-save-btn" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold px-6 py-2.5 rounded-xl text-xs transition uppercase tracking-wider">Salvar Favicon</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 `;
 
@@ -1888,21 +1970,59 @@
                 const previewImg = document.getElementById('logo-preview-img');
                 const saveBtn = document.getElementById('logo-save-btn');
                 const resetBtn = document.getElementById('logo-reset-btn');
+                const faviconUpload = document.getElementById('favicon-file-upload');
+                const faviconPreview = document.getElementById('favicon-preview-img');
+
+                faviconUpload.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    if (!isSupportedImageFile(file)) {
+                        faviconUpload.value = '';
+                        return;
+                    }
+                    try {
+                        faviconPreview.src = await optimizeImageFile(file, { maxDimension: 512, quality: 0.82 });
+                        showToast('Favicon carregado! Clique em "Salvar Favicon" para aplicar.', 'info');
+                    } catch (error) {
+                        console.warn('Erro ao otimizar favicon:', error);
+                        showToast('Não foi possível processar a imagem.', 'error');
+                        faviconUpload.value = '';
+                    }
+                });
+
+                document.getElementById('favicon-reset-btn').addEventListener('click', async () => {
+                    faviconImageSource = 'images/logo.png';
+                    faviconPreview.src = faviconImageSource;
+                    localStorage.removeItem('admin-favicon');
+                    syncFavicon();
+                    const saved = await saveSettingsToServer({ 'admin-favicon': faviconImageSource });
+                    showToast(saved ? 'Favicon restaurado para o padrão!' : 'Não foi possível salvar o favicon no banco.', saved ? 'success' : 'error');
+                });
+
+                document.getElementById('favicon-save-btn').addEventListener('click', async () => {
+                    faviconImageSource = faviconPreview.src;
+                    cacheSettingLocally('admin-favicon', faviconImageSource);
+                    syncFavicon();
+                    const saved = await saveSettingsToServer({ 'admin-favicon': faviconImageSource });
+                    showToast(saved ? 'Favicon atualizado com sucesso!' : 'Não foi possível salvar o favicon no banco.', saved ? 'success' : 'error');
+                });
 
                 // Read file upload as Base64
-                fileUpload.addEventListener('change', (e) => {
+                fileUpload.addEventListener('change', async (e) => {
                     const file = e.target.files[0];
                     if (file) {
                         if (!isSupportedImageFile(file)) {
                             fileUpload.value = '';
                             return;
                         }
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                            previewImg.src = event.target.result;
+                        try {
+                            previewImg.src = await optimizeImageFile(file);
                             showToast('Imagem carregada! Clique em "Salvar" para aplicar.', 'info');
-                        };
-                        reader.readAsDataURL(file);
+                        } catch (error) {
+                            console.warn('Erro ao otimizar logomarca:', error);
+                            showToast('Não foi possível processar a imagem.', 'error');
+                            fileUpload.value = '';
+                        }
                     }
                 });
 
@@ -2118,7 +2238,7 @@
 
                 // Handle slide image uploads
                 document.querySelectorAll('.banner-file-upload').forEach(upload => {
-                    upload.addEventListener('change', (e) => {
+                    upload.addEventListener('change', async (e) => {
                         const id = parseInt(upload.getAttribute('data-id'));
                         const file = e.target.files[0];
                         if (file) {
@@ -2126,12 +2246,14 @@
                                 upload.value = '';
                                 return;
                             }
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                                document.getElementById(`banner-preview-${id}`).src = event.target.result;
+                            try {
+                                document.getElementById(`banner-preview-${id}`).src = await optimizeImageFile(file);
                                 showToast(`Slide ${id}: Imagem carregada!`, 'info');
-                            };
-                            reader.readAsDataURL(file);
+                            } catch (error) {
+                                console.warn('Erro ao otimizar banner:', error);
+                                showToast('Não foi possível processar a imagem.', 'error');
+                                upload.value = '';
+                            }
                         }
                     });
                 });
@@ -2201,7 +2323,7 @@
 
                 // Handle category image uploads
                 document.querySelectorAll('.category-file-upload').forEach(upload => {
-                    upload.addEventListener('change', (e) => {
+                    upload.addEventListener('change', async (e) => {
                         const key = upload.getAttribute('data-key');
                         const file = e.target.files[0];
                         if (file) {
@@ -2209,12 +2331,14 @@
                                 upload.value = '';
                                 return;
                             }
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                                document.getElementById(`category-preview-${key}`).src = event.target.result;
+                            try {
+                                document.getElementById(`category-preview-${key}`).src = await optimizeImageFile(file);
                                 showToast(`Categoria ${key}: Imagem carregada!`, 'info');
-                            };
-                            reader.readAsDataURL(file);
+                            } catch (error) {
+                                console.warn('Erro ao otimizar imagem da categoria:', error);
+                                showToast('Não foi possível processar a imagem.', 'error');
+                                upload.value = '';
+                            }
                         }
                     });
                 });
@@ -3050,7 +3174,7 @@
                 if (!window.isUploadInitialized) {
                     window.isUploadInitialized = true;
                     
-                    // Helper para ler arquivos de upload, comprimir no canvas e preencher base64
+                    // Helper para otimizar imagens de produto antes de preencher o campo base64.
                     const handleImageUpload = (fileInputId, textInputId, previewImgId, placeholderId) => {
                         const fileInput = document.getElementById(fileInputId);
                         const textInput = document.getElementById(textInputId);
@@ -3059,7 +3183,7 @@
 
                         if (!fileInput || !textInput) return;
 
-                        fileInput.addEventListener('change', (e) => {
+                        fileInput.addEventListener('change', async (e) => {
                             const file = e.target.files[0];
                             if (!file) return;
 
@@ -3068,50 +3192,19 @@
                                 return;
                             }
 
-                            const reader = new FileReader();
                             showToast('Comprimindo imagem local...', 'info');
-
-                            reader.onload = (event) => {
-                                const img = new Image();
-                                img.src = event.target.result;
-                                img.onload = () => {
-                                    const canvas = document.createElement('canvas');
-                                    const ctx = canvas.getContext('2d');
-
-                                    // Limite máximo de 600px para manter o tamanho no localStorage leve (máx 30KB)
-                                    const MAX_WIDTH = 600;
-                                    const MAX_HEIGHT = 600;
-                                    let width = img.width;
-                                    let height = img.height;
-
-                                    if (width > height) {
-                                        if (width > MAX_WIDTH) {
-                                            height *= MAX_WIDTH / width;
-                                            width = MAX_WIDTH;
-                                        }
-                                    } else {
-                                        if (height > MAX_HEIGHT) {
-                                            width *= MAX_HEIGHT / height;
-                                            height = MAX_HEIGHT;
-                                        }
-                                    }
-
-                                    canvas.width = width;
-                                    canvas.height = height;
-                                    ctx.drawImage(img, 0, 0, width, height);
-
-                                    // Comprime para formato JPEG leve com qualidade 0.65
-                                    const base64 = canvas.toDataURL('image/jpeg', 0.65);
-                                    
-                                    textInput.value = base64;
-                                    previewImg.src = base64;
-                                    previewImg.classList.remove('hidden');
-                                    if (placeholderEl) placeholderEl.classList.add('hidden');
-
-                                    showToast('✓ Imagem importada com sucesso!', 'success');
-                                };
-                            };
-                            reader.readAsDataURL(file);
+                            try {
+                                const base64 = await optimizeImageFile(file, { maxDimension: 600, quality: 0.65 });
+                                textInput.value = base64;
+                                previewImg.src = base64;
+                                previewImg.classList.remove('hidden');
+                                if (placeholderEl) placeholderEl.classList.add('hidden');
+                                showToast('Imagem importada e otimizada com sucesso!', 'success');
+                            } catch (error) {
+                                console.warn('Erro ao otimizar imagem do produto:', error);
+                                showToast('Não foi possível processar a imagem.', 'error');
+                                fileInput.value = '';
+                            }
                         });
                     };
 

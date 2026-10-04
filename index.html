@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tudo pra Você | Melhores Achados do Mercado Livre & Dicas de Compras</title>
+    <link rel="icon" href="images/logo.png">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -17,6 +18,12 @@
     <script>
         // Apply color customization early from localStorage to prevent flash of wrong colors
         (function() {
+            window.applySiteFavicon = function(source) {
+                const favicon = document.querySelector('link[rel~="icon"]');
+                if (favicon && source) favicon.href = source;
+            };
+            window.applySiteFavicon(localStorage.getItem('admin-favicon'));
+
             const storedColors = localStorage.getItem('admin-colors');
             if (storedColors) {
                 try {
@@ -2350,6 +2357,10 @@
                             document.querySelectorAll('img[src="images/logo.png"], img.fallback-logo').forEach(img => {
                                 img.src = logo;
                             });
+                        }
+
+                        if (settings['admin-favicon']) {
+                            window.applySiteFavicon(settings['admin-favicon']);
                         }
 
                         const banners = settings['admin-banners'];
