@@ -14,6 +14,11 @@
     
     <!-- Google Fonts: Outfit (More premium/modern than Inter) -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .swal2-container { z-index: 10000 !important; }
+        .store-sweet-popup { border: 1px solid rgba(255, 227, 232, 0.4) !important; border-radius: 14px !important; }
+    </style>
     
     <script>
         // Apply color customization early from localStorage to prevent flash of wrong colors
@@ -184,15 +189,7 @@
                 <!-- Right Actions (Desktop) -->
                 <div class="hidden md:flex items-center space-x-6">
 
-                    <a href="https://www.instagram.com/tdpravoce_achadinhos/" target="_blank" class="flex items-center space-x-2 hover:text-brand-pink transition">
-                        <i class="fa-brands fa-instagram text-xl text-brand-pink"></i>
-                        <span class="text-sm font-semibold">Instagram</span>
-                    </a>
-                    
-                    <a href="#" target="_blank" class="wa-dynamic-link flex items-center space-x-2 hover:text-brand-pink transition">
-                        <i class="fa-regular fa-paper-plane text-xl text-brand-pink"></i>
-                        <span class="text-sm font-semibold">Grupo VIP</span>
-                    </a>
+                    <div id="social-header-links" class="flex items-center gap-3"></div>
                     
                     <a href="#" class="relative flex items-center hover:text-brand-pink transition group" id="cart-btn-desktop">
                         <div class="h-11 w-11 rounded-full bg-brand-softPink flex items-center justify-center border border-brand-blush group-hover:border-brand-pink/50 transition">
@@ -235,7 +232,7 @@
                     <li><a href="#ferramentas" class="hover:text-brand-pink transition">Ferramentas & Construção</a></li>
                     <li><a href="#games" class="hover:text-brand-pink transition">Games & Consoles</a></li>
                     <li><a href="#livros" class="hover:text-brand-pink transition">Livros & Papelaria</a></li>
-                    <li><a href="#" target="_blank" class="wa-dynamic-link text-green-600 font-bold hover:text-green-500 transition flex items-center gap-1.5"><i class="fa-brands fa-whatsapp text-green-500 text-lg"></i> Grupo Tudo pra Você no Zap</a></li>
+                    <li><a href="#" target="_blank" data-social-channel="whatsapp" class="wa-dynamic-link text-green-600 font-bold hover:text-green-500 transition flex items-center gap-1.5"><i class="fa-brands fa-whatsapp text-green-500 text-lg"></i> WhatsApp</a></li>
                 </ul>
             </div>
         </nav>
@@ -312,8 +309,8 @@
                     <li><a href="#games" class="block hover:text-brand-pink transition"><i class="fa-solid fa-gamepad mr-2 text-brand-pink"></i> Games & Consoles</a></li>
                     <li><a href="#livros" class="block hover:text-brand-pink transition"><i class="fa-solid fa-book mr-2 text-brand-pink"></i> Livros & Papelaria</a></li>
                     <li class="border-t border-brand-blush pt-4"><a href="#sobre" class="block hover:text-brand-pink transition"><i class="fa-solid fa-circle-question mr-2"></i> Como Funciona?</a></li>
-                    <li><a href="https://www.instagram.com/tdpravoce_achadinhos/" target="_blank" class="block text-brand-pink font-bold hover:text-brand-rose transition"><i class="fa-brands fa-instagram mr-2 text-brand-pink text-lg animate-pulse"></i> Siga no Instagram</a></li>
-                    <li><a href="#" target="_blank" class="wa-dynamic-link block text-green-600 font-bold hover:text-green-500 transition"><i class="fa-brands fa-whatsapp mr-2 text-green-500"></i> Grupo VIP Tudo pra Você</a></li>
+                    <li><a href="#" target="_blank" data-social-channel="instagram" class="block text-brand-pink font-bold hover:text-brand-rose transition"><i class="fa-brands fa-instagram mr-2 text-brand-pink text-lg"></i> Instagram</a></li>
+                    <li><a href="#" target="_blank" data-social-channel="whatsapp" class="wa-dynamic-link block text-green-600 font-bold hover:text-green-500 transition"><i class="fa-brands fa-whatsapp mr-2 text-green-500"></i> WhatsApp</a></li>
                 </ul>
             </nav>
             
@@ -458,21 +455,23 @@
         </div>
     </section>
 
-    <!-- Nessa's Spotlight Featured Mini Banners -->
-    <section id="nessa-spotlight" class="py-12 bg-white relative z-20 border-b border-brand-blush">
+    <!-- Featured products -->
+    <section id="exclusive-products-section" class="py-12 bg-white relative z-20 border-b border-brand-blush">
         <div class="container mx-auto px-4">
             <h2 class="text-xl md:text-2xl font-black text-brand-rose mb-8 tracking-wide uppercase flex items-center">
-                <span class="h-4 w-1 bg-brand-pink mr-3 rounded-full animate-pulse"></span> Escolhas Exclusivas da Nessa ✨
+                <span class="h-4 w-1 bg-brand-pink mr-3 rounded-full animate-pulse"></span>
+                <span id="exclusive-section-title">Escolhas Exclusivas</span>
             </h2>
+            <p id="exclusive-section-description" class="text-sm text-gray-500 -mt-5 mb-8">Produtos selecionados especialmente para você.</p>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 
                 <!-- Mini Banner 1: Cafeteira -->
                 <a href="https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599" target="_blank" class="block group relative rounded-3xl overflow-hidden shadow-lg border border-brand-blush/30 hover:border-brand-pink/50 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
                     <div class="aspect-square w-full relative overflow-hidden bg-brand-softPink">
-                        <img src="images/nessa_cafe_banner.png" alt="Nessa Cafeteira Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <img src="images/nessa_cafe_banner.png" alt="Cafeteira em destaque" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                         <div class="absolute top-4 left-4 bg-brand-pink text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-brand-rose shadow-sm">
-                            Queridinho da Nessa ☕
+                            Destaque da loja
                         </div>
                     </div>
                     <div class="p-5 bg-gradient-to-b from-white to-[#FFF5F6]">
@@ -488,9 +487,9 @@
                 <!-- Mini Banner 2: Aspirador -->
                 <a href="https://produto.mercadolivre.com.br/MLB-4469244553-aspirador-rosa-vertical-britnia-2-em-1-1400w-base30-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599" target="_blank" class="block group relative rounded-3xl overflow-hidden shadow-lg border border-brand-blush/30 hover:border-brand-pink/50 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
                     <div class="aspect-square w-full relative overflow-hidden bg-brand-softPink">
-                        <img src="images/nessa_aspirador_banner.png" alt="Nessa Aspirador Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <img src="images/nessa_aspirador_banner.png" alt="Aspirador em destaque" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                         <div class="absolute top-4 left-4 bg-brand-pink text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-brand-rose shadow-sm">
-                            Praticidade Nota 10 🧹
+                            Mais praticidade
                         </div>
                     </div>
                     <div class="p-5 bg-gradient-to-b from-white to-[#FFF5F6]">
@@ -506,9 +505,9 @@
                 <!-- Mini Banner 3: Ventilador -->
                 <a href="https://www.mercadolivre.com.br/ventilador-de-mesa-30cm-super-power-mondial-60w-vsp-30-ap/p/MLB18932161?pdp_filters=item_id%3AMLB5917028234&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599&matt_event_ts=1780069575273&matt_d2id=" target="_blank" class="block group relative rounded-3xl overflow-hidden shadow-lg border border-brand-blush/30 hover:border-brand-pink/50 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
                     <div class="aspect-square w-full relative overflow-hidden bg-brand-softPink">
-                        <img src="images/nessa_ventilador_banner.png" alt="Nessa Ventilador Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <img src="images/nessa_ventilador_banner.png" alt="Ventilador em destaque" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                         <div class="absolute top-4 left-4 bg-brand-pink text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-brand-rose shadow-sm">
-                            Para Dias de Calor 💨
+                            Para dias de calor
                         </div>
                     </div>
                     <div class="p-5 bg-gradient-to-b from-white to-[#FFF5F6]">
@@ -742,15 +741,15 @@
     <!-- Social VIP Group Widgets -->
     <div class="fixed bottom-6 right-6 z-40 hidden md:flex flex-col gap-3">
         <!-- Telegram VIP Group Order Floating Widget -->
-        <a href="#" target="_blank" id="telegram-vip-float" class="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white font-extrabold px-5 py-3 rounded-full shadow-2xl transition duration-300 transform hover:scale-105 group border border-white/10 hidden">
+        <a href="#" target="_blank" id="telegram-vip-float" data-social-channel="telegram" class="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white font-extrabold px-5 py-3 rounded-full shadow-2xl transition duration-300 transform hover:scale-105 group border border-white/10 hidden">
             <i class="fa-brands fa-telegram text-2xl text-white group-hover:rotate-12 transition duration-300"></i>
-            <span class="text-sm">Grupo Telegram</span>
+            <span class="text-sm social-float-text">Entrar no Telegram</span>
         </a>
         
         <!-- WhatsApp VIP Group Order Floating Widget -->
-        <a href="#" target="_blank" id="whatsapp-vip-float" class="wa-dynamic-link flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white font-extrabold px-5 py-3 rounded-full shadow-2xl transition duration-300 transform hover:scale-105 group border border-white/10 hidden">
+        <a href="#" target="_blank" id="whatsapp-vip-float" data-social-channel="whatsapp" class="wa-dynamic-link flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white font-extrabold px-5 py-3 rounded-full shadow-2xl transition duration-300 transform hover:scale-105 group border border-white/10 hidden">
             <i class="fa-brands fa-whatsapp text-2xl text-white group-hover:rotate-12 transition duration-300"></i>
-            <span class="text-sm">Entrar no Grupo VIP</span>
+            <span class="text-sm social-float-text">Entrar no Grupo VIP</span>
         </a>
     </div>
 
@@ -768,7 +767,7 @@
                     <p class="text-sm text-gray-400 leading-relaxed font-medium">
                         Sua melhor curadoria de produtos inovadores, úteis e práticos do Mercado Livre com garantia oficial e entrega ultra-rápida.
                     </p>
-                    <div class="flex space-x-3 text-lg pt-2">
+                    <div id="social-footer-links" class="flex flex-wrap gap-3 text-lg pt-2">
                         <a href="https://www.instagram.com/tdpravoce_achadinhos/" target="_blank" class="h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="Instagram"><i class="fa-brands fa-instagram"></i></a>
                         <a href="https://www.tiktok.com/@gabi.influencerdigital" target="_blank" class="h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="TikTok"><i class="fa-brands fa-tiktok"></i></a>
                         <a href="#" target="_blank" class="wa-dynamic-link h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
@@ -824,6 +823,13 @@
         document.addEventListener('DOMContentLoaded', () => {
 
             // --- TRACKING DE ACESSOS E VISITAS ---
+            function applyExclusiveSectionSettings(title, description) {
+                const titleElement = document.getElementById('exclusive-section-title');
+                const descriptionElement = document.getElementById('exclusive-section-description');
+                if (titleElement) titleElement.textContent = title || 'Escolhas Exclusivas';
+                if (descriptionElement) descriptionElement.textContent = description || 'Produtos selecionados especialmente para você.';
+            }
+
             function getAnalyticsSessionId() {
                 let sessionId = sessionStorage.getItem('analytics-session-id');
                 if (!sessionId) {
@@ -839,6 +845,11 @@
             // DYNAMIC CONFIGURATION SYNC FROM ADMIN PANEL
             // ========================================================
             (function() {
+                applyExclusiveSectionSettings(
+                    localStorage.getItem('admin-exclusive-title'),
+                    localStorage.getItem('admin-exclusive-description')
+                );
+
                 // 1. Sync Logo
                 const storedLogo = localStorage.getItem('admin-logo');
                 if (storedLogo) {
@@ -2020,10 +2031,27 @@
 
             // --- FUNÇÃO AUXILIAR DE TOAST ---
             function showToast(message) {
+                if (window.Swal) {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        text: String(message),
+                        showConfirmButton: false,
+                        timer: 3200,
+                        timerProgressBar: true,
+                        background: '#1A1A1A',
+                        color: '#fff',
+                        customClass: { popup: 'store-sweet-popup' }
+                    });
+                    return;
+                }
+
                 const container = document.getElementById('toast-container');
                 const toast = document.createElement('div');
                 toast.className = "bg-brand-darkGray/90 backdrop-blur-sm text-white px-5 py-3 rounded-2xl shadow-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 animate-fade-in transition-all duration-300 opacity-0 translate-y-2 pointer-events-auto border border-brand-blush/20";
-                toast.innerHTML = `<i class="fa-solid fa-check-circle text-brand-pink"></i> ${message}`;
+                toast.innerHTML = '<i class="fa-solid fa-check-circle text-brand-pink"></i><span></span>';
+                toast.querySelector('span').textContent = String(message);
                 
                 container.appendChild(toast);
                 
@@ -2353,6 +2381,12 @@
                             window.applySiteFavicon(settings['admin-favicon']);
                         }
 
+                        applyExclusiveSectionSettings(
+                            settings['admin-exclusive-title'],
+                            settings['admin-exclusive-description']
+                        );
+                        applySocialLinks(settings['mk-social-links']);
+
                         const banners = settings['admin-banners'];
                         if (Array.isArray(banners)) {
                             renderBannerCarousel(banners);
@@ -2501,7 +2535,7 @@
             }
 
             function renderExclusiveProducts(products) {
-                const section = document.getElementById('nessa-spotlight');
+                const section = document.getElementById('exclusive-products-section');
                 const grid = section?.querySelector('.grid');
                 if (!section || !grid) return;
 
@@ -2534,7 +2568,7 @@
 
                     const badge = document.createElement('span');
                     badge.className = 'absolute top-3 left-3 bg-brand-pink text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-brand-rose shadow-sm';
-                    badge.textContent = product.spotlightBadge || product.badge || 'Escolha da Nessa';
+                    badge.textContent = product.spotlightBadge || product.badge || 'Destaque da loja';
                     media.appendChild(badge);
 
                     const details = document.createElement('div');
@@ -2822,36 +2856,120 @@
             mobileMenu.addEventListener('click', (e) => {
                 if (e.target === mobileMenu) closeMobileMenu();
             });
-            // Social VIP Toggles logic
-            const waFloat = document.getElementById('whatsapp-vip-float');
-            const tgFloat = document.getElementById('telegram-vip-float');
-            
-            const waLink = localStorage.getItem('link-whatsapp') || '#';
-            const tgLink = localStorage.getItem('link-telegram') || '#';
+            const socialIconChoices = new Set([
+                'fa-whatsapp', 'fa-telegram', 'fa-instagram', 'fa-tiktok', 'fa-youtube',
+                'fa-facebook', 'fa-x-twitter', 'fa-pinterest', 'fa-linkedin', 'fa-threads',
+                'fa-discord', 'fa-twitch', 'fa-link'
+            ]);
+            const defaultSocialChannels = [
+                { id: 'whatsapp', name: 'WhatsApp', icon: 'fa-whatsapp', url: '', enabled: false, floatingText: 'Entrar no Grupo VIP', color: '#22c55e' },
+                { id: 'telegram', name: 'Telegram', icon: 'fa-telegram', url: '', enabled: false, floatingText: 'Entrar no Telegram', color: '#3b82f6' },
+                { id: 'instagram', name: 'Instagram', icon: 'fa-instagram', url: 'https://www.instagram.com/tdpravoce_achadinhos/', enabled: true },
+                { id: 'tiktok', name: 'TikTok', icon: 'fa-tiktok', url: 'https://www.tiktok.com/@gabi.influenciadigital', enabled: true },
+                { id: 'youtube', name: 'YouTube', icon: 'fa-youtube', url: '', enabled: false },
+                { id: 'facebook', name: 'Facebook', icon: 'fa-facebook', url: '', enabled: false },
+                { id: 'x-twitter', name: 'X / Twitter', icon: 'fa-x-twitter', url: '', enabled: false },
+                { id: 'pinterest', name: 'Pinterest', icon: 'fa-pinterest', url: '', enabled: false },
+                { id: 'linkedin', name: 'LinkedIn', icon: 'fa-linkedin', url: '', enabled: false }
+            ];
 
-            // Atualiza todos os links do WhatsApp na página (agora usando classe)
-            document.querySelectorAll('.wa-dynamic-link').forEach(a => {
-                if (waLink !== '#') a.href = waLink;
-            });
-            // Atualiza o href do float se não for vazio
-            if (waFloat && waLink && waLink !== '#') waFloat.href = waLink;
-            if (tgFloat && tgLink && tgLink !== '#') tgFloat.href = tgLink;
-            
-            if (localStorage.getItem('show-whatsapp') !== 'false') {
-                waFloat.classList.remove('hidden');
-                waFloat.classList.add('flex');
-            } else {
-                waFloat.classList.add('hidden');
-                waFloat.classList.remove('flex');
+            function applySocialLinks(configuredValue) {
+                let savedChannels = configuredValue;
+                if (!Array.isArray(savedChannels)) {
+                    try {
+                        savedChannels = JSON.parse(localStorage.getItem('mk-social-links') || 'null');
+                    } catch (error) {
+                        savedChannels = null;
+                    }
+                }
+                if (!Array.isArray(savedChannels)) savedChannels = [];
+
+                const channels = defaultSocialChannels.map(defaultChannel => {
+                    const saved = savedChannels.find(channel => channel.id === defaultChannel.id) || {};
+                    let url = saved.url ?? defaultChannel.url;
+                    let enabled = saved.enabled ?? defaultChannel.enabled;
+                    if (!configuredValue && savedChannels.length === 0 && defaultChannel.id === 'whatsapp') {
+                        url = localStorage.getItem('link-whatsapp') || '';
+                        enabled = localStorage.getItem('show-whatsapp') !== 'false';
+                    } else if (!configuredValue && savedChannels.length === 0 && defaultChannel.id === 'telegram') {
+                        url = localStorage.getItem('link-telegram') || '';
+                        enabled = localStorage.getItem('show-telegram') === 'true';
+                    }
+                    return {
+                        ...defaultChannel,
+                        ...saved,
+                        url,
+                        enabled: Boolean(enabled),
+                        icon: socialIconChoices.has(saved.icon) ? saved.icon : defaultChannel.icon
+                    };
+                });
+                channels.push(...savedChannels.filter(channel => channel.custom && !channels.some(item => item.id === channel.id)).map(channel => ({
+                    ...channel,
+                    icon: socialIconChoices.has(channel.icon) ? channel.icon : 'fa-link'
+                })));
+
+                const visibleChannels = channels.filter(channel => {
+                    if (!channel.enabled || !channel.url) return false;
+                    try {
+                        const url = new URL(channel.url);
+                        return url.protocol === 'https:' || url.protocol === 'http:';
+                    } catch (error) {
+                        return false;
+                    }
+                });
+                const channelById = new Map(visibleChannels.map(channel => [channel.id, channel]));
+
+                document.querySelectorAll('[data-social-channel]').forEach(anchor => {
+                    const channel = channelById.get(anchor.dataset.socialChannel);
+                    const isFloating = ['whatsapp-vip-float', 'telegram-vip-float'].includes(anchor.id);
+                    anchor.classList.toggle('hidden', !channel);
+                    if (isFloating) anchor.classList.toggle('flex', Boolean(channel));
+                    if (!channel) return;
+                    anchor.href = channel.url;
+                    anchor.target = '_blank';
+                    anchor.rel = 'noopener noreferrer';
+                    anchor.setAttribute('aria-label', channel.name);
+                    anchor.title = channel.name;
+                    if (isFloating) {
+                        const buttonText = anchor.querySelector('.social-float-text');
+                        if (buttonText) buttonText.textContent = channel.floatingText || channel.name;
+                        if (/^#[0-9a-f]{6}$/i.test(channel.color || '')) anchor.style.backgroundColor = channel.color;
+                    }
+                });
+
+                document.querySelectorAll('.wa-dynamic-link:not([data-social-channel])').forEach(anchor => {
+                    const channel = channelById.get('whatsapp');
+                    anchor.classList.toggle('hidden', !channel);
+                    if (channel) {
+                        anchor.href = channel.url;
+                        anchor.target = '_blank';
+                        anchor.rel = 'noopener noreferrer';
+                    }
+                });
+
+                const createSocialIconLink = channel => {
+                    const link = document.createElement('a');
+                    link.href = channel.url;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.className = 'h-9 w-9 bg-white/5 border border-white/10 hover:border-brand-pink/50 hover:text-brand-pink rounded-xl flex items-center justify-center transition';
+                    link.title = channel.name;
+                    link.setAttribute('aria-label', channel.name);
+                    const icon = document.createElement('i');
+                    icon.className = `${channel.icon === 'fa-link' ? 'fa-solid' : 'fa-brands'} ${channel.icon}`;
+                    link.appendChild(icon);
+                    return link;
+                };
+                const headerLinks = document.getElementById('social-header-links');
+                headerLinks?.replaceChildren(...visibleChannels.slice(0, 2).map(createSocialIconLink));
+                const footerLinks = document.getElementById('social-footer-links');
+                if (footerLinks) {
+                    footerLinks.replaceChildren(...visibleChannels.map(createSocialIconLink));
+                    footerLinks.classList.toggle('hidden', visibleChannels.length === 0);
+                }
             }
-            
-            if (localStorage.getItem('show-telegram') === 'true') {
-                tgFloat.classList.remove('hidden');
-                tgFloat.classList.add('flex');
-            } else {
-                tgFloat.classList.add('hidden');
-                tgFloat.classList.remove('flex');
-            }
+
+            applySocialLinks();
 
             // =====================================
             // MARKETING & CONVERSÃO LOGIC
@@ -2969,7 +3087,7 @@
             }
 
             // 4. Social Media Banners (Sidebar)
-            const rawTiktok = localStorage.getItem('mk-embed-tiktok') || 'https://www.tiktok.com/@gabi.influencerdigital';
+            const rawTiktok = localStorage.getItem('mk-embed-tiktok') || '';
             const rawYoutube = localStorage.getItem('mk-embed-youtube');
             const sidebar = document.getElementById('social-sidebar');
             

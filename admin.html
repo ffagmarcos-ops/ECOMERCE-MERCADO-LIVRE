@@ -14,6 +14,14 @@
     
     <!-- Google Fonts: Outfit (Premium & Modern) -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .swal2-container { z-index: 10000 !important; }
+        .admin-sweet-popup { border: 1px solid #27272A !important; border-radius: 14px !important; }
+        .admin-sweet-confirm, .admin-sweet-cancel { border-radius: 8px !important; font-weight: 700 !important; padding: 10px 18px !important; }
+        .admin-sweet-confirm { background: #FF1A75 !important; }
+        .admin-sweet-cancel { background: #3f3f46 !important; }
+    </style>
     
     <script>
         tailwind.config = {
@@ -1190,11 +1198,13 @@
             ];
 
             const DEFAULT_EXCLUSIVE_PRODUCTS = [
-                { ...DEFAULT_PRODUCTS.find(product => String(product.id) === '4'), spotlightBadge: 'Queridinho da Nessa ☕', spotlightDescription: 'Seu dia começa muito mais doce!' },
-                { ...DEFAULT_PRODUCTS.find(product => String(product.id) === '5'), spotlightBadge: 'Praticidade Nota 10 🧹', spotlightDescription: 'Limpeza super rápida e divertida!' },
-                { ...DEFAULT_PRODUCTS.find(product => String(product.id) === '10'), spotlightBadge: 'Para Dias de Calor 💨', spotlightDescription: 'Refresco e estilo em qualquer cômodo!' }
+                { ...DEFAULT_PRODUCTS.find(product => String(product.id) === '4'), spotlightBadge: 'Destaque da loja', spotlightDescription: 'Seu dia começa muito mais doce!' },
+                { ...DEFAULT_PRODUCTS.find(product => String(product.id) === '5'), spotlightBadge: 'Mais praticidade', spotlightDescription: 'Limpeza rápida e prática para o dia a dia.' },
+                { ...DEFAULT_PRODUCTS.find(product => String(product.id) === '10'), spotlightBadge: 'Para dias de calor', spotlightDescription: 'Refresco e conforto para sua casa.' }
             ].filter(product => product.id !== undefined);
             let exclusiveProducts = JSON.parse(localStorage.getItem('admin-exclusive-products')) || DEFAULT_EXCLUSIVE_PRODUCTS;
+            let exclusiveSectionTitle = localStorage.getItem('admin-exclusive-title') || 'Escolhas Exclusivas';
+            let exclusiveSectionDescription = localStorage.getItem('admin-exclusive-description') || 'Produtos selecionados especialmente para você.';
 
             // 3. Default Categories State (The 12 Category Images)
             let categoryImages = JSON.parse(localStorage.getItem('admin-categories-images')) || {
@@ -1211,6 +1221,62 @@
                 'Games': 'images/cat_games_1781619801270.png',
                 'Livros': 'images/cat_livros_1781619812863.png'
             };
+
+            const SOCIAL_ICON_CHOICES = [
+                ['fa-whatsapp', 'WhatsApp'], ['fa-telegram', 'Telegram'], ['fa-instagram', 'Instagram'],
+                ['fa-tiktok', 'TikTok'], ['fa-youtube', 'YouTube'], ['fa-facebook', 'Facebook'],
+                ['fa-x-twitter', 'X / Twitter'], ['fa-pinterest', 'Pinterest'], ['fa-linkedin', 'LinkedIn'],
+                ['fa-threads', 'Threads'], ['fa-discord', 'Discord'], ['fa-twitch', 'Twitch'], ['fa-link', 'Link']
+            ];
+            const DEFAULT_SOCIAL_LINKS = [
+                { id: 'whatsapp', name: 'WhatsApp', icon: 'fa-whatsapp', url: '', enabled: false, floatingText: 'Entrar no Grupo VIP', color: '#22c55e' },
+                { id: 'telegram', name: 'Telegram', icon: 'fa-telegram', url: '', enabled: false, floatingText: 'Entrar no Telegram', color: '#3b82f6' },
+                { id: 'instagram', name: 'Instagram', icon: 'fa-instagram', url: 'https://www.instagram.com/tdpravoce_achadinhos/', enabled: true },
+                { id: 'tiktok', name: 'TikTok', icon: 'fa-tiktok', url: 'https://www.tiktok.com/@gabi.influenciadigital', enabled: true },
+                { id: 'youtube', name: 'YouTube', icon: 'fa-youtube', url: '', enabled: false },
+                { id: 'facebook', name: 'Facebook', icon: 'fa-facebook', url: '', enabled: false },
+                { id: 'x-twitter', name: 'X / Twitter', icon: 'fa-x-twitter', url: '', enabled: false },
+                { id: 'pinterest', name: 'Pinterest', icon: 'fa-pinterest', url: '', enabled: false },
+                { id: 'linkedin', name: 'LinkedIn', icon: 'fa-linkedin', url: '', enabled: false }
+            ];
+
+            function readSocialLinks(value = localStorage.getItem('mk-social-links')) {
+                let savedLinks = [];
+                try {
+                    savedLinks = Array.isArray(value) ? value : JSON.parse(value || '[]');
+                } catch (error) {
+                    savedLinks = [];
+                }
+                if (!Array.isArray(savedLinks)) savedLinks = [];
+
+                const merged = DEFAULT_SOCIAL_LINKS.map(defaultLink => {
+                    const saved = savedLinks.find(link => link.id === defaultLink.id) || {};
+                    const legacyUrl = defaultLink.id === 'whatsapp'
+                        ? localStorage.getItem('link-whatsapp')
+                        : defaultLink.id === 'telegram' ? localStorage.getItem('link-telegram') : null;
+                    const legacyEnabled = defaultLink.id === 'whatsapp'
+                        ? localStorage.getItem('show-whatsapp') === null
+                            ? Boolean(legacyUrl)
+                            : localStorage.getItem('show-whatsapp') === 'true' && Boolean(legacyUrl)
+                        : defaultLink.id === 'telegram'
+                            ? localStorage.getItem('show-telegram') === 'true' && Boolean(legacyUrl)
+                            : undefined;
+                    return {
+                        ...defaultLink,
+                        ...saved,
+                        url: saved.url ?? legacyUrl ?? defaultLink.url,
+                        enabled: saved.enabled ?? legacyEnabled ?? defaultLink.enabled,
+                        icon: SOCIAL_ICON_CHOICES.some(([icon]) => icon === saved.icon) ? saved.icon : defaultLink.icon
+                    };
+                });
+                const customLinks = savedLinks
+                    .filter(link => link.custom && !merged.some(item => item.id === link.id))
+                    .map(link => ({
+                        ...link,
+                        icon: SOCIAL_ICON_CHOICES.some(([icon]) => icon === link.icon) ? link.icon : 'fa-link'
+                    }));
+                return [...merged, ...customLinks];
+            }
 
             // --- SELECTORS ---
             const loginScreen = document.getElementById('login-screen');
@@ -1281,6 +1347,12 @@
                         if (Array.isArray(settings['admin-exclusive-products'])) {
                             exclusiveProducts = settings['admin-exclusive-products'];
                         }
+                        if (typeof settings['admin-exclusive-title'] === 'string') {
+                            exclusiveSectionTitle = settings['admin-exclusive-title'];
+                        }
+                        if (typeof settings['admin-exclusive-description'] === 'string') {
+                            exclusiveSectionDescription = settings['admin-exclusive-description'];
+                        }
                         if (settings['admin-categories-images']) {
                             categoryImages = settings['admin-categories-images'];
                         }
@@ -1333,6 +1405,23 @@
 
             // --- TOAST NOTIFICATIONS ---
             function showToast(message, type = 'success') {
+                if (window.Swal) {
+                    const icons = { success: 'success', error: 'error', info: 'info', warning: 'warning' };
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: icons[type] || 'success',
+                        text: String(message),
+                        showConfirmButton: false,
+                        timer: 3600,
+                        timerProgressBar: true,
+                        background: '#151518',
+                        color: '#f4f4f5',
+                        customClass: { popup: 'admin-sweet-popup' }
+                    });
+                    return;
+                }
+
                 const toast = document.createElement('div');
                 toast.className = `flex items-center gap-3 p-4 rounded-xl border bg-admin-card shadow-2xl animate-slide-in-right pointer-events-auto min-w-[280px]`;
                 
@@ -1350,9 +1439,10 @@
                 
                 toast.innerHTML = `
                     <div class="text-lg"><i class="${iconClass}"></i></div>
-                    <div class="flex-1 text-xs font-semibold text-gray-200 leading-tight">${message}</div>
+                    <div class="flex-1 text-xs font-semibold text-gray-200 leading-tight"></div>
                     <button class="text-gray-500 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
                 `;
+                toast.querySelector('.flex-1').textContent = String(message);
 
                 toast.querySelector('button').addEventListener('click', () => {
                     toast.remove();
@@ -1363,6 +1453,28 @@
                 setTimeout(() => {
                     toast.remove();
                 }, 4000);
+            }
+
+            async function showConfirmDialog({ title, text, confirmText = 'Confirmar', icon = 'warning' }) {
+                if (!window.Swal) return window.confirm(`${title}\n\n${text}`);
+                const result = await Swal.fire({
+                    title,
+                    text,
+                    icon,
+                    showCancelButton: true,
+                    confirmButtonText: confirmText,
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true,
+                    background: '#151518',
+                    color: '#f4f4f5',
+                    buttonsStyling: false,
+                    customClass: {
+                        popup: 'admin-sweet-popup',
+                        confirmButton: 'admin-sweet-confirm',
+                        cancelButton: 'admin-sweet-cancel'
+                    }
+                });
+                return result.isConfirmed;
             }
 
             // --- AUTHENTICATION ---
@@ -1495,7 +1607,7 @@
                     <div class="space-y-6 animate-fade-in text-white">
                         <div>
                             <h2 class="text-xl font-bold tracking-wide">Produtos Anunciados</h2>
-                            <p class="text-xs text-admin-textMuted mt-1">Promova um produto para o slideshow ou para as Escolhas Exclusivas da Nessa.</p>
+                            <p class="text-xs text-admin-textMuted mt-1">Revise e complete as informações antes de publicar um produto em uma área de destaque.</p>
                         </div>
                         <div class="bg-admin-card border border-admin-border rounded-xl p-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                             <input id="promotion-product-search" type="search" class="admin-input text-xs sm:max-w-sm" placeholder="Buscar produto por nome ou categoria">
@@ -1518,27 +1630,148 @@
                 const searchInput = document.getElementById('promotion-product-search');
                 const formatPrice = value => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
 
-                const promoteToBanner = async product => {
-                    if (!product.img_url || !product.url) {
-                        showToast('Este produto precisa de imagem e link antes de ser promovido.', 'error');
-                        return;
+                const openPromotionDialog = async (product, destination) => {
+                    if (!window.Swal) {
+                        showToast('O formulário de promoção não pôde ser carregado. Atualize a página e tente novamente.', 'error');
+                        return null;
                     }
-                    const productUrl = product.url.split('?')[0];
-                    if (banners.some(banner => banner.affiliateUrl && banner.affiliateUrl.split('?')[0] === productUrl)) {
+
+                    const isBanner = destination === 'banner';
+                    const form = document.createElement('div');
+                    form.className = 'grid grid-cols-1 gap-3 text-left';
+                    const addField = (labelText, value, { multiline = false, required = false, placeholder = '' } = {}) => {
+                        const label = document.createElement('label');
+                        label.className = 'block text-left text-xs font-semibold text-gray-300';
+                        const labelContent = document.createElement('span');
+                        labelContent.className = 'block mb-1';
+                        labelContent.textContent = labelText;
+                        const field = document.createElement(multiline ? 'textarea' : 'input');
+                        field.className = 'admin-input text-sm';
+                        if (!multiline) field.type = 'text';
+                        if (multiline) field.rows = 2;
+                        field.value = value || '';
+                        field.placeholder = placeholder;
+                        field.required = required;
+                        label.append(labelContent, field);
+                        form.appendChild(label);
+                        return field;
+                    };
+
+                    const badgeField = addField('Selo / chamada', product.badge || '', { placeholder: 'Ex.: Oferta da semana' });
+                    const titleField = isBanner ? addField('Título do banner', product.name || '', { required: true }) : null;
+                    const descriptionField = addField(
+                        isBanner ? 'Subtítulo do banner' : 'Descrição do destaque',
+                        isBanner
+                            ? (product.oldPrice && Number(product.oldPrice) > Number(product.price)
+                                ? `De ${formatPrice(product.oldPrice)} por ${formatPrice(product.price)}`
+                                : `Por ${formatPrice(product.price)}`)
+                            : (product.spotlightDescription || `Uma seleção especial de ${product.category || 'produtos'}.`),
+                        { multiline: true, placeholder: 'Escreva uma descrição curta' }
+                    );
+                    const imageField = addField('Imagem (URL ou caminho)', product.img_url || product.img_url_2 || '', {
+                        required: true,
+                        placeholder: 'https://... ou images/produto.webp'
+                    });
+                    const preview = document.createElement('img');
+                    preview.className = 'mx-auto h-28 w-full object-contain rounded-lg bg-white/5';
+                    preview.alt = 'Prévia da imagem do destaque';
+                    preview.src = imageField.value;
+                    preview.hidden = !imageField.value;
+                    form.appendChild(preview);
+                    imageField.addEventListener('input', () => {
+                        preview.src = imageField.value;
+                        preview.hidden = !imageField.value;
+                    });
+
+                    const fileLabel = document.createElement('label');
+                    fileLabel.className = 'block text-xs text-admin-accentGold cursor-pointer';
+                    fileLabel.textContent = 'Enviar outra imagem';
+                    const fileInput = document.createElement('input');
+                    fileInput.type = 'file';
+                    fileInput.accept = '.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp';
+                    fileInput.className = 'block mt-1 text-xs text-admin-textMuted';
+                    fileLabel.appendChild(fileInput);
+                    form.appendChild(fileLabel);
+                    fileInput.addEventListener('change', async () => {
+                        const file = fileInput.files[0];
+                        if (!file) return;
+                        if (!isSupportedImageFile(file)) {
+                            fileInput.value = '';
+                            return;
+                        }
+                        try {
+                            Swal.showLoading();
+                            imageField.value = await optimizeImageFile(file);
+                            preview.src = imageField.value;
+                            preview.hidden = false;
+                            Swal.hideLoading();
+                        } catch (error) {
+                            Swal.hideLoading();
+                            Swal.showValidationMessage('Não foi possível processar essa imagem.');
+                        }
+                    });
+
+                    const urlField = addField('Link de destino', product.url || '', {
+                        required: true,
+                        placeholder: 'https://...'
+                    });
+
+                    const result = await Swal.fire({
+                        title: isBanner ? 'Completar dados do banner' : 'Completar dados do destaque',
+                        html: form,
+                        width: 620,
+                        showCancelButton: true,
+                        confirmButtonText: isBanner ? 'Adicionar banner' : 'Adicionar destaque',
+                        cancelButtonText: 'Cancelar',
+                        reverseButtons: true,
+                        focusConfirm: false,
+                        background: '#151518',
+                        color: '#f4f4f5',
+                        buttonsStyling: false,
+                        customClass: {
+                            popup: 'admin-sweet-popup',
+                            confirmButton: 'admin-sweet-confirm',
+                            cancelButton: 'admin-sweet-cancel',
+                            htmlContainer: 'text-left'
+                        },
+                        preConfirm: () => {
+                            const imageUrl = imageField.value.trim();
+                            const url = urlField.value.trim();
+                            if (!imageUrl || !url || (titleField && !titleField.value.trim())) {
+                                Swal.showValidationMessage('Preencha título, imagem e link para continuar.');
+                                return false;
+                            }
+                            if (!/^https?:\/\//i.test(url)) {
+                                Swal.showValidationMessage('Informe um link de destino válido começando com http:// ou https://.');
+                                return false;
+                            }
+                            return {
+                                badge: badgeField.value.trim(),
+                                title: titleField?.value.trim() || product.name || '',
+                                description: descriptionField.value.trim(),
+                                imageUrl,
+                                url
+                            };
+                        }
+                    });
+                    return result.isConfirmed ? result.value : null;
+                };
+
+                const promoteToBanner = async product => {
+                    if (product.url && banners.some(banner => banner.affiliateUrl && banner.affiliateUrl.split('?')[0] === product.url.split('?')[0])) {
                         showToast('Este produto já está nos banners.', 'info');
                         return;
                     }
-                    const priceText = product.oldPrice && Number(product.oldPrice) > Number(product.price)
-                        ? `De ${formatPrice(product.oldPrice)} por ${formatPrice(product.price)}`
-                        : `Por ${formatPrice(product.price)}`;
+                    const fields = await openPromotionDialog(product, 'banner');
+                    if (!fields) return;
                     const nextBanner = {
                         id: Math.max(0, ...banners.map(banner => Number(banner.id) || 0)) + 1,
                         productId: product.id,
-                        badge: product.badge || 'Escolha da Nessa',
-                        title: product.name,
-                        subtitle: priceText,
-                        imageUrl: product.img_url,
-                        affiliateUrl: product.url
+                        badge: fields.badge,
+                        title: fields.title,
+                        subtitle: fields.description,
+                        imageUrl: fields.imageUrl,
+                        affiliateUrl: fields.url
                     };
                     const updatedBanners = [...banners, nextBanner];
                     if (!await saveSettingsToServer({ 'admin-banners': updatedBanners })) {
@@ -1547,33 +1780,33 @@
                     }
                     banners = updatedBanners;
                     cacheSettingLocally('admin-banners', banners);
-                    showToast('Produto adicionado aos banners. Revise o visual na tela de Banners.', 'success');
+                    showToast('Produto promovido para banner.', 'success');
                     activeTabId = 'banners-config';
                     renderTabs();
                     loadTab(activeTabId);
                 };
 
                 const promoteToExclusive = async product => {
-                    if (!product.img_url || !product.url) {
-                        showToast('Este produto precisa de imagem e link antes de ser promovido.', 'error');
-                        return;
-                    }
                     if (exclusiveProducts.some(item => String(item.id) === String(product.id))) {
-                        showToast('Este produto já está nas Escolhas Exclusivas.', 'info');
+                        showToast('Este produto já está na área de destaques.', 'info');
                         return;
                     }
+                    const fields = await openPromotionDialog(product, 'exclusive');
+                    if (!fields) return;
                     const updatedProducts = [...exclusiveProducts, {
                         ...product,
-                        spotlightBadge: product.badge || 'Escolha da Nessa',
-                        spotlightDescription: `Uma escolha especial em ${product.category || 'destaque'}.`
+                        spotlightBadge: fields.badge,
+                        spotlightDescription: fields.description,
+                        img_url: fields.imageUrl,
+                        url: fields.url
                     }];
                     if (!await saveSettingsToServer({ 'admin-exclusive-products': updatedProducts })) {
-                        showToast('Não foi possível salvar a escolha no servidor.', 'error');
+                        showToast('Não foi possível salvar o destaque no servidor.', 'error');
                         return;
                     }
                     exclusiveProducts = updatedProducts;
                     cacheSettingLocally('admin-exclusive-products', exclusiveProducts);
-                    showToast('Produto adicionado às Escolhas Exclusivas.', 'success');
+                    showToast('Produto promovido para a área de destaques.', 'success');
                     loadPromotionProductsTab();
                 };
 
@@ -1631,7 +1864,7 @@
                         const exclusiveButton = document.createElement('button');
                         exclusiveButton.type = 'button';
                         exclusiveButton.className = 'px-3 py-2 rounded-lg bg-admin-accentBlue/10 border border-admin-accentBlue/20 text-admin-accentBlue hover:bg-admin-accentBlue/20 font-bold';
-                        exclusiveButton.innerHTML = '<i class="fa-solid fa-star mr-1"></i> Escolhas';
+                        exclusiveButton.innerHTML = '<i class="fa-solid fa-star mr-1"></i> Destaques';
                         exclusiveButton.addEventListener('click', () => promoteToExclusive(product));
                         actionGroup.append(bannerButton, exclusiveButton);
                         actions.appendChild(actionGroup);
@@ -1650,16 +1883,24 @@
                     <div class="space-y-6 animate-fade-in text-white">
                         <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                             <div>
-                                <h2 class="text-xl font-bold tracking-wide">Escolhas Exclusivas da Nessa</h2>
-                                <p class="text-xs text-admin-textMuted mt-1">Ajuste chamadas, descrições e ordem dos produtos exibidos na vitrine.</p>
+                                <h2 class="text-xl font-bold tracking-wide">Conteúdo da seção de destaques</h2>
+                                <p class="text-xs text-admin-textMuted mt-1">Personalize o texto da seção e a apresentação de cada produto.</p>
                             </div>
                             <button id="exclusive-products-save" type="button" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black font-extrabold px-6 py-2.5 rounded-lg text-xs uppercase"><i class="fa-solid fa-floppy-disk mr-1"></i> Salvar Alterações</button>
+                        </div>
+                        <div class="bg-admin-card border border-admin-border rounded-xl p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <label class="admin-label">Título da seção<input id="exclusive-section-title" class="admin-input mt-2" maxlength="80"></label>
+                            <label class="admin-label">Descrição da seção<textarea id="exclusive-section-description" class="admin-input mt-2" rows="2" maxlength="180"></textarea></label>
                         </div>
                         <div id="exclusive-products-list" class="space-y-3"></div>
                     </div>
                 `;
 
                 const list = document.getElementById('exclusive-products-list');
+                const titleInput = document.getElementById('exclusive-section-title');
+                const sectionDescriptionInput = document.getElementById('exclusive-section-description');
+                titleInput.value = exclusiveSectionTitle;
+                sectionDescriptionInput.value = exclusiveSectionDescription;
                 const formatPrice = value => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
                 const readDraft = () => [...list.querySelectorAll('.exclusive-product-row')].map((row, index) => ({
                     ...draft[index],
@@ -1742,13 +1983,28 @@
 
                 document.getElementById('exclusive-products-save').addEventListener('click', async () => {
                     const updatedProducts = readDraft();
-                    if (!await saveSettingsToServer({ 'admin-exclusive-products': updatedProducts })) {
+                    const updatedTitle = titleInput.value.trim();
+                    const updatedDescription = sectionDescriptionInput.value.trim();
+                    if (!updatedTitle || !updatedDescription) {
+                        showToast('Informe o título e a descrição da seção.', 'error');
+                        return;
+                    }
+                    const settings = {
+                        'admin-exclusive-products': updatedProducts,
+                        'admin-exclusive-title': updatedTitle,
+                        'admin-exclusive-description': updatedDescription
+                    };
+                    if (!await saveSettingsToServer(settings)) {
                         showToast('Não foi possível salvar as Escolhas Exclusivas.', 'error');
                         return;
                     }
                     exclusiveProducts = updatedProducts;
+                    exclusiveSectionTitle = updatedTitle;
+                    exclusiveSectionDescription = updatedDescription;
                     cacheSettingLocally('admin-exclusive-products', exclusiveProducts);
-                    showToast('Escolhas Exclusivas atualizadas.', 'success');
+                    cacheSettingLocally('admin-exclusive-title', exclusiveSectionTitle);
+                    cacheSettingLocally('admin-exclusive-description', exclusiveSectionDescription);
+                    showToast('Seção de destaques atualizada.', 'success');
                 });
 
                 renderDraft();
@@ -1855,7 +2111,11 @@
 
                 document.getElementById('api-token-list').addEventListener('click', async event => {
                     const button = event.target.closest('.revoke-api-token');
-                    if (!button || !confirm('Revogar este token? A ação não pode ser desfeita.')) return;
+                    if (!button || !await showConfirmDialog({
+                        title: 'Revogar token?',
+                        text: 'A integração que usa este token perderá acesso imediatamente.',
+                        confirmText: 'Sim, revogar'
+                    })) return;
                     try {
                         const response = await authenticatedAdminFetch(`${API_BASE}/auth/tokens/${button.dataset.id}`, { method: 'DELETE' });
                         const payload = await response.json();
@@ -2138,18 +2398,24 @@
 
                 // Reset button functionality
                 document.getElementById('reset-stats-btn').addEventListener('click', async () => {
-                    if (confirm('Tem certeza de que deseja resetar todas as estatísticas de cliques e acessos da loja? Essa ação não pode ser desfeita.')) {
-                        localStorage.removeItem('admin-page-views');
-                        localStorage.removeItem('admin-visits');
-                        localStorage.removeItem('admin-clicks');
-                        try {
-                            await authenticatedAdminFetch(`${API_BASE}/stats/reset`, { method: 'POST' });
-                        } catch(e) {
-                            console.warn("Erro ao resetar estatísticas no servidor:", e);
-                        }
-                        showToast('Estatísticas resetadas com sucesso!', 'info');
-                        loadStatisticsTab();
+                    if (!await showConfirmDialog({
+                        title: 'Zerar as estatísticas?',
+                        text: 'Visualizações, sessões e cliques registrados serão apagados.',
+                        confirmText: 'Sim, zerar dados'
+                    })) return;
+                    localStorage.removeItem('admin-page-views');
+                    localStorage.removeItem('admin-visits');
+                    localStorage.removeItem('admin-clicks');
+                    try {
+                        const response = await authenticatedAdminFetch(`${API_BASE}/stats/reset`, { method: 'POST' });
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    } catch(e) {
+                        console.warn("Erro ao resetar estatísticas no servidor:", e);
+                        showToast('Não foi possível zerar os dados no servidor.', 'error');
+                        return;
                     }
+                    showToast('Estatísticas zeradas.', 'success');
+                    loadStatisticsTab();
                 });
             }
 
@@ -2193,30 +2459,6 @@
                                     <div class="flex-grow border-t border-admin-border"></div>
                                     <span class="flex-shrink mx-4 text-[10px] text-admin-textMuted font-black uppercase tracking-widest">Ou</span>
                                     <div class="flex-grow border-t border-admin-border"></div>
-                                </div>
-
-                                <div class="mt-6 pt-6 border-t border-admin-border">
-                                    <h3 class="text-sm font-bold text-white mb-4 uppercase tracking-wider">Redes Sociais (Grupos VIP)</h3>
-                                    <div class="flex items-center gap-6 mb-4">
-                                        <label class="flex items-center gap-2 cursor-pointer">
-                                            <input type="checkbox" id="toggle-whatsapp" class="form-checkbox h-5 w-5 text-green-500 rounded border-admin-border bg-admin-bg focus:ring-green-500 focus:ring-offset-admin-card">
-                                            <span class="text-xs font-semibold text-gray-300">Botão WhatsApp</span>
-                                        </label>
-                                        <label class="flex items-center gap-2 cursor-pointer">
-                                            <input type="checkbox" id="toggle-telegram" class="form-checkbox h-5 w-5 text-blue-500 rounded border-admin-border bg-admin-bg focus:ring-blue-500 focus:ring-offset-admin-card">
-                                            <span class="text-xs font-semibold text-gray-300">Botão Telegram</span>
-                                        </label>
-                                    </div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="admin-label">Link do WhatsApp</label>
-                                            <input type="text" id="url-whatsapp" class="admin-input text-xs" placeholder="https://wa.me/..." value="">
-                                        </div>
-                                        <div>
-                                            <label class="admin-label">Link do Telegram</label>
-                                            <input type="text" id="url-telegram" class="admin-input text-xs" placeholder="https://t.me/..." value="">
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <div class="flex justify-end pt-2 gap-3">
@@ -2332,42 +2574,6 @@
                     showToast(saved ? 'Logomarca atualizada com sucesso!' : 'Não foi possível salvar a logomarca no banco.', saved ? 'success' : 'error');
                 });
 
-                // Social Toggles Logic
-                const toggleWa = document.getElementById('toggle-whatsapp');
-                const toggleTg = document.getElementById('toggle-telegram');
-                const urlWa = document.getElementById('url-whatsapp');
-                const urlTg = document.getElementById('url-telegram');
-
-                // Default WhatsApp to true, Telegram to false if not set
-                toggleWa.checked = localStorage.getItem('show-whatsapp') !== 'false';
-                toggleTg.checked = localStorage.getItem('show-telegram') === 'true';
-
-                urlWa.value = localStorage.getItem('link-whatsapp') || '';
-                urlTg.value = localStorage.getItem('link-telegram') || '';
-
-                urlWa.addEventListener('input', (e) => {
-                    const val = e.target.value.trim();
-                    localStorage.setItem('link-whatsapp', val);
-                    saveSettingsToServer({ 'link-whatsapp': val });
-                });
-
-                urlTg.addEventListener('input', (e) => {
-                    const val = e.target.value.trim();
-                    localStorage.setItem('link-telegram', val);
-                    saveSettingsToServer({ 'link-telegram': val });
-                });
-
-                toggleWa.addEventListener('change', (e) => {
-                    localStorage.setItem('show-whatsapp', e.target.checked);
-                    saveSettingsToServer({ 'show-whatsapp': String(e.target.checked) });
-                    showToast('Visibilidade do WhatsApp atualizada (atualize a loja para ver)!', 'success');
-                });
-
-                toggleTg.addEventListener('change', (e) => {
-                    localStorage.setItem('show-telegram', e.target.checked);
-                    saveSettingsToServer({ 'show-telegram': String(e.target.checked) });
-                    showToast('Visibilidade do Telegram atualizada (atualize a loja para ver)!', 'success');
-                });
             }
 
             // ==========================================
@@ -2564,7 +2770,12 @@
                 });
 
                 // Reset Banners
-                document.getElementById('banners-reset-btn').addEventListener('click', () => {
+                document.getElementById('banners-reset-btn').addEventListener('click', async () => {
+                    if (!await showConfirmDialog({
+                        title: 'Restaurar os banners padrão?',
+                        text: 'As alterações atuais do slideshow serão substituídas.',
+                        confirmText: 'Restaurar banners'
+                    })) return;
                     localStorage.removeItem('admin-banners');
                     const defaultBanners = [
                         { id: 1, badge: 'COZINHA CHARMOSA ☕', title: 'Cafeteira Britânia Rosa', subtitle: 'Seu dia começa mais doce e cheio de estilo', imageUrl: 'images/banner_casa.png', affiliateUrl: 'https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599' },
@@ -2630,7 +2841,12 @@
                 });
 
                 // Reset Categories
-                document.getElementById('categories-reset-btn').addEventListener('click', () => {
+                document.getElementById('categories-reset-btn').addEventListener('click', async () => {
+                    if (!await showConfirmDialog({
+                        title: 'Restaurar imagens padrão?',
+                        text: 'As imagens atuais das categorias serão substituídas.',
+                        confirmText: 'Restaurar imagens'
+                    })) return;
                     localStorage.removeItem('admin-categories-images');
                     const defaultCategoryImages = {
                         'Casa': 'images/cat_casa_v3_1781623141320.png',
@@ -3437,8 +3653,13 @@
 
                 // Atrelar Clique de Exclusão de Produtos (Delete Product button)
                 document.querySelectorAll('.delete-prod-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', async () => {
                         const id = parseInt(btn.getAttribute('data-id')) || btn.getAttribute('data-id');
+                        if (!await showConfirmDialog({
+                            title: 'Excluir este produto?',
+                            text: 'O produto será removido da vitrine e do catálogo administrado.',
+                            confirmText: 'Sim, excluir'
+                        })) return;
                         
                         customProducts = customProducts.filter(p => p.id !== id);
                         localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
@@ -4437,6 +4658,17 @@
                                 </div>
                             </div>
 
+                            <div class="bg-admin-card rounded-2xl p-6 border border-admin-border animate-fade-in space-y-4 md:col-span-2">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-share-nodes text-admin-accentGold"></i> Redes sociais e canais</h3>
+                                        <p class="text-xs text-gray-400 mt-1">Configure os links, os ícones e onde cada canal aparece na loja.</p>
+                                    </div>
+                                    <button id="social-add-channel" type="button" class="bg-white/5 border border-white/10 hover:border-admin-accentBlue/50 text-white font-bold px-4 py-2 rounded-lg text-xs"><i class="fa-solid fa-plus mr-1"></i> Adicionar rede</button>
+                                </div>
+                                <div id="social-network-list" class="space-y-3"></div>
+                            </div>
+
                         </div>
 
                         <div class="flex justify-end pt-4">
@@ -4457,6 +4689,124 @@
                 const pGoogle = document.getElementById('pixel-google');
                 const eTiktok = document.getElementById('embed-tiktok');
                 const eYouTube = document.getElementById('embed-youtube');
+                const socialList = document.getElementById('social-network-list');
+                let socialDraft = readSocialLinks();
+
+                const renderSocialDraft = () => {
+                    socialList.replaceChildren();
+                    socialDraft.forEach((channel, index) => {
+                        const row = document.createElement('article');
+                        row.className = 'grid grid-cols-1 lg:grid-cols-[44px_minmax(180px,1fr)_minmax(220px,1.5fr)_auto] gap-3 items-start bg-admin-bg border border-admin-border rounded-xl p-4';
+                        const iconPreview = document.createElement('div');
+                        iconPreview.className = 'w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-xl text-admin-accentGold';
+                        const icon = document.createElement('i');
+                        icon.className = `${channel.icon === 'fa-link' ? 'fa-solid' : 'fa-brands'} ${channel.icon}`;
+                        iconPreview.appendChild(icon);
+
+                        const identity = document.createElement('div');
+                        identity.className = 'space-y-2';
+                        const nameInput = document.createElement('input');
+                        nameInput.className = 'admin-input text-xs';
+                        nameInput.maxLength = 50;
+                        nameInput.placeholder = 'Nome da rede';
+                        nameInput.value = channel.name || '';
+                        nameInput.setAttribute('aria-label', 'Nome exibido da rede');
+                        nameInput.addEventListener('input', () => { socialDraft[index].name = nameInput.value; });
+                        identity.appendChild(nameInput);
+
+                        if (channel.custom) {
+                            const iconSelect = document.createElement('select');
+                            iconSelect.className = 'admin-input text-xs bg-admin-bg';
+                            iconSelect.setAttribute('aria-label', 'Ícone da rede');
+                            SOCIAL_ICON_CHOICES.forEach(([iconName, label]) => {
+                                const option = document.createElement('option');
+                                option.value = iconName;
+                                option.textContent = label;
+                                option.selected = channel.icon === iconName;
+                                iconSelect.appendChild(option);
+                            });
+                            iconSelect.addEventListener('change', () => {
+                                socialDraft[index].icon = iconSelect.value;
+                                icon.className = `${iconSelect.value === 'fa-link' ? 'fa-solid' : 'fa-brands'} ${iconSelect.value}`;
+                            });
+                            identity.appendChild(iconSelect);
+                        }
+
+                        const settings = document.createElement('div');
+                        settings.className = 'space-y-2';
+                        const urlInput = document.createElement('input');
+                        urlInput.type = 'url';
+                        urlInput.className = 'admin-input text-xs';
+                        urlInput.placeholder = `Link ${channel.name || 'da rede'} (https://...)`;
+                        urlInput.value = channel.url || '';
+                        urlInput.setAttribute('aria-label', `Link de ${channel.name || 'rede social'}`);
+                        urlInput.addEventListener('input', () => { socialDraft[index].url = urlInput.value.trim(); });
+                        settings.appendChild(urlInput);
+
+                        if (['whatsapp', 'telegram'].includes(channel.id)) {
+                            const floatingSettings = document.createElement('div');
+                            floatingSettings.className = 'grid grid-cols-[minmax(0,1fr)_56px] gap-2';
+                            const buttonText = document.createElement('input');
+                            buttonText.className = 'admin-input text-xs';
+                            buttonText.maxLength = 48;
+                            buttonText.placeholder = 'Texto do botão flutuante';
+                            buttonText.value = channel.floatingText || '';
+                            buttonText.setAttribute('aria-label', `Texto do botão de ${channel.name}`);
+                            buttonText.addEventListener('input', () => { socialDraft[index].floatingText = buttonText.value; });
+                            const colorInput = document.createElement('input');
+                            colorInput.type = 'color';
+                            colorInput.className = 'h-10 w-14 rounded-lg bg-admin-bg border border-admin-border cursor-pointer';
+                            colorInput.value = /^#[0-9a-f]{6}$/i.test(channel.color) ? channel.color : '#22c55e';
+                            colorInput.title = `Cor do botão de ${channel.name}`;
+                            colorInput.setAttribute('aria-label', `Cor do botão de ${channel.name}`);
+                            colorInput.addEventListener('input', () => { socialDraft[index].color = colorInput.value; });
+                            floatingSettings.append(buttonText, colorInput);
+                            settings.appendChild(floatingSettings);
+                        }
+
+                        const actions = document.createElement('div');
+                        actions.className = 'flex items-center justify-between lg:justify-end gap-3';
+                        const visibleLabel = document.createElement('label');
+                        visibleLabel.className = 'flex items-center gap-2 text-xs text-gray-300 cursor-pointer';
+                        const enabledInput = document.createElement('input');
+                        enabledInput.type = 'checkbox';
+                        enabledInput.className = 'form-checkbox h-4 w-4 rounded border-admin-border bg-admin-bg';
+                        enabledInput.checked = Boolean(channel.enabled);
+                        enabledInput.setAttribute('aria-label', `Exibir ${channel.name}`);
+                        enabledInput.addEventListener('change', () => { socialDraft[index].enabled = enabledInput.checked; });
+                        const visibleText = document.createElement('span');
+                        visibleText.textContent = 'Exibir';
+                        visibleLabel.append(enabledInput, visibleText);
+                        actions.appendChild(visibleLabel);
+
+                        if (channel.custom) {
+                            const removeButton = document.createElement('button');
+                            removeButton.type = 'button';
+                            removeButton.className = 'w-9 h-9 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10';
+                            removeButton.title = 'Remover rede';
+                            removeButton.setAttribute('aria-label', `Remover ${channel.name || 'rede personalizada'}`);
+                            removeButton.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+                            removeButton.addEventListener('click', () => {
+                                socialDraft.splice(index, 1);
+                                renderSocialDraft();
+                            });
+                            actions.appendChild(removeButton);
+                        }
+
+                        row.append(iconPreview, identity, settings, actions);
+                        socialList.appendChild(row);
+                    });
+                };
+
+                document.getElementById('social-add-channel').addEventListener('click', () => {
+                    socialDraft.push({
+                        id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                        name: 'Nova rede', icon: 'fa-link', url: '', enabled: false, custom: true
+                    });
+                    renderSocialDraft();
+                    socialList.lastElementChild?.querySelector('input')?.focus();
+                });
+                renderSocialDraft();
 
                 // Load
                 tTimer.checked = localStorage.getItem('mk-timer-active') === 'true';
@@ -4468,10 +4818,17 @@
                 pMeta.value = localStorage.getItem('mk-pixel-meta') || '';
                 pGoogle.value = localStorage.getItem('mk-pixel-google') || '';
                 
-                eTiktok.value = localStorage.getItem('mk-embed-tiktok') || 'https://www.tiktok.com/@gabi.influencerdigital';
+                eTiktok.value = localStorage.getItem('mk-embed-tiktok') || '';
                 eYouTube.value = localStorage.getItem('mk-embed-youtube') || '';
 
-                document.getElementById('marketing-save-btn').addEventListener('click', () => {
+                document.getElementById('marketing-save-btn').addEventListener('click', async () => {
+                    const updatedSocialLinks = socialDraft.map(channel => ({ ...channel }));
+                    const invalidUrl = updatedSocialLinks.find(channel => channel.enabled && (!channel.url || !/^https?:\/\//i.test(channel.url)));
+                    if (invalidUrl) {
+                        showToast(`Informe um link válido começando com http:// ou https:// para ${invalidUrl.name || 'a rede ativada'}.`, 'error');
+                        return;
+                    }
+
                     localStorage.setItem('mk-timer-active', tTimer.checked);
                     localStorage.setItem('mk-timer-text', iText.value.trim());
                     localStorage.setItem('mk-timer-mins', iMins.value.trim() || '120');
@@ -4483,8 +4840,16 @@
                     
                     localStorage.setItem('mk-embed-tiktok', eTiktok.value.trim());
                     localStorage.setItem('mk-embed-youtube', eYouTube.value.trim());
+                    localStorage.setItem('mk-social-links', JSON.stringify(updatedSocialLinks));
+
+                    const whatsapp = updatedSocialLinks.find(channel => channel.id === 'whatsapp');
+                    const telegram = updatedSocialLinks.find(channel => channel.id === 'telegram');
+                    localStorage.setItem('link-whatsapp', whatsapp?.url || '');
+                    localStorage.setItem('show-whatsapp', String(Boolean(whatsapp?.enabled)));
+                    localStorage.setItem('link-telegram', telegram?.url || '');
+                    localStorage.setItem('show-telegram', String(Boolean(telegram?.enabled)));
                     
-                    saveSettingsToServer({
+                    const saved = await saveSettingsToServer({
                         'mk-timer-active': String(tTimer.checked),
                         'mk-timer-text': iText.value.trim(),
                         'mk-timer-mins': iMins.value.trim() || '120',
@@ -4492,10 +4857,15 @@
                         'mk-pixel-meta': pMeta.value.trim(),
                         'mk-pixel-google': pGoogle.value.trim(),
                         'mk-embed-tiktok': eTiktok.value.trim(),
-                        'mk-embed-youtube': eYouTube.value.trim()
+                        'mk-embed-youtube': eYouTube.value.trim(),
+                        'mk-social-links': updatedSocialLinks,
+                        'link-whatsapp': whatsapp?.url || '',
+                        'show-whatsapp': String(Boolean(whatsapp?.enabled)),
+                        'link-telegram': telegram?.url || '',
+                        'show-telegram': String(Boolean(telegram?.enabled))
                     });
                     
-                    showToast('Configurações de Marketing salvas com sucesso!', 'success');
+                    showToast(saved ? 'Configurações de Marketing salvas.' : 'Não foi possível salvar as configurações no servidor.', saved ? 'success' : 'error');
                 });
             }
 
