@@ -212,6 +212,13 @@ async function initDB() {
         `);
 
         await pool.query(`
+            CREATE TABLE IF NOT EXISTS visitor_sessions (
+                session_id VARCHAR(128) PRIMARY KEY,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+
+        await pool.query(`
             CREATE TABLE IF NOT EXISTS settings (
                 setting_key VARCHAR(100) PRIMARY KEY,
                 setting_value LONGTEXT,
@@ -650,34 +657,45 @@ app.delete('/api/auth/tokens/:id', requireApiToken, async (req, res) => {
 
 // 3. Tracking & Statistics API
 app.post('/api/visit', async (req, res) => {
+    let connection;
     try {
-        const { isUnique } = req.body;
-        
-        // 1. Get current values
-        const [rows] = await pool.query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('admin-page-views', 'admin-visits')");
-        let pageViews = 0;
-        let uniqueVisits = 0;
+        const sessionId = typeof req.body?.sessionId === 'string' ? req.body.sessionId.trim() : '';
+        if (!sessionId || sessionId.length > 128) {
+            return res.status(400).json({ error: 'A valid analytics session ID is required.' });
+        }
 
-        rows.forEach(r => {
-            if (r.setting_key === 'admin-page-views') pageViews = parseInt(r.setting_value) || 0;
-            if (r.setting_key === 'admin-visits') uniqueVisits = parseInt(r.setting_value) || 0;
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+        const [sessionResult] = await connection.query(
+            'INSERT IGNORE INTO visitor_sessions (session_id) VALUES (?)',
+            [sessionId]
+        );
+        await connection.query(
+            `INSERT INTO settings (setting_key, setting_value) VALUES ('admin-page-views', '1')
+             ON DUPLICATE KEY UPDATE setting_value = CAST(setting_value AS UNSIGNED) + 1`
+        );
+        if (sessionResult.affectedRows > 0) {
+            await connection.query(
+                `INSERT INTO settings (setting_key, setting_value) VALUES ('admin-visits', '1')
+                 ON DUPLICATE KEY UPDATE setting_value = CAST(setting_value AS UNSIGNED) + 1`
+            );
+        }
+
+        const [rows] = await connection.query(
+            "SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('admin-page-views', 'admin-visits')"
+        );
+        await connection.commit();
+        const counts = Object.fromEntries(rows.map(row => [row.setting_key, Number(row.setting_value) || 0]));
+        res.json({
+            success: true,
+            pageViews: counts['admin-page-views'] || 0,
+            uniqueVisits: counts['admin-visits'] || 0
         });
-
-        // 2. Increment
-        pageViews++;
-        if (isUnique) {
-            uniqueVisits++;
-        }
-
-        // 3. Save
-        await pool.query("INSERT INTO settings (setting_key, setting_value) VALUES ('admin-page-views', ?) ON DUPLICATE KEY UPDATE setting_value = ?", [String(pageViews), String(pageViews)]);
-        if (isUnique) {
-            await pool.query("INSERT INTO settings (setting_key, setting_value) VALUES ('admin-visits', ?) ON DUPLICATE KEY UPDATE setting_value = ?", [String(uniqueVisits), String(uniqueVisits)]);
-        }
-
-        res.json({ success: true, pageViews, uniqueVisits });
     } catch (err) {
+        if (connection) await connection.rollback();
         res.status(500).json({ error: err.message });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
@@ -708,7 +726,7 @@ app.get('/api/stats', requireApiToken, async (req, res) => {
         });
 
         // Get clicks logs
-        const [clicksRows] = await pool.query("SELECT product_id as productId, name, category, price, timestamp FROM clicks ORDER BY timestamp DESC");
+        const [clicksRows] = await pool.query("SELECT product_id as productId, name, category, price, timestamp FROM clicks ORDER BY timestamp DESC, id DESC");
         
         res.json({
             pageViews,
@@ -726,6 +744,7 @@ app.post('/api/stats/reset', requireApiToken, async (req, res) => {
         await pool.query("INSERT INTO settings (setting_key, setting_value) VALUES ('admin-page-views', '0') ON DUPLICATE KEY UPDATE setting_value = '0'");
         await pool.query("INSERT INTO settings (setting_key, setting_value) VALUES ('admin-visits', '0') ON DUPLICATE KEY UPDATE setting_value = '0'");
         await pool.query("TRUNCATE TABLE clicks");
+        await pool.query("TRUNCATE TABLE visitor_sessions");
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });

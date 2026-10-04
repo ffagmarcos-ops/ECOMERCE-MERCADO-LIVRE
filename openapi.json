@@ -124,8 +124,8 @@
         "tags": ["Estatísticas"],
         "summary": "Registrar visita da loja",
         "operationId": "recordVisit",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "isUnique": { "type": "boolean" } } } } } },
-        "responses": { "200": { "description": "Contadores de visitas atualizados.", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "pageViews": { "type": "integer" }, "uniqueVisits": { "type": "integer" } } } } } }, "500": { "$ref": "#/components/responses/ServerError" } }
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["sessionId"], "properties": { "sessionId": { "type": "string", "minLength": 1, "maxLength": 128 } } } } } },
+        "responses": { "200": { "description": "Contadores de visualizações e sessões atualizados.", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "pageViews": { "type": "integer" }, "uniqueVisits": { "type": "integer" } } } } } }, "400": { "description": "Identificador de sessão ausente ou inválido." }, "500": { "$ref": "#/components/responses/ServerError" } }
       }
     },
     "/api/click": {

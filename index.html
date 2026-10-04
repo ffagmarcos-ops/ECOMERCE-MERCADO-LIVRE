@@ -824,22 +824,16 @@
         document.addEventListener('DOMContentLoaded', () => {
 
             // --- TRACKING DE ACESSOS E VISITAS ---
-            (function() {
-                try {
-                    let pageViews = parseInt(localStorage.getItem('admin-page-views') || '0');
-                    pageViews++;
-                    localStorage.setItem('admin-page-views', pageViews.toString());
-
-                    if (!sessionStorage.getItem('session-visit-flag')) {
-                        sessionStorage.setItem('session-visit-flag', 'true');
-                        let uniqueVisits = parseInt(localStorage.getItem('admin-visits') || '0');
-                        uniqueVisits++;
-                        localStorage.setItem('admin-visits', uniqueVisits.toString());
-                    }
-                } catch (e) {
-                    console.error("Erro ao registrar métricas de acesso:", e);
+            function getAnalyticsSessionId() {
+                let sessionId = sessionStorage.getItem('analytics-session-id');
+                if (!sessionId) {
+                    sessionId = window.crypto?.randomUUID
+                        ? window.crypto.randomUUID()
+                        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                    sessionStorage.setItem('analytics-session-id', sessionId);
                 }
-            })();
+                return sessionId;
+            }
 
             // ========================================================
             // DYNAMIC CONFIGURATION SYNC FROM ADMIN PANEL
@@ -2300,14 +2294,10 @@
             async function syncWithBackend() {
                 // 1. Send visit analytics to backend
                 try {
-                    const isUnique = !sessionStorage.getItem('session-visit-flag');
-                    if (isUnique) {
-                        sessionStorage.setItem('session-visit-flag', 'true');
-                    }
                     const visitRes = await fetch(`${API_BASE}/visit`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ isUnique })
+                        body: JSON.stringify({ sessionId: getAnalyticsSessionId() })
                     });
                     if (visitRes.ok) {
                         const data = await visitRes.json();
@@ -2366,6 +2356,11 @@
                         const banners = settings['admin-banners'];
                         if (Array.isArray(banners)) {
                             renderBannerCarousel(banners);
+                        }
+
+                        const exclusiveProducts = settings['admin-exclusive-products'];
+                        if (Array.isArray(exclusiveProducts)) {
+                            renderExclusiveProducts(exclusiveProducts);
                         }
 
                         const catImages = settings['admin-categories-images'];
@@ -2503,6 +2498,69 @@
                 currentSlide = 0;
                 showSlide(currentSlide);
                 startSlideShow();
+            }
+
+            function renderExclusiveProducts(products) {
+                const section = document.getElementById('nessa-spotlight');
+                const grid = section?.querySelector('.grid');
+                if (!section || !grid) return;
+
+                grid.replaceChildren();
+                section.hidden = products.length === 0;
+
+                products.forEach(product => {
+                    const card = document.createElement('a');
+                    card.href = product.url || '#';
+                    card.target = '_blank';
+                    card.rel = 'noopener noreferrer';
+                    card.className = 'block group relative rounded-2xl overflow-hidden shadow-lg border border-brand-blush/30 hover:border-brand-pink/50 hover:shadow-2xl transition-all duration-300';
+                    card.addEventListener('click', () => {
+                        window.trackProductClickDirect({
+                            productId: product.id,
+                            name: product.name,
+                            category: product.category,
+                            price: product.price
+                        });
+                    });
+
+                    const media = document.createElement('div');
+                    media.className = 'aspect-square w-full relative overflow-hidden bg-brand-softPink';
+                    const image = document.createElement('img');
+                    image.src = product.img_url || '';
+                    image.alt = product.name || 'Produto em destaque';
+                    image.loading = 'lazy';
+                    image.className = 'w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500';
+                    media.appendChild(image);
+
+                    const badge = document.createElement('span');
+                    badge.className = 'absolute top-3 left-3 bg-brand-pink text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-brand-rose shadow-sm';
+                    badge.textContent = product.spotlightBadge || product.badge || 'Escolha da Nessa';
+                    media.appendChild(badge);
+
+                    const details = document.createElement('div');
+                    details.className = 'p-5 bg-gradient-to-b from-white to-[#FFF5F6]';
+                    const title = document.createElement('h3');
+                    title.className = 'font-extrabold text-brand-rose group-hover:text-brand-pink transition text-base leading-snug mb-1';
+                    title.textContent = product.name || 'Produto em destaque';
+                    const description = document.createElement('p');
+                    description.className = 'text-xs text-gray-500 font-medium mb-4 min-h-8';
+                    description.textContent = product.spotlightDescription || product.category || '';
+                    const priceRow = document.createElement('div');
+                    priceRow.className = 'flex justify-between items-center gap-3';
+                    const price = document.createElement('span');
+                    price.className = 'text-brand-pink font-extrabold text-xl';
+                    price.textContent = Number(product.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const action = document.createElement('span');
+                    action.className = 'text-xs bg-brand-pink text-white font-extrabold px-3 py-2 rounded-xl flex items-center uppercase tracking-wide shrink-0';
+                    action.append('Compre Aqui ');
+                    const icon = document.createElement('i');
+                    icon.className = 'fa-solid fa-arrow-up-right-from-square ml-1 text-[8px] text-brand-gold';
+                    action.appendChild(icon);
+                    priceRow.append(price, action);
+                    details.append(title, description, priceRow);
+                    card.append(media, details);
+                    grid.appendChild(card);
+                });
             }
 
             function showSlide(index) {

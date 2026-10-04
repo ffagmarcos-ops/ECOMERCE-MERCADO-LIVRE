@@ -1117,6 +1117,8 @@
                 { id: 'estatisticas-config', label: 'Dashboard & Estatísticas', icon: 'fa-solid fa-chart-line' },
                 { id: 'logo-config', label: 'Logomarca da Página', icon: 'fa-solid fa-store' },
                 { id: 'banners-config', label: 'Banners & Slideshow', icon: 'fa-solid fa-images' },
+                { id: 'promocoes-config', label: 'Produtos Anunciados', icon: 'fa-solid fa-bullhorn' },
+                { id: 'escolhas-config', label: 'Escolhas Exclusivas', icon: 'fa-solid fa-star' },
                 { id: 'cores-config', label: 'Customizar Cores', icon: 'fa-solid fa-palette' },
                 { id: 'produtos-config', label: 'Cadastrar Produtos', icon: 'fa-solid fa-cart-plus' },
                 { id: 'marketing-config', label: 'Marketing & SEO', icon: 'fa-solid fa-bullhorn' },
@@ -1186,6 +1188,13 @@
                     affiliateUrl: 'https://www.mercadolivre.com.br/ventilador-de-mesa-30cm-super-power-mondial-60w-vsp-30-ap/p/MLB18932161?pdp_filters=item_id%3AMLB5917028234&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599&matt_event_ts=1780069575273&matt_d2id='
                 }
             ];
+
+            const DEFAULT_EXCLUSIVE_PRODUCTS = [
+                { ...DEFAULT_PRODUCTS.find(product => String(product.id) === '4'), spotlightBadge: 'Queridinho da Nessa ☕', spotlightDescription: 'Seu dia começa muito mais doce!' },
+                { ...DEFAULT_PRODUCTS.find(product => String(product.id) === '5'), spotlightBadge: 'Praticidade Nota 10 🧹', spotlightDescription: 'Limpeza super rápida e divertida!' },
+                { ...DEFAULT_PRODUCTS.find(product => String(product.id) === '10'), spotlightBadge: 'Para Dias de Calor 💨', spotlightDescription: 'Refresco e estilo em qualquer cômodo!' }
+            ].filter(product => product.id !== undefined);
+            let exclusiveProducts = JSON.parse(localStorage.getItem('admin-exclusive-products')) || DEFAULT_EXCLUSIVE_PRODUCTS;
 
             // 3. Default Categories State (The 12 Category Images)
             let categoryImages = JSON.parse(localStorage.getItem('admin-categories-images')) || {
@@ -1269,6 +1278,9 @@
                         if (settings['admin-banners']) {
                             banners = settings['admin-banners'];
                         }
+                        if (Array.isArray(settings['admin-exclusive-products'])) {
+                            exclusiveProducts = settings['admin-exclusive-products'];
+                        }
                         if (settings['admin-categories-images']) {
                             categoryImages = settings['admin-categories-images'];
                         }
@@ -1306,8 +1318,8 @@
                                 video_url: p.video_url
                             }));
                             localStorage.setItem('admin-custom-products', JSON.stringify(formattedProducts));
-                            if (activeTabId === 'produtos-config' && adminPanel && !adminPanel.classList.contains('hidden')) {
-                                loadProductsTab();
+                            if (['produtos-config', 'promocoes-config'].includes(activeTabId) && adminPanel && !adminPanel.classList.contains('hidden')) {
+                                loadTab(activeTabId);
                             }
                         }
                     }
@@ -1452,6 +1464,12 @@
                         case 'banners-config':
                             loadBannersTab();
                             break;
+                        case 'promocoes-config':
+                            loadPromotionProductsTab();
+                            break;
+                        case 'escolhas-config':
+                            loadExclusiveProductsTab();
+                            break;
                         case 'cores-config':
                             loadColorsTab();
                             break;
@@ -1469,6 +1487,271 @@
                             break;
                     }
                 }, 200);
+            }
+
+            function loadPromotionProductsTab() {
+                const productCatalog = JSON.parse(localStorage.getItem('admin-custom-products')) || [...DEFAULT_PRODUCTS];
+                tabContent.innerHTML = `
+                    <div class="space-y-6 animate-fade-in text-white">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-wide">Produtos Anunciados</h2>
+                            <p class="text-xs text-admin-textMuted mt-1">Promova um produto para o slideshow ou para as Escolhas Exclusivas da Nessa.</p>
+                        </div>
+                        <div class="bg-admin-card border border-admin-border rounded-xl p-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                            <input id="promotion-product-search" type="search" class="admin-input text-xs sm:max-w-sm" placeholder="Buscar produto por nome ou categoria">
+                            <div class="text-xs text-admin-textMuted"><span id="promotion-product-count">${productCatalog.length}</span> produtos disponíveis</div>
+                        </div>
+                        <div class="bg-admin-card border border-admin-border rounded-xl overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full min-w-[760px] text-left">
+                                    <thead><tr class="border-b border-admin-border text-[10px] uppercase text-admin-textMuted">
+                                        <th class="p-4">Produto</th><th class="p-4">Categoria</th><th class="p-4">Preço</th><th class="p-4 text-right">Promover para</th>
+                                    </tr></thead>
+                                    <tbody id="promotion-product-rows" class="divide-y divide-admin-border/50"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const rows = document.getElementById('promotion-product-rows');
+                const searchInput = document.getElementById('promotion-product-search');
+                const formatPrice = value => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
+
+                const promoteToBanner = async product => {
+                    if (!product.img_url || !product.url) {
+                        showToast('Este produto precisa de imagem e link antes de ser promovido.', 'error');
+                        return;
+                    }
+                    const productUrl = product.url.split('?')[0];
+                    if (banners.some(banner => banner.affiliateUrl && banner.affiliateUrl.split('?')[0] === productUrl)) {
+                        showToast('Este produto já está nos banners.', 'info');
+                        return;
+                    }
+                    const priceText = product.oldPrice && Number(product.oldPrice) > Number(product.price)
+                        ? `De ${formatPrice(product.oldPrice)} por ${formatPrice(product.price)}`
+                        : `Por ${formatPrice(product.price)}`;
+                    const nextBanner = {
+                        id: Math.max(0, ...banners.map(banner => Number(banner.id) || 0)) + 1,
+                        productId: product.id,
+                        badge: product.badge || 'Escolha da Nessa',
+                        title: product.name,
+                        subtitle: priceText,
+                        imageUrl: product.img_url,
+                        affiliateUrl: product.url
+                    };
+                    const updatedBanners = [...banners, nextBanner];
+                    if (!await saveSettingsToServer({ 'admin-banners': updatedBanners })) {
+                        showToast('Não foi possível salvar o banner no servidor.', 'error');
+                        return;
+                    }
+                    banners = updatedBanners;
+                    cacheSettingLocally('admin-banners', banners);
+                    showToast('Produto adicionado aos banners. Revise o visual na tela de Banners.', 'success');
+                    activeTabId = 'banners-config';
+                    renderTabs();
+                    loadTab(activeTabId);
+                };
+
+                const promoteToExclusive = async product => {
+                    if (!product.img_url || !product.url) {
+                        showToast('Este produto precisa de imagem e link antes de ser promovido.', 'error');
+                        return;
+                    }
+                    if (exclusiveProducts.some(item => String(item.id) === String(product.id))) {
+                        showToast('Este produto já está nas Escolhas Exclusivas.', 'info');
+                        return;
+                    }
+                    const updatedProducts = [...exclusiveProducts, {
+                        ...product,
+                        spotlightBadge: product.badge || 'Escolha da Nessa',
+                        spotlightDescription: `Uma escolha especial em ${product.category || 'destaque'}.`
+                    }];
+                    if (!await saveSettingsToServer({ 'admin-exclusive-products': updatedProducts })) {
+                        showToast('Não foi possível salvar a escolha no servidor.', 'error');
+                        return;
+                    }
+                    exclusiveProducts = updatedProducts;
+                    cacheSettingLocally('admin-exclusive-products', exclusiveProducts);
+                    showToast('Produto adicionado às Escolhas Exclusivas.', 'success');
+                    loadPromotionProductsTab();
+                };
+
+                const renderProducts = () => {
+                    const query = searchInput.value.trim().toLowerCase();
+                    const filteredProducts = productCatalog.filter(product =>
+                        `${product.name} ${product.category}`.toLowerCase().includes(query)
+                    );
+                    rows.replaceChildren();
+                    document.getElementById('promotion-product-count').textContent = String(filteredProducts.length);
+
+                    if (!filteredProducts.length) {
+                        const row = document.createElement('tr');
+                        const cell = document.createElement('td');
+                        cell.colSpan = 4;
+                        cell.className = 'p-8 text-center text-xs text-admin-textMuted';
+                        cell.textContent = 'Nenhum produto encontrado.';
+                        row.appendChild(cell);
+                        rows.appendChild(row);
+                        return;
+                    }
+
+                    filteredProducts.forEach(product => {
+                        const row = document.createElement('tr');
+                        row.className = 'text-xs hover:bg-white/[0.02]';
+                        const productCell = document.createElement('td');
+                        productCell.className = 'p-4';
+                        const productInfo = document.createElement('div');
+                        productInfo.className = 'flex items-center gap-3 min-w-0';
+                        const image = document.createElement('img');
+                        image.className = 'w-11 h-11 rounded-lg object-contain bg-white p-1 shrink-0';
+                        image.src = product.img_url || '';
+                        image.alt = '';
+                        const name = document.createElement('span');
+                        name.className = 'font-semibold text-gray-100';
+                        name.textContent = product.name || 'Produto sem nome';
+                        productInfo.append(image, name);
+                        productCell.appendChild(productInfo);
+
+                        const category = document.createElement('td');
+                        category.className = 'p-4 text-admin-textMuted uppercase';
+                        category.textContent = product.category || 'Geral';
+                        const price = document.createElement('td');
+                        price.className = 'p-4 font-mono';
+                        price.textContent = formatPrice(product.price);
+                        const actions = document.createElement('td');
+                        actions.className = 'p-4';
+                        const actionGroup = document.createElement('div');
+                        actionGroup.className = 'flex justify-end gap-2';
+                        const bannerButton = document.createElement('button');
+                        bannerButton.type = 'button';
+                        bannerButton.className = 'px-3 py-2 rounded-lg bg-admin-accentGold/10 border border-admin-accentGold/20 text-admin-accentGold hover:bg-admin-accentGold/20 font-bold';
+                        bannerButton.innerHTML = '<i class="fa-solid fa-images mr-1"></i> Banner';
+                        bannerButton.addEventListener('click', () => promoteToBanner(product));
+                        const exclusiveButton = document.createElement('button');
+                        exclusiveButton.type = 'button';
+                        exclusiveButton.className = 'px-3 py-2 rounded-lg bg-admin-accentBlue/10 border border-admin-accentBlue/20 text-admin-accentBlue hover:bg-admin-accentBlue/20 font-bold';
+                        exclusiveButton.innerHTML = '<i class="fa-solid fa-star mr-1"></i> Escolhas';
+                        exclusiveButton.addEventListener('click', () => promoteToExclusive(product));
+                        actionGroup.append(bannerButton, exclusiveButton);
+                        actions.appendChild(actionGroup);
+                        row.append(productCell, category, price, actions);
+                        rows.appendChild(row);
+                    });
+                };
+
+                searchInput.addEventListener('input', renderProducts);
+                renderProducts();
+            }
+
+            function loadExclusiveProductsTab() {
+                let draft = exclusiveProducts.map(product => ({ ...product }));
+                tabContent.innerHTML = `
+                    <div class="space-y-6 animate-fade-in text-white">
+                        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                            <div>
+                                <h2 class="text-xl font-bold tracking-wide">Escolhas Exclusivas da Nessa</h2>
+                                <p class="text-xs text-admin-textMuted mt-1">Ajuste chamadas, descrições e ordem dos produtos exibidos na vitrine.</p>
+                            </div>
+                            <button id="exclusive-products-save" type="button" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black font-extrabold px-6 py-2.5 rounded-lg text-xs uppercase"><i class="fa-solid fa-floppy-disk mr-1"></i> Salvar Alterações</button>
+                        </div>
+                        <div id="exclusive-products-list" class="space-y-3"></div>
+                    </div>
+                `;
+
+                const list = document.getElementById('exclusive-products-list');
+                const formatPrice = value => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
+                const readDraft = () => [...list.querySelectorAll('.exclusive-product-row')].map((row, index) => ({
+                    ...draft[index],
+                    spotlightBadge: row.querySelector('.exclusive-product-badge').value.trim(),
+                    spotlightDescription: row.querySelector('.exclusive-product-description').value.trim()
+                }));
+
+                const renderDraft = () => {
+                    list.replaceChildren();
+                    if (!draft.length) {
+                        const empty = document.createElement('p');
+                        empty.className = 'bg-admin-card border border-admin-border rounded-xl p-8 text-center text-xs text-admin-textMuted';
+                        empty.textContent = 'Nenhum produto selecionado. Promova produtos pela tela Produtos Anunciados.';
+                        list.appendChild(empty);
+                        return;
+                    }
+
+                    draft.forEach((product, index) => {
+                        const row = document.createElement('article');
+                        row.className = 'exclusive-product-row bg-admin-card border border-admin-border rounded-xl p-4 grid grid-cols-1 md:grid-cols-[72px_minmax(0,1fr)_auto] gap-4 items-center';
+                        const image = document.createElement('img');
+                        image.className = 'w-[72px] h-[72px] rounded-lg object-contain bg-white p-1';
+                        image.src = product.img_url || '';
+                        image.alt = '';
+                        const details = document.createElement('div');
+                        details.className = 'min-w-0 space-y-2';
+                        const title = document.createElement('div');
+                        title.className = 'font-bold text-sm text-white truncate';
+                        title.textContent = product.name || 'Produto sem nome';
+                        const price = document.createElement('div');
+                        price.className = 'text-[10px] text-admin-textMuted font-mono';
+                        price.textContent = `${formatPrice(product.price)} · ${product.category || 'Geral'}`;
+                        const badge = document.createElement('input');
+                        badge.className = 'exclusive-product-badge admin-input text-xs';
+                        badge.maxLength = 80;
+                        badge.value = product.spotlightBadge || product.badge || '';
+                        badge.setAttribute('aria-label', `Chamada para ${product.name || 'produto'}`);
+                        const description = document.createElement('textarea');
+                        description.className = 'exclusive-product-description admin-input text-xs';
+                        description.rows = 2;
+                        description.maxLength = 180;
+                        description.value = product.spotlightDescription || '';
+                        description.setAttribute('aria-label', `Descrição para ${product.name || 'produto'}`);
+                        details.append(title, price, badge, description);
+
+                        const actions = document.createElement('div');
+                        actions.className = 'flex md:flex-col gap-2 justify-end';
+                        const moveButton = (label, icon, offset) => {
+                            const button = document.createElement('button');
+                            button.type = 'button';
+                            button.className = 'w-9 h-9 rounded-lg border border-admin-border text-admin-textMuted hover:text-white disabled:opacity-30';
+                            button.title = label;
+                            button.setAttribute('aria-label', label);
+                            button.disabled = index + offset < 0 || index + offset >= draft.length;
+                            button.innerHTML = `<i class="fa-solid ${icon}"></i>`;
+                            button.addEventListener('click', () => {
+                                draft = readDraft();
+                                [draft[index], draft[index + offset]] = [draft[index + offset], draft[index]];
+                                renderDraft();
+                            });
+                            return button;
+                        };
+                        actions.append(moveButton('Mover para cima', 'fa-arrow-up', -1), moveButton('Mover para baixo', 'fa-arrow-down', 1));
+                        const removeButton = document.createElement('button');
+                        removeButton.type = 'button';
+                        removeButton.className = 'w-9 h-9 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10';
+                        removeButton.title = 'Remover das Escolhas Exclusivas';
+                        removeButton.setAttribute('aria-label', removeButton.title);
+                        removeButton.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+                        removeButton.addEventListener('click', () => {
+                            draft = readDraft();
+                            draft.splice(index, 1);
+                            renderDraft();
+                        });
+                        actions.appendChild(removeButton);
+                        row.append(image, details, actions);
+                        list.appendChild(row);
+                    });
+                };
+
+                document.getElementById('exclusive-products-save').addEventListener('click', async () => {
+                    const updatedProducts = readDraft();
+                    if (!await saveSettingsToServer({ 'admin-exclusive-products': updatedProducts })) {
+                        showToast('Não foi possível salvar as Escolhas Exclusivas.', 'error');
+                        return;
+                    }
+                    exclusiveProducts = updatedProducts;
+                    cacheSettingLocally('admin-exclusive-products', exclusiveProducts);
+                    showToast('Escolhas Exclusivas atualizadas.', 'success');
+                });
+
+                renderDraft();
             }
 
             async function loadApiTokensTab() {
@@ -1594,26 +1877,28 @@
                 let pageViews = 0;
                 let uniqueVisits = 0;
                 let clicks = [];
+                let clicksAreNewestFirst = true;
+                let statsSourceWarning = '';
                 
                 try {
                     const res = await authenticatedAdminFetch(`${API_BASE}/stats`);
-                    if (res.ok) {
-                        const stats = await res.json();
-                        pageViews = stats.pageViews || 0;
-                        uniqueVisits = stats.uniqueVisits || 0;
-                        clicks = stats.clicks || [];
-                    }
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const stats = await res.json();
+                    pageViews = stats.pageViews || 0;
+                    uniqueVisits = stats.uniqueVisits || 0;
+                    clicks = stats.clicks || [];
                 } catch(e) {
                     console.warn("Erro ao carregar estatísticas do servidor:", e);
+                    statsSourceWarning = 'Servidor indisponível. Exibindo dados locais deste navegador, que podem estar incompletos.';
+                    clicksAreNewestFirst = false;
                     pageViews = parseInt(localStorage.getItem('admin-page-views') || '0');
                     uniqueVisits = parseInt(localStorage.getItem('admin-visits') || '0');
                     clicks = JSON.parse(localStorage.getItem('admin-clicks')) || [];
                 }
                 
                 const totalClicks = clicks.length;
-                const ctr = pageViews > 0 ? ((totalClicks / pageViews) * 100).toFixed(1) : '0.0';
+                const clicksPerPage = pageViews > 0 ? ((totalClicks / pageViews) * 100).toFixed(1) : '0.0';
                 const clickedValue = clicks.reduce((sum, c) => sum + (parseFloat(c.price) || 0), 0);
-                const estRevenue = clickedValue * 0.085;
 
                 // Group clicks by product
                 const productClicksMap = {};
@@ -1636,7 +1921,7 @@
                 // Group clicks by category
                 const categoryClicksMap = {};
                 clicks.forEach(c => {
-                    const cat = c.category || 'Outros';
+                    const cat = String(c.category || 'Outros').trim().toLocaleLowerCase('pt-BR');
                     categoryClicksMap[cat] = (categoryClicksMap[cat] || 0) + 1;
                 });
 
@@ -1678,7 +1963,7 @@
                 const customProducts = JSON.parse(localStorage.getItem('admin-custom-products')) || [];
 
                 sortedProducts.slice(0, 10).forEach((p, idx) => {
-                    const realProd = customProducts.find(item => item.id === p.id);
+                    const realProd = customProducts.find(item => String(item.id) === String(p.id));
                     const imgUrl = realProd ? realProd.img_url : '';
                     const emoji = realProd ? realProd.emoji : '🎁';
 
@@ -1710,7 +1995,7 @@
 
                 // Last 5 clicks HTML
                 let lastClicksHTML = '';
-                const last5 = clicks.slice(-5).reverse();
+                const last5 = clicksAreNewestFirst ? clicks.slice(0, 5) : clicks.slice(-5).reverse();
                 last5.forEach(c => {
                     const date = new Date(c.timestamp);
                     const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -1736,7 +2021,8 @@
                         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
                                 <h2 class="text-xl font-bold text-white tracking-wide">Métricas & Engajamento da Loja</h2>
-                                <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Avalie os cliques dos links de afiliados, visualizações do site e estimativa de comissões.</p>
+                                <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Acompanhe as visualizações e os cliques registrados nos produtos da loja.</p>
+                                ${statsSourceWarning ? `<p class="text-xs text-amber-300 mt-2">${statsSourceWarning}</p>` : ''}
                             </div>
                             <button id="reset-stats-btn" class="shrink-0 bg-red-500/10 border border-red-500/20 hover:bg-red-500 hover:text-white text-red-400 font-extrabold px-5 py-3 rounded-xl uppercase tracking-wider text-xs transition duration-200 shadow-lg flex items-center gap-1.5 self-start md:self-auto">
                                 <i class="fa-solid fa-trash-can"></i> Resetar Métricas
@@ -1762,7 +2048,7 @@
                                     <i class="fa-solid fa-users text-admin-accentGold text-lg"></i>
                                 </div>
                                 <div>
-                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">Visitas Únicas</label>
+                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">Sessões Únicas</label>
                                     <span class="text-2xl font-black font-mono text-white">${uniqueVisits}</span>
                                 </div>
                             </div>
@@ -1784,8 +2070,8 @@
                                     <i class="fa-solid fa-percent text-emerald-400 text-lg"></i>
                                 </div>
                                 <div>
-                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">CTR Médio</label>
-                                    <span class="text-2xl font-black font-mono text-white">${ctr}%</span>
+                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">Cliques por 100 páginas</label>
+                                    <span class="text-2xl font-black font-mono text-white">${clicksPerPage}</span>
                                 </div>
                             </div>
 
@@ -1795,8 +2081,8 @@
                                     <i class="fa-solid fa-sack-dollar text-yellow-400 text-lg"></i>
                                 </div>
                                 <div>
-                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">Comissão Est. (8.5%)</label>
-                                    <span class="text-lg font-black font-mono text-emerald-400">R$ ${estRevenue.toFixed(2)}</span>
+                                    <label class="block text-[9px] uppercase font-bold text-admin-textMuted tracking-wider">Soma dos preços clicados</label>
+                                    <span class="text-lg font-black font-mono text-emerald-400">${clickedValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                 </div>
                             </div>
                         </div>
