@@ -31,10 +31,18 @@ O sistema entrega uma vitrine pública para os produtos e um painel interno para
 * O arquivo [admin.html](admin.html) contém o fluxo de login e a interface de gestão.
 * O login padrão é validado no servidor e o usuário é criado automaticamente no boot da aplicação.
 * Após logar, o administrador pode alterar produtos, banners, cores e configurações da vitrine.
+* Banners podem ser adicionados ou removidos dinamicamente; imagens enviadas no painel são convertidas em Base64 e persistidas no MariaDB.
 
 ### Backend
 * O arquivo [server.js](server.js) sobe a API, cria o banco se necessário, cria as tabelas e faz o seed inicial.
 * Também existe um endpoint de saúde em `/health` para monitoramento.
+
+### API e tokens
+
+* Swagger UI: `/api-docs`; especificação OpenAPI: `/api-docs/openapi.json`.
+* Após entrar no painel, use a aba **Tokens de API** para criar ou revogar tokens Bearer. O segredo é exibido somente uma vez; tokens novos expiram em 90 dias por padrão.
+* Operações administrativas exigem o cabeçalho `Authorization: Bearer <token>`. Leituras públicas da vitrine permanecem abertas.
+* Execute `npm run validate:api` para validar o OpenAPI e confirmar que todas as rotas Express estão documentadas.
 
 ## Funcionalidades principais
 

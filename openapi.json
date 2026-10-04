@@ -1,0 +1,195 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Tudo pra Você API",
+    "version": "1.0.0",
+    "description": "API da vitrine, painel administrativo e gerenciamento de tokens. Operações administrativas exigem token Bearer; o token aparece apenas uma vez ao ser criado."
+  },
+  "servers": [{ "url": "/", "description": "Servidor atual" }],
+  "tags": [
+    { "name": "Produtos", "description": "Catálogo público e manutenção administrativa de produtos." },
+    { "name": "Configurações", "description": "Configurações públicas da loja e gravação administrativa." },
+    { "name": "Autenticação", "description": "Login e tokens de acesso da administração." },
+    { "name": "Estatísticas", "description": "Visitas, cliques e métricas administrativas." },
+    { "name": "Sistema", "description": "Saúde e páginas web." }
+  ],
+  "paths": {
+    "/api/products": {
+      "get": {
+        "tags": ["Produtos"],
+        "summary": "Listar produtos",
+        "operationId": "listProducts",
+        "responses": { "200": { "description": "Produtos ordenados pela atualização mais recente.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } } } } }, "500": { "$ref": "#/components/responses/ServerError" } }
+      },
+      "post": {
+        "tags": ["Produtos"],
+        "summary": "Cadastrar produto",
+        "operationId": "createProduct",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductInput" } } } },
+        "responses": { "201": { "description": "Produto criado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessWithId" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
+    "/api/products/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/ProductId" }],
+      "put": {
+        "tags": ["Produtos"],
+        "summary": "Atualizar produto",
+        "operationId": "updateProduct",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductInput" } } } },
+        "responses": { "200": { "$ref": "#/components/responses/Success" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      },
+      "delete": {
+        "tags": ["Produtos"],
+        "summary": "Excluir produto",
+        "operationId": "deleteProduct",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "$ref": "#/components/responses/Success" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
+    "/api/products/sync": {
+      "post": {
+        "tags": ["Produtos"],
+        "summary": "Sincronizar produtos em lote",
+        "operationId": "syncProducts",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ProductInput" } } } } },
+        "responses": { "200": { "description": "Resultado da sincronização.", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "inserted": { "type": "integer" }, "updated": { "type": "integer" } } } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "tags": ["Configurações"],
+        "summary": "Ler configurações públicas da loja",
+        "operationId": "getSettings",
+        "responses": { "200": { "description": "Mapa de configurações armazenadas.", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } }, "500": { "$ref": "#/components/responses/ServerError" } }
+      },
+      "post": {
+        "tags": ["Configurações"],
+        "summary": "Criar ou atualizar configurações",
+        "operationId": "saveSettings",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } },
+        "responses": { "200": { "$ref": "#/components/responses/Success" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Entrar no painel e emitir token de sessão",
+        "operationId": "login",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["username", "password"], "properties": { "username": { "type": "string" }, "password": { "type": "string", "format": "password" } } } } } },
+        "responses": { "200": { "description": "Sessão administrativa criada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Encerrar sessão administrativa",
+        "operationId": "logout",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "$ref": "#/components/responses/Success" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/api/auth/tokens": {
+      "get": {
+        "tags": ["Autenticação"],
+        "summary": "Listar tokens de API",
+        "operationId": "listApiTokens",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Metadados dos tokens; segredos não são retornados.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ApiToken" } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      },
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Criar token de API",
+        "operationId": "createApiToken",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string", "maxLength": 100 }, "expiresInDays": { "type": ["integer", "null"], "minimum": 1, "maximum": 3650, "default": 90, "description": "Use null para não expirar." } } } } } },
+        "responses": { "201": { "description": "Token criado. O valor completo é exibido somente nesta resposta.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreatedApiToken" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
+    "/api/auth/tokens/{id}": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 } }],
+      "delete": {
+        "tags": ["Autenticação"],
+        "summary": "Revogar token de API",
+        "operationId": "revokeApiToken",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "$ref": "#/components/responses/Success" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
+    "/api/visit": {
+      "post": {
+        "tags": ["Estatísticas"],
+        "summary": "Registrar visita da loja",
+        "operationId": "recordVisit",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "isUnique": { "type": "boolean" } } } } } },
+        "responses": { "200": { "description": "Contadores de visitas atualizados.", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "pageViews": { "type": "integer" }, "uniqueVisits": { "type": "integer" } } } } } }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
+    "/api/click": {
+      "post": {
+        "tags": ["Estatísticas"],
+        "summary": "Registrar clique em produto",
+        "operationId": "recordClick",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["productId"], "properties": { "productId": { "type": ["string", "integer"] }, "name": { "type": "string" }, "category": { "type": "string" }, "price": { "type": "number" }, "timestamp": { "type": "integer", "format": "int64" } } } } } },
+        "responses": { "200": { "$ref": "#/components/responses/Success" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "tags": ["Estatísticas"],
+        "summary": "Consultar estatísticas administrativas",
+        "operationId": "getStats",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Visitas, visitantes únicos e cliques.", "content": { "application/json": { "schema": { "type": "object", "properties": { "pageViews": { "type": "integer" }, "uniqueVisits": { "type": "integer" }, "clicks": { "type": "array", "items": { "type": "object" } } } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
+    "/api/stats/reset": {
+      "post": {
+        "tags": ["Estatísticas"],
+        "summary": "Zerar estatísticas",
+        "operationId": "resetStats",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "$ref": "#/components/responses/Success" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
+    "/api-docs": {
+      "get": { "tags": ["Sistema"], "summary": "Abrir documentação interativa Swagger", "operationId": "swaggerUi", "responses": { "200": { "description": "Interface Swagger UI." } } }
+    },
+    "/api-docs/openapi.json": {
+      "get": { "tags": ["Sistema"], "summary": "Obter especificação OpenAPI", "operationId": "getOpenApiSpec", "responses": { "200": { "description": "Documento OpenAPI 3.1.", "content": { "application/json": { "schema": { "type": "object" } } } } } }
+    },
+    "/health": {
+      "get": { "tags": ["Sistema"], "summary": "Verificar saúde do servidor", "operationId": "healthCheck", "responses": { "200": { "description": "Servidor ativo.", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean", "example": true } } } } } } } }
+    },
+    "/admin": {
+      "get": { "tags": ["Sistema"], "summary": "Abrir painel administrativo", "operationId": "adminPage", "responses": { "200": { "description": "Página HTML do painel." } } }
+    },
+    "/": {
+      "get": { "tags": ["Sistema"], "summary": "Abrir vitrine", "operationId": "storefrontPage", "responses": { "200": { "description": "Página HTML da loja." } } }
+    }
+  },
+  "components": {
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "opaque token" } },
+    "parameters": { "ProductId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } },
+    "schemas": {
+      "Product": { "allOf": [{ "$ref": "#/components/schemas/ProductInput" }, { "type": "object", "properties": { "id": { "type": ["string", "integer"] }, "created_at": { "type": "string", "format": "date-time" }, "updated_at": { "type": "string", "format": "date-time" } } }] },
+      "ProductInput": { "type": "object", "properties": { "id": { "type": ["string", "integer"] }, "name": { "type": "string" }, "category": { "type": "string" }, "brand": { "type": "string" }, "price": { "type": "number" }, "oldPrice": { "type": ["number", "null"] }, "badge": { "type": "string" }, "emoji": { "type": "string" }, "glowColor": { "type": "string" }, "searchKeys": { "type": "string" }, "url": { "type": "string" }, "img_url": { "type": "string", "description": "URL ou Data URL Base64 PNG/JPEG/WebP." }, "img_url_2": { "type": "string", "description": "URL ou Data URL Base64 PNG/JPEG/WebP." }, "video_url": { "type": "string" } } },
+      "Success": { "type": "object", "properties": { "success": { "type": "boolean", "example": true } } },
+      "SuccessWithId": { "allOf": [{ "$ref": "#/components/schemas/Success" }, { "type": "object", "properties": { "id": { "type": "string" } } }] },
+      "LoginResponse": { "type": "object", "properties": { "success": { "type": "boolean" }, "accessToken": { "type": "string" }, "expiresAt": { "type": "string", "format": "date-time" }, "user": { "type": "object", "properties": { "id": { "type": "integer" }, "username": { "type": "string" }, "displayName": { "type": "string" }, "role": { "type": "string" } } } } },
+      "ApiToken": { "type": "object", "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" }, "lastUsedAt": { "type": ["string", "null"], "format": "date-time" }, "expiresAt": { "type": ["string", "null"], "format": "date-time" }, "revokedAt": { "type": ["string", "null"], "format": "date-time" } } },
+      "CreatedApiToken": { "type": "object", "properties": { "success": { "type": "boolean" }, "token": { "type": "string" }, "expiresAt": { "type": ["string", "null"], "format": "date-time" }, "apiToken": { "$ref": "#/components/schemas/ApiToken" } } },
+      "Error": { "type": "object", "properties": { "error": { "type": "string" } } }
+    },
+    "responses": {
+      "Success": { "description": "Operação concluída.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Success" } } } },
+      "BadRequest": { "description": "Requisição inválida.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unauthorized": { "description": "Token ausente, inválido, expirado ou revogado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "NotFound": { "description": "Recurso não encontrado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "ServerError": { "description": "Erro interno do servidor.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+    }
+  }
+}

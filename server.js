@@ -3,6 +3,8 @@ const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const swaggerUi = require('swagger-ui-express');
+const openApiSpec = require('./openapi.json');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -50,6 +52,76 @@ function verifyPassword(password, salt, expectedHash) {
         return false;
     }
     return crypto.timingSafeEqual(hash, expectedBuffer);
+}
+
+function isSupportedImageDataUrl(value) {
+    const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/i.exec(value);
+    if (!match) return false;
+
+    const image = Buffer.from(match[2], 'base64');
+    if (image.toString('base64') !== match[2]) return false;
+
+    switch (match[1].toLowerCase()) {
+        case 'png':
+            return image.length >= 8 && image.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'));
+        case 'jpeg':
+            return image.length >= 3 && image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff;
+        case 'webp':
+            return image.length >= 12 && image.subarray(0, 4).toString() === 'RIFF' && image.subarray(8, 12).toString() === 'WEBP';
+        default:
+            return false;
+    }
+}
+
+function hasUnsupportedImageData(value) {
+    if (typeof value === 'string') {
+        return value.slice(0, 5).toLowerCase() === 'data:' && !isSupportedImageDataUrl(value);
+    }
+    if (Array.isArray(value)) {
+        return value.some(hasUnsupportedImageData);
+    }
+    if (value && typeof value === 'object') {
+        return Object.values(value).some(hasUnsupportedImageData);
+    }
+    return false;
+}
+
+function hashApiToken(token) {
+    return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function createApiToken() {
+    return `tpv_${crypto.randomBytes(32).toString('hex')}`;
+}
+
+async function requireApiToken(req, res, next) {
+    const authorization = req.get('authorization') || '';
+    const match = /^Bearer\s+(.+)$/i.exec(authorization);
+    if (!match) {
+        return res.status(401).json({ error: 'A valid Bearer token is required.' });
+    }
+
+    try {
+        const [rows] = await pool.query(
+            `SELECT t.id AS token_id, t.token_type, u.id AS user_id, u.username, u.display_name, u.role
+             FROM api_tokens t
+             JOIN admin_users u ON u.id = t.created_by
+             WHERE t.token_hash = ? AND t.revoked_at IS NULL
+               AND (t.expires_at IS NULL OR t.expires_at > CURRENT_TIMESTAMP)
+               AND u.is_active = 1
+             LIMIT 1`,
+            [hashApiToken(match[1])]
+        );
+        if (!rows.length) {
+            return res.status(401).json({ error: 'Invalid, expired, or revoked token.' });
+        }
+
+        req.adminToken = rows[0];
+        await pool.query('UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?', [req.adminToken.token_id]);
+        next();
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 }
 
 async function ensureTable(query) {
@@ -161,6 +233,21 @@ async function initDB() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
 
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS api_tokens (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                token_hash CHAR(64) NOT NULL UNIQUE,
+                name VARCHAR(100) NOT NULL,
+                token_type ENUM('session', 'api') NOT NULL,
+                created_by INT NOT NULL,
+                expires_at DATETIME NULL,
+                last_used_at DATETIME NULL,
+                revoked_at DATETIME NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_api_tokens_user (created_by, token_type, revoked_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+
         console.log("Database tables verified/created successfully.");
 
         await seedAdminUser();
@@ -234,9 +321,12 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
-app.post('/api/products', async (req, res) => {
+app.post('/api/products', requireApiToken, async (req, res) => {
     try {
         const p = req.body;
+        if (hasUnsupportedImageData([p.img_url, p.img_url_2])) {
+            return res.status(400).json({ error: 'Images must be PNG, JPG, or WebP files.' });
+        }
         if (!p.name || !p.url) {
             return res.status(400).json({ error: "Name and URL are required." });
         }
@@ -269,10 +359,13 @@ app.post('/api/products', async (req, res) => {
     }
 });
 
-app.put('/api/products/:id', async (req, res) => {
+app.put('/api/products/:id', requireApiToken, async (req, res) => {
     try {
         const id = req.params.id;
         const p = req.body;
+        if (hasUnsupportedImageData([p.img_url, p.img_url_2])) {
+            return res.status(400).json({ error: 'Images must be PNG, JPG, or WebP files.' });
+        }
         
         // Find existing product first
         const [existing] = await pool.query("SELECT * FROM products WHERE id = ?", [id]);
@@ -309,7 +402,7 @@ app.put('/api/products/:id', async (req, res) => {
     }
 });
 
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', requireApiToken, async (req, res) => {
     try {
         const id = req.params.id;
         const [result] = await pool.query("DELETE FROM products WHERE id = ?", [id]);
@@ -323,11 +416,14 @@ app.delete('/api/products/:id', async (req, res) => {
 });
 
 // Synchronize products in bulk, ensuring no duplicates and updating price/oldPrice if changed
-app.post('/api/products/sync', async (req, res) => {
+app.post('/api/products/sync', requireApiToken, async (req, res) => {
     try {
         const syncedProducts = req.body;
         if (!Array.isArray(syncedProducts)) {
             return res.status(400).json({ error: "Body must be an array of products." });
+        }
+        if (hasUnsupportedImageData(syncedProducts.map(product => [product.img_url, product.img_url_2]))) {
+            return res.status(400).json({ error: 'Images must be PNG, JPG, or WebP files.' });
         }
 
         let updatedCount = 0;
@@ -414,9 +510,12 @@ app.get('/api/settings', async (req, res) => {
     }
 });
 
-app.post('/api/settings', async (req, res) => {
+app.post('/api/settings', requireApiToken, async (req, res) => {
     try {
         const settings = req.body;
+        if (hasUnsupportedImageData(settings)) {
+            return res.status(400).json({ error: 'Images must be PNG, JPG, or WebP files.' });
+        }
         for (const [key, value] of Object.entries(settings)) {
             const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
             await pool.query(
@@ -455,8 +554,18 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials.' });
         }
 
+        const accessToken = createApiToken();
+        const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000);
+        await pool.query(
+            `INSERT INTO api_tokens (token_hash, name, token_type, created_by, expires_at)
+             VALUES (?, ?, 'session', ?, ?)`,
+            [hashApiToken(accessToken), `Painel: ${adminUser.username}`, adminUser.id, expiresAt]
+        );
+
         res.json({
             success: true,
+            accessToken,
+            expiresAt: expiresAt.toISOString(),
             user: {
                 id: adminUser.id,
                 username: adminUser.username,
@@ -464,6 +573,75 @@ app.post('/api/auth/login', async (req, res) => {
                 role: adminUser.role
             }
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/auth/logout', requireApiToken, async (req, res) => {
+    if (req.adminToken.token_type !== 'session') {
+        return res.status(400).json({ error: 'Only an admin session can be logged out here.' });
+    }
+    await pool.query('UPDATE api_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id = ?', [req.adminToken.token_id]);
+    res.json({ success: true });
+});
+
+app.get('/api/auth/tokens', requireApiToken, async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT id, name, created_at AS createdAt, last_used_at AS lastUsedAt,
+                    expires_at AS expiresAt, revoked_at AS revokedAt
+             FROM api_tokens WHERE created_by = ? AND token_type = 'api'
+             ORDER BY created_at DESC`,
+            [req.adminToken.user_id]
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/auth/tokens', requireApiToken, async (req, res) => {
+    try {
+        const name = String(req.body?.name || '').trim();
+        const requestedExpiry = req.body?.expiresInDays;
+        const expiresInDays = requestedExpiry === null ? null : (requestedExpiry === undefined ? 90 : Number(requestedExpiry));
+        if (!name || name.length > 100) {
+            return res.status(400).json({ error: 'Token name is required and must be 100 characters or fewer.' });
+        }
+        if (expiresInDays !== null && (!Number.isInteger(expiresInDays) || expiresInDays < 1 || expiresInDays > 3650)) {
+            return res.status(400).json({ error: 'expiresInDays must be between 1 and 3650, or null.' });
+        }
+
+        const token = createApiToken();
+        const expiresAt = expiresInDays === null ? null : new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
+        const [result] = await pool.query(
+            `INSERT INTO api_tokens (token_hash, name, token_type, created_by, expires_at)
+             VALUES (?, ?, 'api', ?, ?)`,
+            [hashApiToken(token), name, req.adminToken.user_id, expiresAt]
+        );
+        res.status(201).json({
+            success: true,
+            token,
+            expiresAt: expiresAt ? expiresAt.toISOString() : null,
+            apiToken: { id: result.insertId, name, expiresAt: expiresAt ? expiresAt.toISOString() : null }
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/auth/tokens/:id', requireApiToken, async (req, res) => {
+    try {
+        const [result] = await pool.query(
+            `UPDATE api_tokens SET revoked_at = CURRENT_TIMESTAMP
+             WHERE id = ? AND created_by = ? AND token_type = 'api' AND revoked_at IS NULL`,
+            [req.params.id, req.adminToken.user_id]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Active API token not found.' });
+        }
+        res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -517,7 +695,7 @@ app.post('/api/click', async (req, res) => {
     }
 });
 
-app.get('/api/stats', async (req, res) => {
+app.get('/api/stats', requireApiToken, async (req, res) => {
     try {
         // Get visits and views
         const [settingsRows] = await pool.query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('admin-page-views', 'admin-visits')");
@@ -542,7 +720,7 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
-app.post('/api/stats/reset', async (req, res) => {
+app.post('/api/stats/reset', requireApiToken, async (req, res) => {
     try {
         // Reset statistics
         await pool.query("INSERT INTO settings (setting_key, setting_value) VALUES ('admin-page-views', '0') ON DUPLICATE KEY UPDATE setting_value = '0'");
@@ -555,6 +733,9 @@ app.post('/api/stats/reset', async (req, res) => {
 });
 
 // Admin redirect helper
+app.get('/api-docs/openapi.json', (req, res) => res.json(openApiSpec));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, { swaggerOptions: { persistAuthorization: false } }));
+
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin.html'));
 });

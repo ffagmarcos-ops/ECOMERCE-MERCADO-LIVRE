@@ -318,7 +318,7 @@
 
     <!-- Main Banner Carousel Section -->
     <section class="relative w-full overflow-hidden border-b border-brand-blush h-[340px] md:h-[480px]" id="hero-carousel">
-        
+        <div id="carousel-slides" class="absolute inset-0">
         <!-- Slide 1: Casa e Cozinha -->
         <a href="https://produto.mercadolivre.com.br/MLB-6239289210-cafeteira-britnia-bcf15-inox-15-xicaras-550w-rosa-127v-_JM?matt_event_ts=1780069575273&matt_d2id=&matt_tracing_id=c05a8b8f-dd3e-40e9-94d8-b748b4374599" target="_blank" class="carousel-slide absolute inset-0 w-full h-full opacity-100 transition-opacity duration-1000 ease-in-out bg-cover bg-right md:bg-center z-10" style="background-image: url('images/banner_casa.png');">
             <!-- Full clickable overlay hover effect -->
@@ -336,6 +336,7 @@
             <!-- Full clickable overlay hover effect -->
             <div class="w-full h-full bg-black/0 hover:bg-black/5 transition duration-300"></div>
         </a>
+        </div>
 
         <!-- Carousel Arrows (Desktop only) -->
         <button id="carousel-prev" class="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 h-12 w-12 rounded-full bg-white/80 backdrop-blur-md border border-brand-blush items-center justify-center text-brand-rose hover:text-brand-pink hover:border-brand-pink/50 transition duration-300">
@@ -346,7 +347,7 @@
         </button>
 
         <!-- Carousel Dots Indicator -->
-        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex space-x-3">
+        <div id="carousel-dots" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex space-x-3">
             <button class="carousel-dot h-2.5 w-2.5 rounded-full bg-brand-pink shadow shadow-brand-pink/50 transition duration-300" data-slide="0"></button>
             <button class="carousel-dot h-2.5 w-2.5 rounded-full bg-brand-rose/20 hover:bg-brand-pink/40 transition duration-300" data-slide="1"></button>
             <button class="carousel-dot h-2.5 w-2.5 rounded-full bg-brand-rose/20 hover:bg-brand-pink/40 transition duration-300" data-slide="2"></button>
@@ -2320,6 +2321,10 @@
                         let changed = false;
                         for (const [key, val] of Object.entries(settings)) {
                             const stringVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+                            if (/data:image\/(png|jpeg|webp);base64,/i.test(stringVal)) {
+                                localStorage.removeItem(key);
+                                continue;
+                            }
                             if (localStorage.getItem(key) !== stringVal) {
                                 localStorage.setItem(key, stringVal);
                                 changed = true;
@@ -2338,23 +2343,26 @@
                                 if (colors.bgSoftPink) root.style.setProperty('--brand-softPink', colors.bgSoftPink);
                                 if (colors.bgBlush) root.style.setProperty('--brand-blush', colors.bgBlush);
                             }
-                            
-                            // Logo
-                            const logo = settings['admin-logo'];
-                            if (logo) {
-                                document.querySelectorAll('img[src="images/logo.png"]').forEach(img => {
-                                    img.src = logo;
-                                });
-                            }
+                        }
 
-                            // Category Images
-                            const catImages = settings['admin-categories-images'];
-                            if (catImages) {
-                                for (const [key, value] of Object.entries(catImages)) {
-                                    const img = document.querySelector(`img[alt="${key}"]`);
-                                    if (img && value) {
-                                        img.src = value;
-                                    }
+                        const logo = settings['admin-logo'];
+                        if (logo) {
+                            document.querySelectorAll('img[src="images/logo.png"], img.fallback-logo').forEach(img => {
+                                img.src = logo;
+                            });
+                        }
+
+                        const banners = settings['admin-banners'];
+                        if (Array.isArray(banners)) {
+                            renderBannerCarousel(banners);
+                        }
+
+                        const catImages = settings['admin-categories-images'];
+                        if (catImages) {
+                            for (const [key, value] of Object.entries(catImages)) {
+                                const img = document.querySelector(`img[alt="${key}"]`);
+                                if (img && value) {
+                                    img.src = value;
                                 }
                             }
                         }
@@ -2406,15 +2414,88 @@
 
 
             // --- CAROUSEL SLIDER LOGIC ---
-            const slides = document.querySelectorAll('.carousel-slide');
-            const dots = document.querySelectorAll('.carousel-dot');
+            let slides = [...document.querySelectorAll('.carousel-slide')];
+            let dots = [...document.querySelectorAll('.carousel-dot')];
             const prevBtn = document.getElementById('carousel-prev');
             const nextBtn = document.getElementById('carousel-next');
             const carouselContainer = document.getElementById('hero-carousel');
+            const slidesContainer = document.getElementById('carousel-slides');
+            const dotsContainer = document.getElementById('carousel-dots');
             let currentSlide = 0;
             let slideInterval;
 
+            function renderBannerCarousel(banners) {
+                if (!slidesContainer || !dotsContainer) return;
+                slidesContainer.replaceChildren();
+                dotsContainer.replaceChildren();
+
+                banners.forEach((banner, index) => {
+                    const slide = document.createElement('a');
+                    slide.className = 'carousel-slide absolute inset-0 w-full h-full opacity-0 transition-opacity duration-1000 ease-in-out bg-cover bg-right md:bg-center z-0';
+                    slide.href = banner.affiliateUrl || '#';
+                    slide.target = '_blank';
+                    slide.rel = 'noopener noreferrer';
+                    slide.dataset.slide = String(index);
+                    slide.setAttribute('aria-label', banner.title || `Banner ${index + 1}`);
+                    if (banner.imageUrl) slide.style.backgroundImage = `url("${banner.imageUrl}")`;
+
+                    const defaultImages = ['images/banner_casa.png', 'images/banner_tech.png', 'images/banner_beleza.png'];
+                    const defaultTitles = ['Cafeteira Britânia Rosa', 'Aspirador Vertical Rosa', 'Ventilador Super Power'];
+                    const defaultBadges = ['COZINHA CHARMOSA ☕', 'CASA IMPECÁVEL 🧹', 'REFRESCO E CONFORTO 💨'];
+                    const isDefaultBanner = defaultImages.includes(banner.imageUrl) &&
+                        defaultTitles[index] === banner.title && defaultBadges[index] === banner.badge;
+
+                    if (!isDefaultBanner && (banner.badge || banner.title || banner.subtitle)) {
+                        const overlay = document.createElement('div');
+                        overlay.className = 'container mx-auto px-4 h-full flex items-center relative z-20 pointer-events-none';
+                        const card = document.createElement('div');
+                        card.className = 'max-w-xs md:max-w-lg text-left bg-white/75 backdrop-blur-md p-4 md:p-8 rounded-3xl border border-white/50 shadow-xl ml-2 md:ml-12 animate-fade-in';
+
+                        if (banner.badge) {
+                            const badge = document.createElement('span');
+                            badge.className = 'inline-block bg-brand-pink text-white text-[10px] md:text-xs font-black uppercase tracking-widest px-2.5 py-0.5 md:py-1 rounded-full mb-2 md:mb-3';
+                            badge.textContent = banner.badge;
+                            card.appendChild(badge);
+                        }
+                        if (banner.title) {
+                            const title = document.createElement('h2');
+                            title.className = 'text-xl md:text-4xl font-black text-brand-rose leading-tight mb-1 md:mb-2';
+                            title.textContent = banner.title;
+                            card.appendChild(title);
+                        }
+                        if (banner.subtitle) {
+                            const subtitle = document.createElement('p');
+                            subtitle.className = 'text-xs md:text-base text-brand-darkGray/90 font-medium mb-3 md:mb-6';
+                            subtitle.textContent = banner.subtitle;
+                            card.appendChild(subtitle);
+                        }
+                        overlay.appendChild(card);
+                        slide.appendChild(overlay);
+                    } else {
+                        const hoverOverlay = document.createElement('div');
+                        hoverOverlay.className = 'w-full h-full bg-black/0 hover:bg-black/5 transition duration-300';
+                        slide.appendChild(hoverOverlay);
+                    }
+
+                    slidesContainer.appendChild(slide);
+
+                    const dot = document.createElement('button');
+                    dot.type = 'button';
+                    dot.className = 'carousel-dot h-2.5 w-2.5 rounded-full bg-brand-rose/20 hover:bg-brand-pink/40 transition duration-300';
+                    dot.dataset.slide = String(index);
+                    dot.setAttribute('aria-label', `Mostrar banner ${index + 1}`);
+                    dotsContainer.appendChild(dot);
+                });
+
+                slides = [...slidesContainer.querySelectorAll('.carousel-slide')];
+                dots = [...dotsContainer.querySelectorAll('.carousel-dot')];
+                currentSlide = 0;
+                showSlide(currentSlide);
+                startSlideShow();
+            }
+
             function showSlide(index) {
+                if (slides.length === 0) return;
                 if (index >= slides.length) index = 0;
                 if (index < 0) index = slides.length - 1;
                 
@@ -2452,15 +2533,14 @@
             if (nextBtn) nextBtn.addEventListener('click', nextSlide);
             if (prevBtn) prevBtn.addEventListener('click', prevSlide);
 
-            dots.forEach(dot => {
-                dot.addEventListener('click', (e) => {
-                    const slideIndex = parseInt(e.target.getAttribute('data-slide'));
-                    showSlide(slideIndex);
-                });
+            if (dotsContainer) dotsContainer.addEventListener('click', event => {
+                const dot = event.target.closest('.carousel-dot');
+                if (dot) showSlide(Number(dot.dataset.slide));
             });
 
             function startSlideShow() {
-                slideInterval = setInterval(nextSlide, 5000);
+                stopSlideShow();
+                if (slides.length > 1) slideInterval = setInterval(nextSlide, 5000);
             }
 
             function stopSlideShow() {
@@ -2474,27 +2554,20 @@
             }
 
             // Track banner clicks
-            slides.forEach((slide, idx) => {
-                slide.addEventListener('click', () => {
-                    const href = slide.getAttribute('href') || '';
-                    if (href) {
-                        const cleanUrl = href.split('?')[0];
-                        const prod = products.find(p => p.url && p.url.split('?')[0] === cleanUrl);
-                        if (prod) {
-                            window.trackProductClick(prod.id);
-                        } else {
-                            let bannerTitle = "Banner " + (idx + 1);
-                            const h2 = slide.querySelector('h2') || slide.querySelector('.banner-title');
-                            if (h2) bannerTitle = h2.textContent.trim();
-                            window.trackProductClickDirect({
-                                id: "banner-" + (idx + 1),
-                                name: bannerTitle,
-                                category: "Banners",
-                                price: 0
-                            });
-                        }
-                    }
-                });
+            if (carouselContainer) carouselContainer.addEventListener('click', event => {
+                const slide = event.target.closest('.carousel-slide');
+                if (!slide) return;
+                const href = slide.getAttribute('href') || '';
+                if (!href || href === '#') return;
+                const cleanUrl = href.split('?')[0];
+                const product = products.find(item => item.url && item.url.split('?')[0] === cleanUrl);
+                if (product) {
+                    window.trackProductClick(product.id);
+                } else {
+                    const index = Number(slide.dataset.slide) || 0;
+                    const bannerTitle = slide.querySelector('h2')?.textContent.trim() || `Banner ${index + 1}`;
+                    window.trackProductClickDirect({ id: `banner-${index + 1}`, name: bannerTitle, category: 'Banners', price: 0 });
+                }
             });
 
 

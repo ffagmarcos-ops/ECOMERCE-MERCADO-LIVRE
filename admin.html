@@ -253,18 +253,63 @@
         document.addEventListener('DOMContentLoaded', () => {
             // API Base and Sync Helper
             const API_BASE = (window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+            const adminAccessTokenKey = 'admin-access-token';
+
+            async function authenticatedAdminFetch(url, options = {}) {
+                const headers = new Headers(options.headers || {});
+                const accessToken = sessionStorage.getItem(adminAccessTokenKey);
+                if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+                const response = await fetch(url, { ...options, headers });
+                if (response.status === 401 && accessToken) {
+                    sessionStorage.removeItem(adminSessionKey);
+                    sessionStorage.removeItem(adminUserKey);
+                    sessionStorage.removeItem(adminAccessTokenKey);
+                    showLoginScreen();
+                }
+                return response;
+            }
 
             async function saveSettingsToServer(settings) {
                 try {
-                    await fetch(`${API_BASE}/settings`, {
+                    const response = await authenticatedAdminFetch(`${API_BASE}/settings`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(settings)
                     });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return true;
                 } catch(e) {
                     console.warn("Erro ao salvar configurações no servidor:", e);
+                    return false;
                 }
             }
+
+            const supportedImageExtensions = {
+                png: 'image/png',
+                jpg: 'image/jpeg',
+                jpeg: 'image/jpeg',
+                webp: 'image/webp'
+            };
+
+            function isSupportedImageFile(file) {
+                const extension = file.name.split('.').pop().toLowerCase();
+                if (supportedImageExtensions[extension] !== file.type) {
+                    showToast('Formato inválido. Envie uma imagem PNG, JPG ou WebP.', 'error');
+                    return false;
+                }
+                return true;
+            }
+
+            function cacheSettingLocally(key, value) {
+                const serialized = typeof value === 'object' ? JSON.stringify(value) : String(value);
+                if (/data:image\/(png|jpeg|webp);base64,/i.test(serialized)) {
+                    localStorage.removeItem(key);
+                    return;
+                }
+                localStorage.setItem(key, serialized);
+            }
+
+            let logoImageSource = localStorage.getItem('admin-logo') || 'images/logo.png';
 
             // Inicializa chave de API padrão se não estiver configurada no navegador (Bypassing GitHub secret scanning via Base64 decoding)
             if (!localStorage.getItem('gemini-api-key')) {
@@ -273,10 +318,9 @@
             
             // Dynamics logo sync across headers
             function syncLogo() {
-                const storedLogo = localStorage.getItem('admin-logo');
-                if (storedLogo) {
+                if (logoImageSource) {
                     document.querySelectorAll('img[src="images/logo.png"], img.fallback-logo').forEach(img => {
-                        img.src = storedLogo;
+                        img.src = logoImageSource;
                     });
                 }
             }
@@ -1018,7 +1062,8 @@
                 { id: 'cores-config', label: 'Customizar Cores', icon: 'fa-solid fa-palette' },
                 { id: 'produtos-config', label: 'Cadastrar Produtos', icon: 'fa-solid fa-cart-plus' },
                 { id: 'marketing-config', label: 'Marketing & SEO', icon: 'fa-solid fa-bullhorn' },
-                { id: 'creatives-config', label: 'Criador de Criativos', icon: 'fa-solid fa-wand-magic-sparkles' }
+                { id: 'creatives-config', label: 'Criador de Criativos', icon: 'fa-solid fa-wand-magic-sparkles' },
+                { id: 'api-tokens-config', label: 'Tokens de API', icon: 'fa-solid fa-key' }
             ];
 
             let activeTabId = 'estatisticas-config';
@@ -1140,7 +1185,7 @@
                 }, 500);
             }
 
-            if (sessionStorage.getItem(adminSessionKey) === 'true') {
+            if (sessionStorage.getItem(adminSessionKey) === 'true' && sessionStorage.getItem(adminAccessTokenKey)) {
                 showAdminPanel();
             }
 
@@ -1150,11 +1195,13 @@
                     if (settingsRes.ok) {
                         const settings = await settingsRes.json();
                         for (const [key, val] of Object.entries(settings)) {
-                            const stringVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
-                            localStorage.setItem(key, stringVal);
+                            cacheSettingLocally(key, val);
                         }
                         
                         // Hydrate variables
+                        if (settings['admin-logo']) {
+                            logoImageSource = settings['admin-logo'];
+                        }
                         if (settings['admin-colors']) {
                             brandColors = settings['admin-colors'];
                         }
@@ -1274,6 +1321,7 @@
                     showToast('Acesso autorizado! Carregando painel de configuração...', 'success');
                         sessionStorage.setItem(adminSessionKey, 'true');
                         sessionStorage.setItem(adminUserKey, JSON.stringify(payload.user || {}));
+                        sessionStorage.setItem(adminAccessTokenKey, payload.accessToken);
                         showAdminPanel();
                     } else {
                         showToast('Usuário ou senha incorretos!', 'error');
@@ -1283,9 +1331,15 @@
                 }
             });
 
-            logoutBtn.addEventListener('click', () => {
+            logoutBtn.addEventListener('click', async () => {
+                try {
+                    await authenticatedAdminFetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+                } catch (error) {
+                    console.warn('Erro ao revogar sessão no servidor:', error);
+                }
                 sessionStorage.removeItem(adminSessionKey);
                 sessionStorage.removeItem(adminUserKey);
+                sessionStorage.removeItem(adminAccessTokenKey);
                 showToast('Desconectado com sucesso!', 'info');
                 showLoginScreen();
             });
@@ -1348,8 +1402,127 @@
                         case 'creatives-config':
                             loadCreativesTab();
                             break;
+                        case 'api-tokens-config':
+                            loadApiTokensTab();
+                            break;
                     }
                 }, 200);
+            }
+
+            async function loadApiTokensTab() {
+                tabContent.innerHTML = `
+                    <div class="space-y-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">Tokens de API</h2>
+                            <p class="text-xs text-admin-textMuted mt-1">Crie credenciais Bearer para integrar clientes autorizados.</p>
+                        </div>
+                        <form id="create-api-token-form" class="bg-admin-bg border border-admin-border rounded-xl p-5 grid grid-cols-1 md:grid-cols-[1fr_180px_auto] gap-4 items-end">
+                            <div>
+                                <label class="admin-label" for="api-token-name">Nome do token</label>
+                                <input id="api-token-name" class="admin-input" maxlength="100" placeholder="Ex.: Integração de estoque" required>
+                            </div>
+                            <div>
+                                <label class="admin-label" for="api-token-expiry">Validade</label>
+                                <select id="api-token-expiry" class="admin-input bg-admin-bg">
+                                    <option value="30">30 dias</option>
+                                    <option value="90" selected>90 dias</option>
+                                    <option value="365">1 ano</option>
+                                    <option value="never">Sem expiração</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black font-extrabold px-5 py-3 rounded-lg text-xs uppercase">Criar token</button>
+                        </form>
+                        <section id="created-api-token" class="hidden bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-5 space-y-3" aria-live="polite">
+                            <div class="flex items-center justify-between gap-3">
+                                <h3 class="text-sm font-bold text-emerald-300">Token criado</h3>
+                                <button type="button" id="copy-api-token" class="border border-emerald-500/30 rounded-lg px-3 py-2 text-xs text-emerald-200"><i class="fa-regular fa-copy mr-1"></i> Copiar</button>
+                            </div>
+                            <code id="created-api-token-value" class="block break-all text-xs text-white"></code>
+                            <p class="text-xs text-emerald-100/70">Copie agora: o segredo completo não será exibido novamente.</p>
+                        </section>
+                        <section class="space-y-3">
+                            <h3 class="text-sm font-bold text-white">Tokens cadastrados</h3>
+                            <div id="api-token-list" class="overflow-x-auto text-sm text-admin-textMuted">Carregando...</div>
+                        </section>
+                    </div>
+                `;
+
+                const listTokens = async () => {
+                    const list = document.getElementById('api-token-list');
+                    try {
+                        const response = await authenticatedAdminFetch(`${API_BASE}/auth/tokens`);
+                        const tokens = await response.json();
+                        if (!response.ok) throw new Error(tokens.error || 'Falha ao carregar tokens.');
+                        if (!tokens.length) {
+                            list.textContent = 'Nenhum token de API cadastrado.';
+                            return;
+                        }
+
+                        list.innerHTML = `
+                            <table class="w-full min-w-[680px] text-left">
+                                <thead><tr class="border-b border-admin-border text-[10px] uppercase"><th class="p-3">Nome</th><th class="p-3">Criado</th><th class="p-3">Expira</th><th class="p-3">Último uso</th><th class="p-3">Estado</th><th class="p-3"></th></tr></thead>
+                                <tbody>${tokens.map(token => {
+                                    const escape = value => String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+                                    const expired = token.expiresAt && new Date(token.expiresAt) < new Date();
+                                    const state = token.revokedAt ? 'Revogado' : expired ? 'Expirado' : 'Ativo';
+                                    const date = value => value ? new Date(value).toLocaleString('pt-BR') : 'Nunca';
+                                    return `<tr class="border-b border-admin-border/50"><td class="p-3 text-white">${escape(token.name)}</td><td class="p-3">${date(token.createdAt)}</td><td class="p-3">${date(token.expiresAt)}</td><td class="p-3">${date(token.lastUsedAt)}</td><td class="p-3">${state}</td><td class="p-3">${!token.revokedAt && !expired ? `<button type="button" class="revoke-api-token text-red-400 hover:text-red-300" data-id="${Number(token.id)}" title="Revogar token" aria-label="Revogar token ${escape(token.name)}"><i class="fa-solid fa-trash-can"></i></button>` : ''}</td></tr>`;
+                                }).join('')}</tbody>
+                            </table>
+                        `;
+                    } catch (error) {
+                        list.textContent = error.message;
+                    }
+                };
+
+                document.getElementById('create-api-token-form').addEventListener('submit', async event => {
+                    event.preventDefault();
+                    const expiry = document.getElementById('api-token-expiry').value;
+                    try {
+                        const response = await authenticatedAdminFetch(`${API_BASE}/auth/tokens`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: document.getElementById('api-token-name').value.trim(),
+                                expiresInDays: expiry === 'never' ? null : Number(expiry)
+                            })
+                        });
+                        const payload = await response.json();
+                        if (!response.ok) throw new Error(payload.error || 'Falha ao criar token.');
+                        document.getElementById('created-api-token-value').textContent = payload.token;
+                        document.getElementById('created-api-token').classList.remove('hidden');
+                        document.getElementById('create-api-token-form').reset();
+                        showToast('Token criado. Copie-o agora.', 'success');
+                        await listTokens();
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    }
+                });
+
+                document.getElementById('copy-api-token').addEventListener('click', async () => {
+                    try {
+                        await navigator.clipboard.writeText(document.getElementById('created-api-token-value').textContent);
+                        showToast('Token copiado.', 'success');
+                    } catch (error) {
+                        showToast('Não foi possível copiar automaticamente.', 'error');
+                    }
+                });
+
+                document.getElementById('api-token-list').addEventListener('click', async event => {
+                    const button = event.target.closest('.revoke-api-token');
+                    if (!button || !confirm('Revogar este token? A ação não pode ser desfeita.')) return;
+                    try {
+                        const response = await authenticatedAdminFetch(`${API_BASE}/auth/tokens/${button.dataset.id}`, { method: 'DELETE' });
+                        const payload = await response.json();
+                        if (!response.ok) throw new Error(payload.error || 'Falha ao revogar token.');
+                        showToast('Token revogado.', 'success');
+                        await listTokens();
+                    } catch (error) {
+                        showToast(error.message, 'error');
+                    }
+                });
+
+                await listTokens();
             }
 
             // ==========================================
@@ -1361,7 +1534,7 @@
                 let clicks = [];
                 
                 try {
-                    const res = await fetch(`${API_BASE}/stats`);
+                    const res = await authenticatedAdminFetch(`${API_BASE}/stats`);
                     if (res.ok) {
                         const stats = await res.json();
                         pageViews = stats.pageViews || 0;
@@ -1622,7 +1795,7 @@
                         localStorage.removeItem('admin-visits');
                         localStorage.removeItem('admin-clicks');
                         try {
-                            await fetch(`${API_BASE}/stats/reset`, { method: 'POST' });
+                            await authenticatedAdminFetch(`${API_BASE}/stats/reset`, { method: 'POST' });
                         } catch(e) {
                             console.warn("Erro ao resetar estatísticas no servidor:", e);
                         }
@@ -1636,7 +1809,7 @@
             // TAB 1: LOGOMARCA DA PÁGINA                 
             // ==========================================
             function loadLogoTab() {
-                const currentLogo = localStorage.getItem('admin-logo') || 'images/logo.png';
+                const currentLogo = logoImageSource;
                 
                 tabContent.innerHTML = `
                     <div class="space-y-6">
@@ -1661,9 +1834,9 @@
                                         <label class="flex flex-col items-center justify-center w-full h-24 border border-dashed border-admin-border rounded-xl cursor-pointer hover:border-admin-accentBlue/50 hover:bg-white/5 transition">
                                             <div class="flex flex-col items-center justify-center pt-5 pb-6">
                                                 <i class="fa-solid fa-cloud-arrow-up text-admin-accentBlue text-lg mb-1"></i>
-                                                <p class="text-xs text-gray-400 font-medium">Clique para fazer upload (PNG, JPG, SVG)</p>
+                                                <p class="text-xs text-gray-400 font-medium">Clique para fazer upload (PNG, JPG, WebP)</p>
                                             </div>
-                                            <input type="file" id="logo-file-upload" class="hidden" accept="image/*" />
+                                            <input type="file" id="logo-file-upload" class="hidden" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" />
                                         </label>
                                     </div>
                                 </div>
@@ -1672,11 +1845,6 @@
                                     <div class="flex-grow border-t border-admin-border"></div>
                                     <span class="flex-shrink mx-4 text-[10px] text-admin-textMuted font-black uppercase tracking-widest">Ou</span>
                                     <div class="flex-grow border-t border-admin-border"></div>
-                                </div>
-
-                                <div>
-                                    <label class="admin-label">URL da Imagem da Logo (Link Direto)</label>
-                                    <input type="text" id="logo-url-input" class="admin-input text-xs" placeholder="https://exemplo.com/sua-logo.png" value="${currentLogo.startsWith('data:') ? '' : currentLogo}">
                                 </div>
 
                                 <div class="mt-6 pt-6 border-t border-admin-border">
@@ -1717,7 +1885,6 @@
                 `;
 
                 const fileUpload = document.getElementById('logo-file-upload');
-                const urlInput = document.getElementById('logo-url-input');
                 const previewImg = document.getElementById('logo-preview-img');
                 const saveBtn = document.getElementById('logo-save-btn');
                 const resetBtn = document.getElementById('logo-reset-btn');
@@ -1726,40 +1893,37 @@
                 fileUpload.addEventListener('change', (e) => {
                     const file = e.target.files[0];
                     if (file) {
+                        if (!isSupportedImageFile(file)) {
+                            fileUpload.value = '';
+                            return;
+                        }
                         const reader = new FileReader();
                         reader.onload = (event) => {
                             previewImg.src = event.target.result;
-                            urlInput.value = ''; // Clear URL input when file is loaded
                             showToast('Imagem carregada! Clique em "Salvar" para aplicar.', 'info');
                         };
                         reader.readAsDataURL(file);
                     }
                 });
 
-                // Live preview URL changes
-                urlInput.addEventListener('input', (e) => {
-                    if (e.target.value.trim()) {
-                        previewImg.src = e.target.value.trim();
-                    }
-                });
-
                  // Reset Logo to Default
                 resetBtn.addEventListener('click', () => {
                     localStorage.removeItem('admin-logo');
+                    logoImageSource = 'images/logo.png';
                     previewImg.src = 'images/logo.png';
-                    urlInput.value = 'images/logo.png';
                     syncLogo();
                     saveSettingsToServer({ 'admin-logo': 'images/logo.png' });
                     showToast('Logomarca restaurada para o padrão!', 'info');
                 });
 
                 // Save custom logo
-                saveBtn.addEventListener('click', () => {
+                saveBtn.addEventListener('click', async () => {
                     const finalSource = previewImg.src;
-                    localStorage.setItem('admin-logo', finalSource);
+                    logoImageSource = finalSource;
+                    cacheSettingLocally('admin-logo', finalSource);
                     syncLogo();
-                    saveSettingsToServer({ 'admin-logo': finalSource });
-                    showToast('Logomarca atualizada com sucesso!', 'success');
+                    const saved = await saveSettingsToServer({ 'admin-logo': finalSource });
+                    showToast(saved ? 'Logomarca atualizada com sucesso!' : 'Não foi possível salvar a logomarca no banco.', saved ? 'success' : 'error');
                 });
 
                 // Social Toggles Logic
@@ -1809,33 +1973,32 @@
                 banners.forEach((banner, idx) => {
                     bannersHTML += `
                         <!-- Banner Card ${banner.id} -->
-                        <div class="bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 space-y-4 animate-fade-in relative">
+                        <div class="banner-card bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 space-y-4 animate-fade-in relative" data-banner-card="${banner.id}">
                             <div class="flex justify-between items-center border-b border-admin-border pb-3">
                                 <div class="flex items-center space-x-2">
                                     <span class="h-5 w-5 bg-admin-accentBlue text-white rounded-lg flex items-center justify-center text-xs font-black">${banner.id}</span>
                                     <h3 class="text-sm font-black uppercase text-white tracking-wider">Slide ${banner.id} - Widescreen</h3>
                                 </div>
-                                <span class="text-[9px] bg-admin-bg border border-admin-border text-admin-accentGold font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Medida Recomendada: 1920x600</span>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-[9px] bg-admin-bg border border-admin-border text-admin-accentGold font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Medida Recomendada: 1920x600</span>
+                                    <button type="button" class="banner-remove-btn text-red-400 hover:text-red-300" title="Remover banner" aria-label="Remover banner ${banner.id}"><i class="fa-solid fa-trash-can"></i></button>
+                                </div>
                             </div>
 
                             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 <!-- Banner Preview and image Upload -->
                                 <div class="space-y-3">
                                     <div class="h-32 w-full bg-admin-bg border border-admin-border rounded-xl overflow-hidden relative group">
-                                        <img src="${banner.imageUrl}" id="banner-preview-${banner.id}" class="w-full h-full object-cover" alt="Preview Slide ${banner.id}">
+                                        <img src="${banner.imageUrl}" id="banner-preview-${banner.id}" class="banner-preview w-full h-full object-cover" alt="Preview Slide ${banner.id}">
                                         <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition cursor-pointer">
                                             <label class="cursor-pointer text-xs font-bold text-white flex flex-col items-center gap-1">
                                                 <i class="fa-solid fa-cloud-arrow-up text-admin-accentBlue text-lg"></i>
                                                 Upload Imagem
-                                                <input type="file" class="hidden banner-file-upload" data-id="${banner.id}" accept="image/*" />
+                                                <input type="file" class="hidden banner-file-upload" data-id="${banner.id}" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" />
                                             </label>
                                         </div>
                                     </div>
                                     
-                                    <div>
-                                        <label class="admin-label">Ou URL da Imagem</label>
-                                        <input type="text" id="banner-url-${banner.id}" class="admin-input text-xs banner-url-input" data-id="${banner.id}" value="${banner.imageUrl.startsWith('data:') ? '' : banner.imageUrl}">
-                                    </div>
                                 </div>
 
                                 <!-- Text overlays Configuration -->
@@ -1843,22 +2006,22 @@
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label class="admin-label">Badge de Categoria / Tag (Texto Curto)</label>
-                                            <input type="text" id="banner-badge-${banner.id}" class="admin-input text-xs" placeholder="Badge/Categoria" value="${banner.badge}">
+                                            <input type="text" id="banner-badge-${banner.id}" class="banner-badge admin-input text-xs" placeholder="Badge/Categoria" value="${banner.badge}">
                                         </div>
                                         <div>
                                             <label class="admin-label">Link de Afiliado (Compra direta)</label>
-                                            <input type="text" id="banner-link-${banner.id}" class="admin-input text-xs font-mono" placeholder="Insira seu link de afiliado ML" value="${banner.affiliateUrl}">
+                                            <input type="text" id="banner-link-${banner.id}" class="banner-link admin-input text-xs font-mono" placeholder="Insira seu link de afiliado ML" value="${banner.affiliateUrl}">
                                         </div>
                                     </div>
 
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label class="admin-label">Título Principal (Foco Comercial)</label>
-                                            <input type="text" id="banner-title-${banner.id}" class="admin-input text-xs font-black" placeholder="Título" value="${banner.title}">
+                                            <input type="text" id="banner-title-${banner.id}" class="banner-title admin-input text-xs font-black" placeholder="Título" value="${banner.title}">
                                         </div>
                                         <div>
                                             <label class="admin-label">Subtítulo / Chamada Secundária</label>
-                                            <input type="text" id="banner-sub-${banner.id}" class="admin-input text-xs" placeholder="Subtítulo" value="${banner.subtitle}">
+                                            <input type="text" id="banner-sub-${banner.id}" class="banner-subtitle admin-input text-xs" placeholder="Subtítulo" value="${banner.subtitle}">
                                         </div>
                                     </div>
                                 </div>
@@ -1896,13 +2059,9 @@
                                         <label class="cursor-pointer text-[10px] font-bold text-white flex flex-col items-center gap-0.5">
                                             <i class="fa-solid fa-cloud-arrow-up text-admin-accentBlue text-base"></i>
                                             Upload
-                                            <input type="file" class="hidden category-file-upload" data-key="${cat.key}" accept="image/*" />
+                                            <input type="file" class="hidden category-file-upload" data-key="${cat.key}" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" />
                                         </label>
                                     </div>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <label class="admin-label text-[10px]">URL da Imagem</label>
-                                    <input type="text" id="category-url-${cat.key}" class="admin-input text-[11px] font-mono category-url-input" data-key="${cat.key}" value="${currentImg.startsWith('data:') ? '' : currentImg}">
                                 </div>
                             </div>
                         </div>
@@ -1917,6 +2076,9 @@
                                 <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Altere as artes do carrossel principal, textos em português e links de afiliado.</p>
                             </div>
                             <div class="flex gap-2.5">
+                                <button id="banner-add-btn" class="bg-admin-bg border border-admin-border hover:border-admin-accentBlue text-white font-extrabold px-5 py-2.5 rounded-xl text-xs transition uppercase tracking-wider">
+                                    <i class="fa-solid fa-plus mr-1"></i> Adicionar Banner
+                                </button>
                                 <button id="banners-reset-btn" class="bg-white/5 border border-white/10 hover:border-red-500/50 hover:bg-red-500/5 text-red-400 font-extrabold px-6 py-2.5 rounded-xl text-xs transition uppercase tracking-wider">
                                     Restaurar Banners
                                 </button>
@@ -1926,7 +2088,7 @@
                             </div>
                         </div>
                         
-                        <div class="space-y-6">
+                            <div id="banner-list" class="space-y-6">
                             ${bannersHTML}
                         </div>
 
@@ -1960,10 +2122,13 @@
                         const id = parseInt(upload.getAttribute('data-id'));
                         const file = e.target.files[0];
                         if (file) {
+                            if (!isSupportedImageFile(file)) {
+                                upload.value = '';
+                                return;
+                            }
                             const reader = new FileReader();
                             reader.onload = (event) => {
                                 document.getElementById(`banner-preview-${id}`).src = event.target.result;
-                                document.getElementById(`banner-url-${id}`).value = ''; // clear link
                                 showToast(`Slide ${id}: Imagem carregada!`, 'info');
                             };
                             reader.readAsDataURL(file);
@@ -1971,15 +2136,23 @@
                     });
                 });
 
-                // Handle direct URL preview changes
-                document.querySelectorAll('.banner-url-input').forEach(input => {
-                    input.addEventListener('input', (e) => {
-                        const id = parseInt(input.getAttribute('data-id'));
-                        const val = input.value.trim();
-                        if (val) {
-                            document.getElementById(`banner-preview-${id}`).src = val;
-                        }
-                    });
+                document.getElementById('banner-add-btn').addEventListener('click', () => {
+                    banners = [...document.querySelectorAll('.banner-card')].map(card => ({
+                        id: Number(card.dataset.bannerCard),
+                        badge: card.querySelector('.banner-badge').value.trim(),
+                        title: card.querySelector('.banner-title').value.trim(),
+                        subtitle: card.querySelector('.banner-subtitle').value.trim(),
+                        imageUrl: card.querySelector('.banner-preview').getAttribute('src') || '',
+                        affiliateUrl: card.querySelector('.banner-link').value.trim()
+                    }));
+                    const nextId = Math.max(0, ...banners.map(banner => Number(banner.id) || 0)) + 1;
+                    banners.push({ id: nextId, badge: '', title: '', subtitle: '', imageUrl: '', affiliateUrl: '' });
+                    loadBannersTab();
+                });
+
+                document.getElementById('banner-list').addEventListener('click', event => {
+                    if (!event.target.closest('.banner-remove-btn')) return;
+                    event.target.closest('.banner-card').remove();
                 });
 
                 // Reset Banners
@@ -2000,29 +2173,30 @@
                 });
 
                 // Save Banners
-                document.getElementById('banners-save-btn').addEventListener('click', () => {
-                    let updatedBanners = [];
-                    for(let i = 1; i <= 3; i++) {
-                        const imgSource = document.getElementById(`banner-preview-${i}`).src;
-                        const badgeText = document.getElementById(`banner-badge-${i}`).value;
-                        const linkText = document.getElementById(`banner-link-${i}`).value;
-                        const titleText = document.getElementById(`banner-title-${i}`).value;
-                        const subText = document.getElementById(`banner-sub-${i}`).value;
+                document.getElementById('banners-save-btn').addEventListener('click', async () => {
+                    const bannerCards = [...document.querySelectorAll('.banner-card')];
+                    const updatedBanners = bannerCards.map(card => ({
+                        id: Number(card.dataset.bannerCard),
+                        badge: card.querySelector('.banner-badge').value.trim(),
+                        title: card.querySelector('.banner-title').value.trim(),
+                        subtitle: card.querySelector('.banner-subtitle').value.trim(),
+                        imageUrl: card.querySelector('.banner-preview').getAttribute('src') || '',
+                        affiliateUrl: card.querySelector('.banner-link').value.trim()
+                    }));
 
-                        updatedBanners.push({
-                            id: i,
-                            badge: badgeText,
-                            title: titleText,
-                            subtitle: subText,
-                            imageUrl: imgSource,
-                            affiliateUrl: linkText
-                        });
+                    if (!updatedBanners.length) {
+                        showToast('Adicione ao menos um banner para salvar.', 'error');
+                        return;
+                    }
+                    if (updatedBanners.some(banner => !banner.imageUrl)) {
+                        showToast('Envie uma imagem para todos os banners antes de salvar.', 'error');
+                        return;
                     }
 
                     banners = updatedBanners;
-                    localStorage.setItem('admin-banners', JSON.stringify(banners));
-                    saveSettingsToServer({ 'admin-banners': banners });
-                    showToast('Todos os 3 banners principais foram atualizados!', 'success');
+                    cacheSettingLocally('admin-banners', banners);
+                    const saved = await saveSettingsToServer({ 'admin-banners': banners });
+                    showToast(saved ? 'Banners atualizados com sucesso!' : 'Não foi possível salvar os banners no banco.', saved ? 'success' : 'error');
                 });
 
                 // Handle category image uploads
@@ -2031,24 +2205,16 @@
                         const key = upload.getAttribute('data-key');
                         const file = e.target.files[0];
                         if (file) {
+                            if (!isSupportedImageFile(file)) {
+                                upload.value = '';
+                                return;
+                            }
                             const reader = new FileReader();
                             reader.onload = (event) => {
                                 document.getElementById(`category-preview-${key}`).src = event.target.result;
-                                document.getElementById(`category-url-${key}`).value = ''; // clear link
                                 showToast(`Categoria ${key}: Imagem carregada!`, 'info');
                             };
                             reader.readAsDataURL(file);
-                        }
-                    });
-                });
-
-                // Handle direct URL category preview changes
-                document.querySelectorAll('.category-url-input').forEach(input => {
-                    input.addEventListener('input', (e) => {
-                        const key = input.getAttribute('data-key');
-                        const val = input.value.trim();
-                        if (val) {
-                            document.getElementById(`category-preview-${key}`).src = val;
                         }
                     });
                 });
@@ -2079,7 +2245,7 @@
                 });
 
                 // Save Categories
-                document.getElementById('categories-save-btn').addEventListener('click', () => {
+                document.getElementById('categories-save-btn').addEventListener('click', async () => {
                     let updatedCategoryImages = {};
                     catList.forEach(cat => {
                         const imgSource = document.getElementById(`category-preview-${cat.key}`).src;
@@ -2087,9 +2253,9 @@
                     });
 
                     categoryImages = updatedCategoryImages;
-                    localStorage.setItem('admin-categories-images', JSON.stringify(categoryImages));
-                    saveSettingsToServer({ 'admin-categories-images': categoryImages });
-                    showToast('Imagens das categorias atualizadas com sucesso!', 'success');
+                    cacheSettingLocally('admin-categories-images', categoryImages);
+                    const saved = await saveSettingsToServer({ 'admin-categories-images': categoryImages });
+                    showToast(saved ? 'Imagens das categorias atualizadas com sucesso!' : 'Não foi possível salvar as categorias no banco.', saved ? 'success' : 'error');
                 });
             }
 
@@ -2535,8 +2701,8 @@
                                                 </span>
                                             </div>
                                             <div class="flex gap-2">
-                                                <input type="url" id="prod-img" class="admin-input text-xs grow" placeholder="https://http2.mlstatic.com/...webp ou cole link" required>
-                                                <input type="file" id="upload-img-1" accept="image/*" class="hidden">
+                                                <input type="text" id="prod-img" class="admin-input text-xs grow" placeholder="https://... ou faça upload" required>
+                                                <input type="file" id="upload-img-1" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" class="hidden">
                                             </div>
                                         </div>
                                         <div>
@@ -2570,8 +2736,8 @@
                                                 </span>
                                             </div>
                                             <div class="flex gap-2">
-                                                <input type="url" id="prod-img-2" class="admin-input text-xs grow" placeholder="https://http2.mlstatic.com/...webp ou cole link">
-                                                <input type="file" id="upload-img-2" accept="image/*" class="hidden">
+                                                <input type="text" id="prod-img-2" class="admin-input text-xs grow" placeholder="https://... ou faça upload">
+                                                <input type="file" id="upload-img-2" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" class="hidden">
                                             </div>
                                         </div>
                                         <div>
@@ -2715,8 +2881,8 @@
                             // Sync with backend API
                             if (String(newId) !== String(editingProductId)) {
                                 // ID changed: delete old first, then POST new
-                                fetch(`${API_BASE}/products/${editingProductId}`, { method: 'DELETE' })
-                                    .then(() => fetch(`${API_BASE}/products`, {
+                                authenticatedAdminFetch(`${API_BASE}/products/${editingProductId}`, { method: 'DELETE' })
+                                    .then(() => authenticatedAdminFetch(`${API_BASE}/products`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify(updatedProduct)
@@ -2724,7 +2890,7 @@
                                     .catch(e => console.warn("Erro ao atualizar produto (mudança de ID) no servidor:", e));
                             } else {
                                 // Simple PUT
-                                fetch(`${API_BASE}/products/${editingProductId}`, {
+                                authenticatedAdminFetch(`${API_BASE}/products/${editingProductId}`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify(updatedProduct)
@@ -2760,7 +2926,7 @@
                                 localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
                                 
                                 // Send PUT to server to update price
-                                fetch(`${API_BASE}/products/${existingProd.id}`, {
+                                authenticatedAdminFetch(`${API_BASE}/products/${existingProd.id}`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ price: existingProd.price, oldPrice: existingProd.oldPrice })
@@ -2793,7 +2959,7 @@
                             localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
                             
                             // Send POST to server
-                            fetch(`${API_BASE}/products`, {
+                            authenticatedAdminFetch(`${API_BASE}/products`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(newProd)
@@ -2868,7 +3034,7 @@
                         localStorage.setItem('admin-custom-products', JSON.stringify(customProducts));
                         
                         // Send DELETE to server
-                        fetch(`${API_BASE}/products/${id}`, {
+                        authenticatedAdminFetch(`${API_BASE}/products/${id}`, {
                             method: 'DELETE'
                         }).catch(e => console.warn("Erro ao excluir produto no servidor:", e));
 
@@ -2897,8 +3063,8 @@
                             const file = e.target.files[0];
                             if (!file) return;
 
-                            if (!file.type.startsWith('image/')) {
-                                showToast('Selecione uma imagem válida!', 'error');
+                            if (!isSupportedImageFile(file)) {
+                                fileInput.value = '';
                                 return;
                             }
 
@@ -3673,7 +3839,7 @@
 
                         // Send bulk sync to server!
                         try {
-                            const bulkRes = await fetch(`${API_BASE}/products/sync`, {
+                            const bulkRes = await authenticatedAdminFetch(`${API_BASE}/products/sync`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(syncedProducts)
@@ -3746,7 +3912,7 @@
                                 localStorage.setItem('admin-custom-products', JSON.stringify(currentCustomProducts));
 
                                 // Sync the updated crawled details with the server
-                                fetch(`${API_BASE}/products/${prod.id}`, {
+                                authenticatedAdminFetch(`${API_BASE}/products/${prod.id}`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
@@ -4822,7 +4988,7 @@
                     } else {
                         contentHTML = `
                             <div class="upload-ref-box relative h-24 border-2 border-dashed border-admin-border bg-admin-bg/30 hover:bg-white/5 hover:border-admin-accentBlue/50 rounded-xl flex flex-col items-center justify-center cursor-pointer transition duration-200" data-key="${box.key}">
-                                <input type="file" class="hidden-ref-file-input hidden" accept="image/*" data-key="${box.key}">
+                                <input type="file" class="hidden-ref-file-input hidden" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" data-key="${box.key}">
                                 <i class="${box.icon} text-lg text-admin-textMuted mb-1 group-hover:text-white"></i>
                                 <span class="text-[9px] font-black text-admin-textMuted uppercase text-center px-1 tracking-wider">Subir Foto</span>
                             </div>
@@ -4848,6 +5014,10 @@
                         const input = uploadArea.querySelector('.hidden-ref-file-input');
                         input.addEventListener('change', (e) => {
                             if (e.target.files[0]) {
+                                if (!isSupportedImageFile(e.target.files[0])) {
+                                    input.value = '';
+                                    return;
+                                }
                                 creativeFiles[box.key] = e.target.files[0];
                                 renderReferenceUploads();
                             }

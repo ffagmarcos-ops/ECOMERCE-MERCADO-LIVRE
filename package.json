@@ -5,11 +5,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "validate:api": "node validate-api-routes.js"
   },
   "dependencies": {
+    "@apidevtools/swagger-parser": "^13.1.0",
     "express": "^4.19.2",
-    "mysql2": "^3.9.7"
+    "mysql2": "^3.9.7",
+    "swagger-ui-express": "^5.0.1"
   },
   "author": "Antigravity",
   "license": "ISC"
