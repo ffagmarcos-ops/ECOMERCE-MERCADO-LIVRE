@@ -58,6 +58,16 @@
         "responses": { "200": { "description": "Resultado da sincronização.", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "inserted": { "type": "integer" }, "updated": { "type": "integer" } } } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/ServerError" } }
       }
     },
+    "/api/products/fetch-list": {
+      "post": {
+        "tags": ["Produtos"],
+        "summary": "Baixar o HTML de uma lista de afiliados do Mercado Livre",
+        "operationId": "fetchAffiliateList",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["url"], "properties": { "url": { "type": "string", "format": "uri" } } } } } },
+        "responses": { "200": { "description": "HTML da p?gina da lista.", "content": { "text/html": { "schema": { "type": "string" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "502": { "description": "Falha ao acessar o Mercado Livre." } }
+      }
+    },
     "/api/settings": {
       "get": {
         "tags": ["Configurações"],

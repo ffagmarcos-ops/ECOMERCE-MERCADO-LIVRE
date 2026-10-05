@@ -427,6 +427,46 @@ app.delete('/api/products/:id', requireApiToken, async (req, res) => {
     }
 });
 
+// Fetch a Mercado Livre affiliate list page server-side (public CORS proxies are unreliable)
+const ML_HOST_PATTERN = /(^|\.)(mercadolivre|mercadolibre)\.(com|com\.br)$/i;
+app.post('/api/products/fetch-list', requireApiToken, async (req, res) => {
+    try {
+        let target;
+        try { target = new URL(String(req.body?.url || '')); } catch (e) { target = null; }
+        if (!target || target.protocol !== 'https:' || !ML_HOST_PATTERN.test(target.hostname)) {
+            return res.status(400).json({ error: 'Informe um link https do Mercado Livre.' });
+        }
+        let response;
+        for (let hop = 0; hop < 5; hop++) {
+            response = await fetch(target, {
+                redirect: 'manual',
+                signal: AbortSignal.timeout(20000),
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml',
+                    'Accept-Language': 'pt-BR,pt;q=0.9'
+                }
+            });
+            const location = response.headers.get('location');
+            if (response.status >= 300 && response.status < 400 && location) {
+                target = new URL(location, target);
+                if (target.protocol !== 'https:' || !ML_HOST_PATTERN.test(target.hostname)) {
+                    return res.status(400).json({ error: 'Redirecionamento para dom?nio n?o permitido.' });
+                }
+                continue;
+            }
+            break;
+        }
+        if (!response.ok) {
+            return res.status(502).json({ error: 'O Mercado Livre respondeu com status ' + response.status + '.' });
+        }
+        const html = await response.text();
+        res.type('text/html').send(html);
+    } catch (err) {
+        res.status(502).json({ error: 'Falha ao acessar o Mercado Livre: ' + err.message });
+    }
+});
+
 // Synchronize products in bulk, ensuring no duplicates and updating price/oldPrice if changed
 app.post('/api/products/sync', requireApiToken, async (req, res) => {
     try {

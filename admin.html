@@ -3196,6 +3196,7 @@
                                         <button type="button" class="l-save px-3 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold" title="Salvar"><i class="fa-solid fa-floppy-disk"></i></button>
                                         <button type="button" class="l-delete px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold" title="Excluir"><i class="fa-solid fa-trash-can"></i></button>
                                     </div>
+                                    <details class="l-view md:col-span-3 border border-admin-border rounded-lg"><summary class="cursor-pointer px-3 py-2 text-xs font-bold text-admin-accentGold"><i class="fa-solid fa-eye mr-1.5"></i> Ver itens desta lista</summary><div class="l-items divide-y divide-admin-border/50 max-h-72 overflow-y-auto"></div></details>
                                     <p class="md:col-span-3 text-[10px] text-admin-textMuted">${l.lastSync ? `Última sincronização: ${new Date(l.lastSync).toLocaleString('pt-BR')} · ${l.count || 0} produto(s) na vitrine` : 'Ainda não sincronizada.'}</p>
                                 </div>`).join('')}
                             <form id="list-create-form" class="grid grid-cols-1 md:grid-cols-[1fr_2fr_auto] gap-2 items-end border border-dashed border-admin-border rounded-xl p-3">
@@ -3222,7 +3223,21 @@
                             affiliateLists[index] = { ...affiliateLists[index], name, url };
                             return persist(message);
                         };
-                        row.querySelector('.l-save').addEventListener('click', () => save('Lista salva!'));
+                        row.querySelector('.l-view').addEventListener('toggle', event => {
+                            if (!event.target.open) return;
+                            const list = affiliateLists[index];
+                            const products = JSON.parse(localStorage.getItem('admin-custom-products') || '[]');
+                            const vitrine = vitrines.find(v => v.sourceListId === list.id);
+                            const items = (vitrine ? vitrine.productIds || [] : []).map(id => products.find(p => String(p.id) === String(id))).filter(Boolean);
+                            row.querySelector('.l-items').innerHTML = items.map(p => `
+                                <a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 px-3 py-2 hover:bg-white/5">
+                                    <img src="${esc(p.img_url)}" alt="" class="w-10 h-10 rounded object-contain bg-white shrink-0">
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-xs font-bold text-white truncate">${esc(p.name)}</p>
+                                        <p class="text-[10px] text-admin-textMuted">R$ ${Number(p.price || 0).toFixed(2)} · ${esc(p.category)}</p>
+                                    </div>
+                                </a>`).join('') || '<p class="p-3 text-xs text-admin-textMuted">Nenhum item ainda. Clique em Sincronizar para importar.</p>';
+                        });                        row.querySelector('.l-save').addEventListener('click', () => save('Lista salva!'));
                         row.querySelector('.l-sync').addEventListener('click', async () => {
                             if (await save()) onSync(affiliateLists[index].url, affiliateLists[index]);
                         });
@@ -4366,8 +4381,31 @@
 
                             html = null;
                             let proxyUsed = '';
+
+                            addLog('Buscando a lista pelo servidor da loja...');
+                            try {
+                                const serverRes = await authenticatedAdminFetch(`${API_BASE}/products/fetch-list`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ url: syncUrl })
+                                });
+                                if (serverRes.ok) {
+                                    const text = await serverRes.text();
+                                    if (text.length > 10000 && !text.includes('ui-empty-state')) {
+                                        html = text;
+                                        proxyUsed = 'Servidor';
+                                        addLog('Lista obtida diretamente pelo servidor!', 'success');
+                                    } else {
+                                        addLog('O servidor recebeu uma p?gina vazia ou bloqueada.', 'warn');
+                                    }
+                                } else {
+                                    addLog(`Servidor n?o conseguiu acessar a lista (status ${serverRes.status}).`, 'warn');
+                                }
+                            } catch (e) {
+                                addLog('Falha ao buscar pelo servidor, tentando proxies...', 'warn');
+                            }
                             
-                            for (let i = 0; i < PROXIES.length; i++) {
+                            for (let i = 0; i < PROXIES.length && !html; i++) {
                                 const proxyBuilder = PROXIES[i];
                                 const targetUrl = proxyBuilder(syncUrl);
                                 const proxyName = i === 0 ? 'CORSProxy.io' : i === 1 ? 'AllOrigins' : 'CodeTabs';
