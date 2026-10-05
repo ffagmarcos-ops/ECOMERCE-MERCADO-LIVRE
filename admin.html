@@ -1203,6 +1203,8 @@
                 { ...DEFAULT_PRODUCTS.find(product => String(product.id) === '10'), spotlightBadge: 'Para dias de calor', spotlightDescription: 'Refresco e conforto para sua casa.' }
             ].filter(product => product.id !== undefined);
             let exclusiveProducts = JSON.parse(localStorage.getItem('admin-exclusive-products')) || DEFAULT_EXCLUSIVE_PRODUCTS;
+            let vitrines = [];
+            try { vitrines = JSON.parse(localStorage.getItem('admin-vitrines')) || []; } catch (e) { vitrines = []; }
             let exclusiveSectionTitle = localStorage.getItem('admin-exclusive-title') || 'Escolhas Exclusivas';
             let exclusiveSectionDescription = localStorage.getItem('admin-exclusive-description') || 'Produtos selecionados especialmente para você.';
 
@@ -1343,6 +1345,10 @@
                         }
                         if (settings['admin-banners']) {
                             banners = settings['admin-banners'];
+                        }
+                        if (Array.isArray(settings['admin-vitrines'])) {
+                            vitrines = settings['admin-vitrines'];
+                            localStorage.setItem('admin-vitrines', JSON.stringify(vitrines));
                         }
                         if (Array.isArray(settings['admin-exclusive-products'])) {
                             exclusiveProducts = settings['admin-exclusive-products'];
@@ -3149,6 +3155,101 @@
             }
 
             // ==========================================
+            // VITRINES (listas personalizadas de produtos)
+            // ==========================================
+            function renderVitrinesManager(container, allProducts) {
+                if (!container) return;
+                const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+                async function persist(message) {
+                    if (!await saveSettingsToServer({ 'admin-vitrines': vitrines })) {
+                        showToast('Não foi possível salvar as vitrines no servidor.', 'error');
+                        return false;
+                    }
+                    cacheSettingLocally('admin-vitrines', vitrines);
+                    if (message) showToast(message, 'success');
+                    return true;
+                }
+
+                function draw() {
+                    container.innerHTML = `
+                        <div class="bg-admin-card border border-admin-border rounded-2xl p-5 md:p-6 space-y-4">
+                            <div class="border-b border-admin-border pb-3">
+                                <h3 class="text-sm font-black uppercase text-white tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-layer-group text-admin-accentBlue"></i> Vitrines (listas de produtos)
+                                </h3>
+                                <p class="text-[11px] text-admin-textMuted mt-1">Crie listas temáticas (ex.: "Achados até R$ 50"). Cada vitrine com produtos vira uma seção própria na loja.</p>
+                            </div>
+                            <form id="vitrine-create-form" class="grid grid-cols-1 md:grid-cols-[1fr_1.5fr_auto] gap-3 items-end">
+                                <label class="admin-label">Nome da vitrine *<input id="vitrine-new-title" class="admin-input mt-2 text-xs" maxlength="80" required placeholder="Ex: Mais vendidos da semana"></label>
+                                <label class="admin-label">Descrição (opcional)<input id="vitrine-new-desc" class="admin-input mt-2 text-xs" maxlength="180" placeholder="Frase curta exibida abaixo do título"></label>
+                                <button type="submit" class="px-4 py-2.5 rounded-xl bg-admin-accentBlue text-white text-xs font-bold hover:opacity-90 transition"><i class="fa-solid fa-plus mr-1"></i> Criar vitrine</button>
+                            </form>
+                            <div id="vitrine-list" class="space-y-3">
+                                ${vitrines.length === 0 ? '<p class="text-xs text-admin-textMuted">Nenhuma vitrine criada ainda.</p>' : vitrines.map((v, i) => `
+                                    <details class="vitrine-item border border-admin-border rounded-xl bg-admin-bg/40" data-index="${i}">
+                                        <summary class="cursor-pointer px-4 py-3 flex items-center justify-between gap-3 text-xs font-bold text-white">
+                                            <span><i class="fa-solid fa-list mr-2 text-admin-accentGold"></i>${esc(v.title)}</span>
+                                            <span class="text-admin-textMuted font-semibold">${(v.productIds || []).length} produto(s)</span>
+                                        </summary>
+                                        <div class="p-4 space-y-3 border-t border-admin-border">
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                <label class="admin-label">Nome<input class="admin-input mt-2 text-xs v-title" maxlength="80" value="${esc(v.title)}"></label>
+                                                <label class="admin-label">Descrição<input class="admin-input mt-2 text-xs v-desc" maxlength="180" value="${esc(v.description)}"></label>
+                                            </div>
+                                            <input class="admin-input text-xs v-filter" placeholder="Filtrar produtos pelo nome...">
+                                            <div class="max-h-56 overflow-y-auto border border-admin-border rounded-lg divide-y divide-admin-border/50">
+                                                ${allProducts.map(p => `
+                                                    <label class="v-prod flex items-center gap-2 px-3 py-2 text-xs text-white cursor-pointer hover:bg-white/5" data-name="${esc(String(p.name).toLowerCase())}">
+                                                        <input type="checkbox" value="${esc(p.id)}" ${(v.productIds || []).map(String).includes(String(p.id)) ? 'checked' : ''}>
+                                                        <span class="truncate">${esc(p.name)}</span>
+                                                    </label>`).join('') || '<p class="p-3 text-xs text-admin-textMuted">Cadastre produtos primeiro.</p>'}
+                                            </div>
+                                            <div class="flex justify-between gap-2">
+                                                <button type="button" class="v-delete px-3.5 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition text-xs font-bold"><i class="fa-solid fa-trash-can mr-1"></i> Excluir vitrine</button>
+                                                <button type="button" class="v-save px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:opacity-90 transition"><i class="fa-solid fa-floppy-disk mr-1"></i> Salvar vitrine</button>
+                                            </div>
+                                        </div>
+                                    </details>`).join('')}
+                            </div>
+                        </div>`;
+
+                    container.querySelector('#vitrine-create-form').addEventListener('submit', async event => {
+                        event.preventDefault();
+                        const title = container.querySelector('#vitrine-new-title').value.trim();
+                        if (!title) return;
+                        vitrines.push({ id: 'v' + Date.now(), title, description: container.querySelector('#vitrine-new-desc').value.trim(), productIds: [] });
+                        if (await persist('Vitrine criada! Agora selecione os produtos dela.')) draw();
+                    });
+
+                    container.querySelectorAll('.vitrine-item').forEach(item => {
+                        const index = Number(item.dataset.index);
+                        item.querySelector('.v-filter').addEventListener('input', event => {
+                            const term = event.target.value.trim().toLowerCase();
+                            item.querySelectorAll('.v-prod').forEach(row => { row.hidden = term && !row.dataset.name.includes(term); });
+                        });
+                        item.querySelector('.v-save').addEventListener('click', async () => {
+                            const title = item.querySelector('.v-title').value.trim();
+                            if (!title) return showToast('Informe o nome da vitrine.', 'error');
+                            vitrines[index] = {
+                                ...vitrines[index],
+                                title,
+                                description: item.querySelector('.v-desc').value.trim(),
+                                productIds: [...item.querySelectorAll('.v-prod input:checked')].map(box => box.value)
+                            };
+                            if (await persist('Vitrine salva!')) draw();
+                        });
+                        item.querySelector('.v-delete').addEventListener('click', async () => {
+                            if (!await showConfirmDialog({ title: 'Excluir esta vitrine?', text: 'Os produtos não serão apagados, apenas a lista.', confirmText: 'Sim, excluir' })) return;
+                            vitrines.splice(index, 1);
+                            if (await persist('Vitrine excluída.')) draw();
+                        });
+                    });
+                }
+                draw();
+            }
+
+            // ==========================================
             // TAB 4: CADASTRAR PRODUTOS                 
             // ==========================================
                 /* 
@@ -3215,6 +3316,8 @@
                             <h2 class="text-xl font-bold text-white tracking-wide">Cadastro de Produtos da Vitrine</h2>
                             <p class="text-xs text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">Cadastre seus links de afiliados e insira novos achados diretamente na vitrine do site.</p>
                         </div>
+
+                        <div id="vitrines-manager"></div>
 
                         <!-- Sincronização Automática Box -->
                         <div class="bg-gradient-to-r from-admin-card via-admin-card to-pink-950/10 border border-admin-border hover:border-admin-accentGold/30 rounded-2xl p-5 md:p-6 space-y-4 transition duration-300 animate-fade-in">
@@ -3476,6 +3579,8 @@
                         </div>
                     </div>
                 `;
+
+                renderVitrinesManager(document.getElementById('vitrines-manager'), customProducts);
 
                 // --- Lógica do Botão Cancelar Edição ---
                 const cancelEditBtn = document.getElementById('prod-cancel-edit-btn');
