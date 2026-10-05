@@ -45,6 +45,10 @@
     .actions button { flex:1; }
     .cfg { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
     .cfg label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
+    .guide { background:#0f0f16; border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:12px; font-size:13px; }
+    .guide summary { cursor:pointer; font-weight:600; }
+    .guide ol { margin:10px 0; padding-left:20px; line-height:1.6; }
+    .guide code { background:#1d1d29; padding:1px 5px; border-radius:4px; font-size:12px; }
     #msg { margin:10px 0; font-size:13px; min-height:18px; }
     .empty { text-align:center; padding:48px; color:var(--muted); }
 </style>
@@ -59,6 +63,21 @@
 
     <div class="panel" style="margin-bottom:20px">
         <h2>⚙️ Configuração da integração Mercado Livre</h2>
+        <details class="guide" open>
+            <summary>📘 Como obter o Client ID e o Client Secret</summary>
+            <ol>
+                <li>Acesse <a href="https://developers.mercadolivre.com.br/devcenter" target="_blank" rel="noopener noreferrer">developers.mercadolivre.com.br/devcenter</a> e entre com a conta do Mercado Livre que será dona da aplicação.</li>
+                <li>Clique em <b>Criar nova aplicação</b>.</li>
+                <li>Preencha <b>Nome</b>, <b>Nome curto</b> e <b>Descrição</b> (ex.: “Curadoria de produtos da minha loja”). Se pedir, aceite os termos e envie um logo.</li>
+                <li>Em <b>URI de redirecionamento</b>, informe o endereço da sua loja: <code id="guideRedirect"></code> (precisa ser <code>https</code>; não é usada nesta integração).</li>
+                <li>Em <b>Escopos</b>, marque apenas leitura (<b>read</b>). Não é preciso escrita nem notificações.</li>
+                <li>Salve. Na página da aplicação, copie o <b>App ID</b> → cole em <b>Client ID</b> abaixo, e a <b>Secret Key</b> → cole em <b>Client Secret</b>.</li>
+                <li>Clique em <b>Salvar</b> e depois em <b>Testar conexão</b>. Se aparecer “OK”, já pode usar <b>Buscar</b>.</li>
+            </ol>
+            <p class="muted"><b>Parâmetros de afiliado:</b> no seu painel do Programa de Afiliados do Mercado Livre, copie um link de produto e use o trecho depois do “?” (ex.: <code>matt_tool=123&amp;matt_word=seu_id</code>). Ele é anexado a todos os links aprovados.<br>
+            <b>Categorias:</b> IDs separados por vírgula (ex.: <code>MLB1574</code> = Casa, <code>MLB1246</code> = Beleza); a lista completa está em <code>api.mercadolibre.com/sites/MLB/categories</code>.<br>
+            Os nomes das telas do Mercado Livre podem variar um pouco; o essencial é criar a aplicação e copiar o App ID e a Secret Key. Nunca compartilhe a Secret Key.</p>
+        </details>
         <div class="cfg">
             <label>Client ID (App ID)<input id="cfgId" autocomplete="off"></label>
             <label>Client Secret<input id="cfgSecret" type="password" autocomplete="new-password" placeholder="••••••••"></label>
@@ -245,6 +264,7 @@ $('cfgTest').addEventListener('click', async () => {
     $('cfgTest').disabled = false;
 });
 
+$('guideRedirect').textContent = location.origin;
 loadConfig();
 load();
 </script>
