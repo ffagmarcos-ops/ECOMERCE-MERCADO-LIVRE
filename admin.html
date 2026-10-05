@@ -1204,6 +1204,10 @@
             ].filter(product => product.id !== undefined);
             let exclusiveProducts = JSON.parse(localStorage.getItem('admin-exclusive-products')) || DEFAULT_EXCLUSIVE_PRODUCTS;
             let vitrines = [];
+            const DEFAULT_AFFILIATE_LIST_URL = 'https://www.mercadolivre.com.br/social/vanessaparvati/lists/993dfb99-913f-4b93-a6e9-d7886a1b911d';
+            let affiliateLists = [];
+            try { affiliateLists = JSON.parse(localStorage.getItem('admin-affiliate-lists')) || []; } catch (e) { affiliateLists = []; }
+            if (affiliateLists.length === 0) affiliateLists = [{ id: 'l-default', name: 'Lista da Vanessa', url: DEFAULT_AFFILIATE_LIST_URL }];
             try { vitrines = JSON.parse(localStorage.getItem('admin-vitrines')) || []; } catch (e) { vitrines = []; }
             let exclusiveSectionTitle = localStorage.getItem('admin-exclusive-title') || 'Escolhas Exclusivas';
             let exclusiveSectionDescription = localStorage.getItem('admin-exclusive-description') || 'Produtos selecionados especialmente para você.';
@@ -1345,6 +1349,10 @@
                         }
                         if (settings['admin-banners']) {
                             banners = settings['admin-banners'];
+                        }
+                        if (Array.isArray(settings['admin-affiliate-lists']) && settings['admin-affiliate-lists'].length) {
+                            affiliateLists = settings['admin-affiliate-lists'];
+                            localStorage.setItem('admin-affiliate-lists', JSON.stringify(affiliateLists));
                         }
                         if (Array.isArray(settings['admin-vitrines'])) {
                             vitrines = settings['admin-vitrines'];
@@ -3155,6 +3163,80 @@
             }
 
             // ==========================================
+            // LISTAS DE AFILIADOS (links nomeados do perfil do Mercado Livre)
+            // ==========================================
+            function renderAffiliateLists(container, onSync) {
+                if (!container) return;
+                const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+                async function persist(message) {
+                    if (!await saveSettingsToServer({ 'admin-affiliate-lists': affiliateLists })) {
+                        showToast('Não foi possível salvar as listas no servidor.', 'error');
+                        return false;
+                    }
+                    cacheSettingLocally('admin-affiliate-lists', affiliateLists);
+                    if (message) showToast(message, 'success');
+                    container.dispatchEvent(new Event('lists-changed'));
+                    return true;
+                }
+
+                function readRow(row) {
+                    return { name: row.querySelector('.l-name').value.trim(), url: row.querySelector('.l-url').value.trim() };
+                }
+
+                function draw() {
+                    container.innerHTML = `
+                        <div class="space-y-3">
+                            ${affiliateLists.map((l, i) => `
+                                <div class="list-row grid grid-cols-1 md:grid-cols-[1fr_2fr_auto] gap-2 items-end border border-admin-border rounded-xl p-3 bg-admin-bg/40" data-index="${i}">
+                                    <label class="admin-label">Nome da lista<input class="admin-input mt-2 text-xs l-name" maxlength="80" value="${esc(l.name)}"></label>
+                                    <label class="admin-label">Link no Mercado Livre<input type="url" class="admin-input mt-2 text-xs font-mono l-url" value="${esc(l.url)}"></label>
+                                    <div class="flex gap-2">
+                                        <button type="button" class="l-sync sync-list-btn bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black font-extrabold px-3 py-2.5 rounded-xl uppercase tracking-wider text-[10px] disabled:opacity-50"><i class="fa-solid fa-rotate mr-1"></i> Sincronizar</button>
+                                        <button type="button" class="l-save px-3 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold" title="Salvar"><i class="fa-solid fa-floppy-disk"></i></button>
+                                        <button type="button" class="l-delete px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold" title="Excluir"><i class="fa-solid fa-trash-can"></i></button>
+                                    </div>
+                                    <p class="md:col-span-3 text-[10px] text-admin-textMuted">${l.lastSync ? `Última sincronização: ${new Date(l.lastSync).toLocaleString('pt-BR')} · ${l.count || 0} produto(s) na vitrine` : 'Ainda não sincronizada.'}</p>
+                                </div>`).join('')}
+                            <form id="list-create-form" class="grid grid-cols-1 md:grid-cols-[1fr_2fr_auto] gap-2 items-end border border-dashed border-admin-border rounded-xl p-3">
+                                <label class="admin-label">Nova lista - nome *<input id="list-new-name" class="admin-input mt-2 text-xs" maxlength="80" required placeholder="Ex: Cozinha e Casa"></label>
+                                <label class="admin-label">Link da lista *<input id="list-new-url" type="url" class="admin-input mt-2 text-xs font-mono" required placeholder="https://www.mercadolivre.com.br/social/.../lists/..."></label>
+                                <button type="submit" class="px-4 py-2.5 rounded-xl bg-admin-accentBlue text-white text-xs font-bold"><i class="fa-solid fa-plus mr-1"></i> Adicionar lista</button>
+                            </form>
+                        </div>`;
+
+                    container.querySelector('#list-create-form').addEventListener('submit', async event => {
+                        event.preventDefault();
+                        const name = container.querySelector('#list-new-name').value.trim();
+                        const url = container.querySelector('#list-new-url').value.trim();
+                        if (!/^https?:\/\//i.test(url)) return showToast('Informe um link válido (https://...).', 'error');
+                        affiliateLists.push({ id: 'l' + Date.now(), name, url });
+                        if (await persist('Lista adicionada! Clique em Sincronizar para importar.')) draw();
+                    });
+
+                    container.querySelectorAll('.list-row').forEach(row => {
+                        const index = Number(row.dataset.index);
+                        const save = async message => {
+                            const { name, url } = readRow(row);
+                            if (!name || !/^https?:\/\//i.test(url)) { showToast('Informe o nome e um link válido.', 'error'); return false; }
+                            affiliateLists[index] = { ...affiliateLists[index], name, url };
+                            return persist(message);
+                        };
+                        row.querySelector('.l-save').addEventListener('click', () => save('Lista salva!'));
+                        row.querySelector('.l-sync').addEventListener('click', async () => {
+                            if (await save()) onSync(affiliateLists[index].url, affiliateLists[index]);
+                        });
+                        row.querySelector('.l-delete').addEventListener('click', async () => {
+                            if (!await showConfirmDialog({ title: 'Excluir esta lista?', text: 'A vitrine e os produtos já importados continuam existindo.', confirmText: 'Sim, excluir' })) return;
+                            affiliateLists.splice(index, 1);
+                            if (await persist('Lista excluída.')) draw();
+                        });
+                    });
+                }
+                draw();
+            }
+
+            // ==========================================
             // VITRINES (listas personalizadas de produtos)
             // ==========================================
             function renderVitrinesManager(container, allProducts) {
@@ -3197,6 +3279,20 @@
                                                 <label class="admin-label">Nome<input class="admin-input mt-2 text-xs v-title" maxlength="80" value="${esc(v.title)}"></label>
                                                 <label class="admin-label">Descrição<input class="admin-input mt-2 text-xs v-desc" maxlength="180" value="${esc(v.description)}"></label>
                                             </div>
+                                            <details class="v-view border border-admin-border rounded-lg">
+                                                <summary class="cursor-pointer px-3 py-2 text-xs font-bold text-admin-accentGold"><i class="fa-solid fa-eye mr-1.5"></i> Ver produtos da vitrine (${(v.productIds || []).length})</summary>
+                                                <div class="divide-y divide-admin-border/50 max-h-72 overflow-y-auto">
+                                                    ${(v.productIds || []).map(id => allProducts.find(p => String(p.id) === String(id))).filter(Boolean).map(p => `
+                                                        <div class="flex items-center gap-3 px-3 py-2">
+                                                            <img src="${esc(p.img_url)}" alt="" class="w-10 h-10 rounded object-contain bg-white shrink-0">
+                                                            <div class="min-w-0 flex-1">
+                                                                <p class="text-xs font-bold text-white truncate">${esc(p.name)}</p>
+                                                                <p class="text-[10px] text-admin-textMuted">R$ ${Number(p.price || 0).toFixed(2)} ? ${esc(p.category)}</p>
+                                                            </div>
+                                                            <button type="button" class="v-remove text-red-400 hover:text-red-300 text-xs font-bold shrink-0" data-id="${esc(p.id)}" title="Remover da vitrine"><i class="fa-solid fa-xmark"></i> Remover</button>
+                                                        </div>`).join('') || '<p class="p-3 text-xs text-admin-textMuted">Nenhum produto nesta vitrine ainda. Marque produtos na lista abaixo e salve.</p>'}
+                                                </div>
+                                            </details>
                                             <input class="admin-input text-xs v-filter" placeholder="Filtrar produtos pelo nome...">
                                             <div class="max-h-56 overflow-y-auto border border-admin-border rounded-lg divide-y divide-admin-border/50">
                                                 ${allProducts.map(p => `
@@ -3239,6 +3335,14 @@
                             };
                             if (await persist('Vitrine salva!')) draw();
                         });
+                        item.querySelectorAll('.v-remove').forEach(btn => btn.addEventListener('click', async () => {
+                            vitrines[index].productIds = (vitrines[index].productIds || []).filter(id => String(id) !== btn.dataset.id);
+                            if (await persist('Produto removido da vitrine.')) {
+                                draw();
+                                container.querySelector(`.vitrine-item[data-index="${index}"]`).open = true;
+                                container.querySelector(`.vitrine-item[data-index="${index}"] .v-view`).open = true;
+                            }
+                        }));
                         item.querySelector('.v-delete').addEventListener('click', async () => {
                             if (!await showConfirmDialog({ title: 'Excluir esta vitrine?', text: 'Os produtos não serão apagados, apenas a lista.', confirmText: 'Sim, excluir' })) return;
                             vitrines.splice(index, 1);
@@ -3325,30 +3429,17 @@
                                 <div>
                                     <h3 class="text-sm font-black uppercase text-white tracking-wider flex items-center gap-2">
                                         <i class="fa-solid fa-sync text-admin-accentGold animate-pulse"></i>
-                                        Sincronizar Loja de Afiliados da Vanessa (Nessa)
+                                        Sincronizar Listas de Afiliados
                                     </h3>
                                     <p class="text-[10px] text-admin-textMuted mt-1 uppercase tracking-widest font-semibold">
-                                        Importa automaticamente todos os produtos da vitrine social da Vanessa diretamente do Mercado Livre.
+                                        Cadastre cada lista do seu perfil de afiliados com um nome. Ao sincronizar, os produtos entram numa vitrine com o mesmo nome.
                                     </p>
                                 </div>
-                                <div class="shrink-0 flex gap-2">
-                                    <button type="button" id="sync-vanessa-btn" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold px-6 py-3 rounded-xl uppercase tracking-wider text-xs transition duration-200 shadow-lg shadow-pink-500/10 flex items-center gap-1.5">
-                                        <i class="fa-solid fa-rotate"></i> Sincronizar Loja
-                                    </button>
-                                </div>
                             </div>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                                <div class="md:col-span-3">
-                                    <label class="admin-label">Link da Vitrine/Lista de Afiliados no Mercado Livre</label>
-                                    <input type="url" id="sync-url" class="admin-input text-xs font-mono" value="https://www.mercadolivre.com.br/social/vanessaparvati/lists/993dfb99-913f-4b93-a6e9-d7886a1b911d" placeholder="Cole o link da lista de afiliados...">
-                                </div>
-                                <div>
-                                    <label class="admin-label">Parâmetros de Afiliado (Vanessa)</label>
-                                    <div class="text-[10px] text-admin-accentGold font-bold bg-white/5 p-2.5 rounded-xl border border-white/5 font-mono leading-relaxed">
-                                        matt_tool=80930673<br>matt_word=vanessaparvati
-                                    </div>
-                                </div>
+
+                            <div id="affiliate-lists"></div>
+                            <div class="text-[10px] text-admin-accentGold font-bold bg-white/5 p-2.5 rounded-xl border border-white/5 font-mono leading-relaxed">
+                                Parâmetros de afiliado aplicados: matt_tool=80930673 &amp; matt_word=vanessaparvati
                             </div>
 
                             <!-- Bypass Bloqueio da Vitrine: Colar HTML da Vitrine Scrolada -->
@@ -3368,6 +3459,9 @@
                                         3. Pressione <strong>Ctrl+U</strong> (ou clique com o botão direito -> <strong>Exibir Código Fonte da Página</strong>) e copie tudo (Ctrl+A -> Ctrl+C).<br>
                                         4. Cole o código no campo abaixo e clique em <strong>Sincronizar via HTML Colado</strong>.
                                     </p>
+                                    <label class="admin-label">Lista de destino
+                                        <select id="sync-bypass-list" class="admin-input mt-2 text-xs bg-admin-bg"></select>
+                                    </label>
                                     <textarea id="sync-raw-html" class="admin-input text-[10px] font-mono h-24" placeholder="Cole o código fonte HTML da página da vitrine aqui..."></textarea>
                                     <button type="button" id="sync-parse-html-btn" class="w-full bg-admin-accentGold/20 border border-admin-accentGold/30 hover:bg-admin-accentGold/40 text-admin-accentGold font-bold py-2 rounded-xl text-[10px] uppercase tracking-wider transition">
                                         <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Sincronizar via HTML Colado
@@ -4213,9 +4307,8 @@
                 });
 
                 // === MOTOR DE SINCRONIZAÇÃO COMPLETA DE VITRINES (URL E HTML BYPASS) ===
-                const syncBtn = document.getElementById('sync-vanessa-btn');
+                const setSyncButtonsDisabled = disabled => document.querySelectorAll('.sync-list-btn').forEach(btn => { btn.disabled = disabled; });
                 const syncParseHtmlBtn = document.getElementById('sync-parse-html-btn');
-                const syncUrlInput = document.getElementById('sync-url');
                 const logContainer = document.getElementById('sync-log-container');
                 const logDetails = document.getElementById('sync-log-details');
                 const statusText = document.getElementById('sync-status-text');
@@ -4223,7 +4316,7 @@
                 const syncSpinner = document.getElementById('sync-spinner');
                 const syncTimer = document.getElementById('sync-timer');
 
-                async function startShowcaseSync(syncUrl, rawHtml = '') {
+                async function startShowcaseSync(syncUrl, rawHtml = '', list = null) {
                     const isManualBypass = !!rawHtml;
                     if (!syncUrl && !rawHtml) {
                         showToast('Cole o link da vitrine ou o código fonte HTML!', 'error');
@@ -4231,7 +4324,7 @@
                     }
 
                     // Reset and configure controls
-                    syncBtn.disabled = true;
+                    setSyncButtonsDisabled(true);
                     if (syncParseHtmlBtn) syncParseHtmlBtn.disabled = true;
                     logContainer.classList.remove('hidden');
                     logDetails.innerHTML = '';
@@ -4566,6 +4659,7 @@
                         }
 
                         let productsToEnrich = [];
+                        const listProductIds = [];
 
                         syncedProducts.forEach(syncedProd => {
                             const cleanSyncedUrl = syncedProd.url.split('?')[0];
@@ -4576,6 +4670,7 @@
 
                             if (matchIndex !== -1) {
                                 const existingProd = currentCustomProducts[matchIndex];
+                                listProductIds.push(String(existingProd.id));
                                 if (existingProd.price !== syncedProd.price) {
                                     addLog(`Ajustando preço de "${existingProd.name.substring(0, 25)}..." de R$ ${existingProd.price.toFixed(2)} para R$ ${syncedProd.price.toFixed(2)}`, 'warn');
                                     existingProd.price = syncedProd.price;
@@ -4587,6 +4682,7 @@
                             } else {
                                 addLog(`Novo produto detectado: "${syncedProd.name.substring(0, 25)}..."`, 'success');
                                 currentCustomProducts.unshift(syncedProd);
+                                listProductIds.push(String(syncedProd.id));
                                 productsToEnrich.push(syncedProd);
                             }
                         });
@@ -4607,6 +4703,26 @@
                         } catch(e) {
                             console.warn("Erro ao sincronizar produtos com o servidor:", e);
                             addLog(`Erro ao sincronizar com o banco de dados MariaDB: ${e.message}`, 'error');
+                        }
+
+                        if (list) {
+                            let vitrine = vitrines.find(v => v.sourceListId === list.id);
+                            if (!vitrine) {
+                                vitrine = { id: 'v' + Date.now(), title: list.name, description: '', productIds: [], sourceListId: list.id };
+                                vitrines.push(vitrine);
+                            }
+                            vitrine.title = list.name;
+                            vitrine.productIds = [...new Set(listProductIds)];
+                            const savedVitrines = await saveSettingsToServer({ 'admin-vitrines': vitrines });
+                            cacheSettingLocally('admin-vitrines', vitrines);
+                            const current = affiliateLists.find(l => l.id === list.id);
+                            if (current) {
+                                current.lastSync = new Date().toISOString();
+                                current.count = vitrine.productIds.length;
+                                await saveSettingsToServer({ 'admin-affiliate-lists': affiliateLists });
+                                cacheSettingLocally('admin-affiliate-lists', affiliateLists);
+                            }
+                            addLog(savedVitrines ? `Vitrine "${list.name}" atualizada com ${vitrine.productIds.length} produtos.` : 'Não foi possível salvar a vitrine no servidor.', savedVitrines ? 'success' : 'warn');
                         }
 
                         // 4. PROGRESSIVE MEDIA CRAWLER (BACKGROUND ENRICHMENT)
@@ -4718,18 +4834,23 @@
                         showToast(`❌ Falha na Sincronização: ${err.message}`, 'error');
                     } finally {
                         clearInterval(timerInterval);
-                        syncBtn.disabled = false;
+                        setSyncButtonsDisabled(false);
                         if (syncParseHtmlBtn) syncParseHtmlBtn.disabled = false;
                     }
                 }
 
-                syncBtn.addEventListener('click', () => {
-                    startShowcaseSync(syncUrlInput.value.trim(), '');
-                });
+                renderAffiliateLists(document.getElementById('affiliate-lists'), (url, list) => startShowcaseSync(url, '', list));
+                const bypassSelect = document.getElementById('sync-bypass-list');
+                const renderBypassOptions = () => {
+                    bypassSelect.innerHTML = '<option value="">Sem vitrine (apenas importar produtos)</option>' +
+                        affiliateLists.map(l => `<option value="${String(l.id).replace(/"/g, '&quot;')}">${String(l.name).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</option>`).join('');
+                };
+                renderBypassOptions();
+                document.getElementById('affiliate-lists').addEventListener('lists-changed', renderBypassOptions);
 
                 if (syncParseHtmlBtn) {
                     syncParseHtmlBtn.addEventListener('click', () => {
-                        startShowcaseSync('', document.getElementById('sync-raw-html').value.trim());
+                        startShowcaseSync('', document.getElementById('sync-raw-html').value.trim(), affiliateLists.find(l => l.id === bypassSelect.value) || null);
                     });
                 }
             } // Close loadProductsTab()
