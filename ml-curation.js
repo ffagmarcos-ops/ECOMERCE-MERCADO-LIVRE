@@ -443,10 +443,12 @@ async function enrichRefs(entries) {
 }
 
 // Refreshes product photos from the official API. Photos uploaded manually (not hosted by ML) are kept.
-async function refreshImages(pool) {
+async function refreshImages(pool, ids = null) {
     const summary = { checked: 0, updated: 0, skipped: 0, unavailable: 0, error: null };
     try {
-        const [products] = await pool.query('SELECT id, name, url, img_url FROM products');
+        const [allProducts] = await pool.query('SELECT id, name, url, img_url FROM products');
+        const wanted = Array.isArray(ids) ? new Set(ids.map(String)) : null;
+        const products = wanted ? allProducts.filter(p => wanted.has(String(p.id))) : allProducts;
         const isMlImage = value => !value || /mlstatic\.com/i.test(value);
         const targets = [];
         for (const product of products) {

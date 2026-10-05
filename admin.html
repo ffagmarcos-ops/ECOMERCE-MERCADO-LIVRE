@@ -3445,6 +3445,10 @@
                             </div>
                             <button type="button" id="refresh-images-btn" class="px-4 py-2.5 rounded-xl bg-admin-accentBlue text-white text-xs font-bold disabled:opacity-50 shrink-0"><i class="fa-solid fa-rotate mr-1"></i> Atualizar imagens</button>
                         </div>
+                        <div id="refresh-images-progress" class="hidden bg-admin-card border border-admin-border rounded-2xl p-4 -mt-2">
+                            <div class="flex justify-between text-[11px] font-bold text-white mb-2"><span id="refresh-images-status">Preparando...</span><span id="refresh-images-percent">0%</span></div>
+                            <div class="w-full h-2.5 bg-white/10 rounded-full overflow-hidden"><div id="refresh-images-bar" class="h-full bg-gradient-to-r from-admin-accentGold to-admin-accentBlue transition-all duration-300" style="width:0%"></div></div>
+                        </div>
 
                         <!-- Sincronização Automática Box -->
                         <div class="bg-gradient-to-r from-admin-card via-admin-card to-pink-950/10 border border-admin-border hover:border-admin-accentGold/30 rounded-2xl p-5 md:p-6 space-y-4 transition duration-300 animate-fade-in">
@@ -3592,6 +3596,7 @@
                                         <div class="md:col-span-2 space-y-1.5">
                                             <div class="flex justify-between items-center">
                                                 <label class="admin-label">URL da Imagem do Produto *</label>
+                                                <span id="prod-fetch-ml-img" class="text-[10px] text-admin-accentBlue cursor-pointer hover:underline flex items-center gap-1" title="Busca a foto atual no Mercado Livre pelo link/ID do produto"><i class="fa-solid fa-rotate"></i> Atualizar foto pelo ML</span>
                                                 <span class="text-[10px] text-admin-accentGold cursor-pointer hover:underline flex items-center gap-1" onclick="document.getElementById('upload-img-1').click()">
                                                     <i class="fa-solid fa-cloud-arrow-up"></i> Fazer Upload de Imagem
                                                 </span>
@@ -3703,13 +3708,38 @@
                 refreshImagesBtn.addEventListener('click', async () => {
                     refreshImagesBtn.disabled = true;
                     refreshImagesBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Atualizando...';
+                    const box = document.getElementById('refresh-images-progress');
+                    const bar = document.getElementById('refresh-images-bar');
+                    const percentEl = document.getElementById('refresh-images-percent');
+                    const statusEl = document.getElementById('refresh-images-status');
+                    const setProgress = (done, total) => {
+                        const pct = total ? Math.round(done / total * 100) : 100;
+                        bar.style.width = pct + '%';
+                        percentEl.textContent = pct + '%';
+                        statusEl.textContent = `Verificando produtos... ${done} de ${total}`;
+                    };
                     try {
-                        const res = await authenticatedAdminFetch(`${API_BASE}/curation/refresh-images`, { method: 'POST' });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
-                        showToast(`${data.updated} imagem(ns) atualizada(s) de ${data.checked} verificada(s).`, 'success');
-                        if (data.updated > 0) await syncAdminDataFromServer();
+                        const allIds = customProducts.map(p => String(p.id));
+                        const totals = { checked: 0, updated: 0 };
+                        box.classList.remove('hidden');
+                        setProgress(0, allIds.length);
+                        for (let i = 0; i < allIds.length; i += 25) {
+                            const res = await authenticatedAdminFetch(`${API_BASE}/curation/refresh-images`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ ids: allIds.slice(i, i + 25) })
+                            });
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+                            totals.checked += data.checked;
+                            totals.updated += data.updated;
+                            setProgress(Math.min(i + 25, allIds.length), allIds.length);
+                        }
+                        statusEl.textContent = `Concluído: ${totals.updated} imagem(ns) atualizada(s)`;
+                        showToast(`${totals.updated} imagem(ns) atualizada(s) de ${totals.checked} verificada(s).`, 'success');
+                        if (totals.updated > 0) await syncAdminDataFromServer();
                     } catch (err) {
+                        statusEl.textContent = 'Falha na atualização';
                         showToast('Não foi possível atualizar as imagens: ' + err.message, 'error');
                     } finally {
                         refreshImagesBtn.disabled = false;
@@ -4036,6 +4066,33 @@
                     handleImageUpload('upload-img-2', 'prod-img-2', 'preview-img-2', 'preview-placeholder-2');
 
                     window.updatePreview1 = bindPreviewSync('prod-img', 'preview-img-1', 'preview-placeholder-1');
+                document.getElementById('prod-fetch-ml-img').addEventListener('click', async event => {
+                    const trigger = event.currentTarget;
+                    const url = document.getElementById('prod-url').value.trim();
+                    const idField = document.getElementById('prod-id').value.trim();
+                    const found = /ML[A-Z]-?\d{6,}/i.exec(idField) || /ML[A-Z]-?\d{6,}/i.exec(url);
+                    if (!found) return showToast('Informe o link ou o ID (MLB...) do produto no Mercado Livre.', 'error');
+                    trigger.style.opacity = '0.5';
+                    try {
+                        const mlbId = found[0].replace('-', '').toUpperCase();
+                        const res = await authenticatedAdminFetch(`${API_BASE}/curation/enrich`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ items: [{ mlbId, permalink: url }] })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+                        const info = data[mlbId];
+                        if (!info || !info.image) throw new Error('A API não retornou foto para este produto.');
+                        document.getElementById('prod-img').value = info.image;
+                        if (window.updatePreview1) window.updatePreview1();
+                        showToast('Foto atualizada! Clique em salvar para confirmar.', 'success');
+                    } catch (err) {
+                        showToast('Não foi possível buscar a foto: ' + err.message, 'error');
+                    } finally {
+                        trigger.style.opacity = '';
+                    }
+                });
                     window.updatePreview2 = bindPreviewSync('prod-img-2', 'preview-img-2', 'preview-placeholder-2');
                 }
 

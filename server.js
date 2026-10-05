@@ -938,7 +938,8 @@ app.post('/api/curation/refresh-images', requireApiToken, async (req, res) => {
         if (!curation.isConfigured()) {
             return res.status(400).json({ error: 'Configure as credenciais do Mercado Livre na curadoria (Configuração da integração).' });
         }
-        const summary = await curation.refreshImages(pool);
+        const ids = Array.isArray(req.body?.ids) ? req.body.ids.slice(0, 100) : null;
+        const summary = await curation.refreshImages(pool, ids);
         if (summary.error) return res.status(502).json({ error: summary.error });
         res.json(summary);
     } catch (err) {
