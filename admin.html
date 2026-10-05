@@ -3405,7 +3405,7 @@
                 let productsRowsHTML = '';
                 customProducts.forEach((prod, index) => {
                     productsRowsHTML += `
-                        <tr class="border-b border-admin-border/40 hover:bg-white/5 transition duration-150">
+                        <tr class="prod-row border-b border-admin-border/40 hover:bg-white/5 transition duration-150" data-search="${String(prod.name + ' ' + prod.id + ' ' + (prod.brand || '') + ' ' + (prod.searchKeys || '')).toLowerCase().replace(/"/g, '&quot;')}" data-cat="${String(prod.category || '').replace(/"/g, '&quot;')}" data-img="${prod.img_url && String(prod.img_url).trim() ? (/mlstatic\.com/i.test(prod.img_url) ? 'ml' : 'own') : 'none'}">
                             <td class="py-4 px-4">
                                 <img src="${prod.img_url}" class="h-16 w-16 object-contain rounded-xl bg-white p-1 border border-admin-border/50 shadow-inner" onerror="this.src='https://placehold.co/64x64/151518/ffffff?text=Prod'">
                             </td>
@@ -3677,8 +3677,22 @@
                                 <div class="space-y-4 flex flex-col h-full overflow-hidden">
                                     <h3 class="text-xs font-black uppercase text-admin-textMuted tracking-wider mb-2 border-b border-admin-border pb-2 flex items-center justify-between">
                                         <span><i class="fa-solid fa-list mr-1.5 text-admin-accentGold"></i> Todos os Produtos (${customProducts.length})</span>
-                                        <span class="text-[10px] text-admin-textMuted normal-case font-medium">Role para ver mais</span>
+                                        <span id="prod-filter-count" class="text-[10px] text-admin-textMuted normal-case font-medium"></span>
                                     </h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-2">
+                                        <input type="search" id="prod-filter-search" class="admin-input text-xs" placeholder="Buscar por nome, ID ou palavra-chave...">
+                                        <select id="prod-filter-image" class="admin-input text-xs">
+                                            <option value="">Todas as imagens</option>
+                                            <option value="with">Com imagem</option>
+                                            <option value="none">Sem imagem</option>
+                                            <option value="ml">Foto do Mercado Livre</option>
+                                            <option value="own">Foto própria / outra origem</option>
+                                        </select>
+                                        <select id="prod-filter-cat" class="admin-input text-xs">
+                                            <option value="">Todas as categorias</option>
+                                            ${[...new Set(customProducts.map(p => p.category).filter(Boolean))].sort().map(c => `<option value="${String(c).replace(/"/g, '&quot;')}">${String(c).replace(/[&<>]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]))}</option>`).join('')}
+                                        </select>
+                                    </div>
                                     
                                     <div class="flex-1 overflow-y-auto pr-1">
                                         <table class="w-full text-left border-collapse">
@@ -3703,6 +3717,26 @@
                 `;
 
                 renderVitrinesManager(document.getElementById('vitrines-manager'), customProducts);
+
+                const applyProductFilters = () => {
+                    const term = document.getElementById('prod-filter-search').value.trim().toLowerCase();
+                    const image = document.getElementById('prod-filter-image').value;
+                    const cat = document.getElementById('prod-filter-cat').value;
+                    let visible = 0;
+                    document.querySelectorAll('#custom-products-tbody .prod-row').forEach(row => {
+                        const kind = row.dataset.img;
+                        const show = (!term || row.dataset.search.includes(term))
+                            && (!cat || row.dataset.cat === cat)
+                            && (!image || image === kind || (image === 'with' && kind !== 'none'));
+                        row.classList.toggle('hidden', !show);
+                        if (show) visible++;
+                    });
+                    document.getElementById('prod-filter-count').textContent = `Exibindo ${visible} de ${customProducts.length}`;
+                };
+                ['prod-filter-search', 'prod-filter-image', 'prod-filter-cat'].forEach(id => {
+                    document.getElementById(id).addEventListener(id === 'prod-filter-search' ? 'input' : 'change', applyProductFilters);
+                });
+                applyProductFilters();
 
                 const refreshImagesBtn = document.getElementById('refresh-images-btn');
                 refreshImagesBtn.addEventListener('click', async () => {
