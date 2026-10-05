@@ -220,7 +220,7 @@
         <!-- Navigation Tabs -->
         <div class="border-b border-admin-border bg-admin-card/50">
             <div class="container mx-auto px-4">
-                <nav class="flex overflow-x-auto hide-scrollbar -mb-px py-2 gap-1.5 scroll-smooth" id="admin-tabs">
+                <nav class="flex flex-wrap items-center py-2 gap-1.5" id="admin-tabs">
                     <!-- Tab Items rendered dynamically -->
                 </nav>
             </div>
@@ -1531,32 +1531,80 @@
             });
 
             // --- TAB RENDER LOGIC ---
-            function renderTabs() {
-                tabsContainer.innerHTML = '';
-                tabList.forEach(tab => {
-                    const isActive = tab.id === activeTabId;
-                    const btn = document.createElement('button');
-                    btn.className = `flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition whitespace-nowrap border-b-2`;
-                    
-                    if (isActive) {
-                        btn.className += ` bg-white/5 border-admin-accentBlue text-white shadow-lg shadow-pink-500/5`;
-                    } else {
-                        btn.className += ` border-transparent text-admin-textMuted hover:text-white hover:bg-white/5`;
-                    }
+            const tabGroups = [
+                { label: 'Dashboard', icon: 'fa-solid fa-chart-line', tabs: ['estatisticas-config'] },
+                { label: 'Produtos', icon: 'fa-solid fa-cart-plus', tabs: ['produtos-config', 'promocoes-config', 'escolhas-config'], links: [{ label: 'Curadoria Mercado Livre', icon: 'fa-solid fa-magnifying-glass-chart', href: '/admin/curadoria' }] },
+                { label: 'Visual', icon: 'fa-solid fa-palette', tabs: ['logo-config', 'banners-config', 'cores-config'] },
+                { label: 'Marketing', icon: 'fa-solid fa-bullhorn', tabs: ['marketing-config', 'creatives-config'] },
+                { label: 'Sistema', icon: 'fa-solid fa-key', tabs: ['api-tokens-config'] }
+            ];
+            let openGroup = null;
 
-                    btn.innerHTML = `<i class="${tab.icon}"></i> ${tab.label}`;
-                    
-                    btn.addEventListener('click', () => {
-                        if (activeTabId === tab.id) return;
-                        activeTabId = tab.id;
-                        renderTabs();
-                        loadTab(tab.id);
-                    });
+            document.addEventListener('click', event => {
+                if (openGroup !== null && !tabsContainer.contains(event.target)) {
+                    openGroup = null;
+                    renderTabs();
+                }
+            });
 
-                    tabsContainer.appendChild(btn);
-                });
+            function selectTab(tabId) {
+                openGroup = null;
+                if (activeTabId !== tabId) {
+                    activeTabId = tabId;
+                    loadTab(tabId);
+                }
+                renderTabs();
             }
 
+            // --- TAB RENDER LOGIC ---
+            function renderTabs() {
+                tabsContainer.innerHTML = '';
+                const itemClass = 'flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-bold text-left whitespace-nowrap transition';
+
+                tabGroups.forEach((group, index) => {
+                    const items = group.tabs.map(id => tabList.find(t => t.id === id)).filter(Boolean);
+                    const links = group.links || [];
+                    const groupActive = items.some(t => t.id === activeTabId);
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'relative';
+
+                    const btn = document.createElement('button');
+                    btn.className = 'flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition whitespace-nowrap border-b-2 ' +
+                        (groupActive ? 'bg-white/5 border-admin-accentBlue text-white shadow-lg shadow-pink-500/5'
+                                     : 'border-transparent text-admin-textMuted hover:text-white hover:bg-white/5');
+                    const single = items.length === 1 && !links.length;
+                    const caret = single ? '' : `<i class="fa-solid fa-chevron-down text-[9px] transition ${openGroup === index ? 'rotate-180' : ''}"></i>`;
+                    btn.innerHTML = `<i class="${group.icon}"></i> ${group.label} ${caret}`;
+                    btn.setAttribute('aria-expanded', String(openGroup === index));
+                    btn.addEventListener('click', () => {
+                        if (single) return selectTab(items[0].id);
+                        openGroup = openGroup === index ? null : index;
+                        renderTabs();
+                    });
+                    wrapper.appendChild(btn);
+
+                    if (openGroup === index) {
+                        const menu = document.createElement('div');
+                        menu.className = 'absolute left-0 top-full mt-1 min-w-[220px] z-50 p-1.5 rounded-xl border border-admin-border bg-admin-card shadow-2xl';
+                        items.forEach(tab => {
+                            const item = document.createElement('button');
+                            item.className = itemClass + (tab.id === activeTabId ? ' bg-white/10 text-white' : ' text-admin-textMuted hover:text-white hover:bg-white/5');
+                            item.innerHTML = `<i class="${tab.icon} w-4 text-center"></i> ${tab.label}`;
+                            item.addEventListener('click', () => selectTab(tab.id));
+                            menu.appendChild(item);
+                        });
+                        links.forEach(link => {
+                            const a = document.createElement('a');
+                            a.href = link.href;
+                            a.className = itemClass + ' text-admin-accentGold hover:bg-white/5';
+                            a.innerHTML = `<i class="${link.icon} w-4 text-center"></i> ${link.label} <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-auto"></i>`;
+                            menu.appendChild(a);
+                        });
+                        wrapper.appendChild(menu);
+                    }
+                    tabsContainer.appendChild(wrapper);
+                });
+            }
             // --- LOAD TAB CONTENT ---
             function loadTab(tabId) {
                 tabContent.classList.add('opacity-0');
