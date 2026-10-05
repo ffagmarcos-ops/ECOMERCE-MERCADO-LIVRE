@@ -1,0 +1,413 @@
+const ML_API = 'https://api.mercadolibre.com';
+
+const crypto = require('crypto');
+const ITEM_ATTRIBUTES = [
+    'id', 'title', 'price', 'original_price', 'thumbnail', 'pictures', 'permalink', 'status',
+    'available_quantity', 'sold_quantity', 'category_id', 'condition', 'shipping', 'catalog_product_id'
+].join(',');
+const MULTIGET_SIZE = 20;
+
+let tokenCache = { value: null, expiresAt: 0 };
+
+// Per-installation configuration (white label): stored in the database, with env vars as fallback.
+let config = envConfig();
+
+function envConfig() {
+    return {
+        clientId: process.env.ML_CLIENT_ID || '',
+        clientSecret: process.env.ML_CLIENT_SECRET || '',
+        siteId: process.env.ML_SITE_ID || 'MLB',
+        affiliateParams: process.env.ML_AFFILIATE_PARAMS || '',
+        categories: process.env.ML_DISCOVERY_CATEGORIES || 'MLB1574,MLB1246,MLB1000,MLB1648'
+    };
+}
+
+function isConfigured() {
+    return Boolean(config.clientId && config.clientSecret);
+}
+
+function discoveryCategories() {
+    return String(config.categories).split(',').map(s => s.trim()).filter(c => /^MLB\d+$|^ML[A-Z]\d+$/.test(c));
+}
+
+async function ensureConfigTable(pool) {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS integration_settings (
+            setting_key VARCHAR(100) PRIMARY KEY,
+            setting_value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+}
+
+// Encryption key: INTEGRATION_SECRET_KEY if provided, otherwise a random key generated once and kept in the database.
+async function getEncryptionKey(pool) {
+    if (process.env.INTEGRATION_SECRET_KEY) {
+        return crypto.createHash('sha256').update(process.env.INTEGRATION_SECRET_KEY).digest();
+    }
+    const [rows] = await pool.query("SELECT setting_value FROM integration_settings WHERE setting_key = '_enc_key'");
+    if (rows.length) return Buffer.from(rows[0].setting_value, 'hex');
+    const key = crypto.randomBytes(32);
+    await pool.query("INSERT IGNORE INTO integration_settings (setting_key, setting_value) VALUES ('_enc_key', ?)", [key.toString('hex')]);
+    const [again] = await pool.query("SELECT setting_value FROM integration_settings WHERE setting_key = '_enc_key'");
+    return Buffer.from(again[0].setting_value, 'hex');
+}
+
+function encrypt(text, key) {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const data = Buffer.concat([cipher.update(String(text), 'utf8'), cipher.final()]);
+    return [iv, cipher.getAuthTag(), data].map(b => b.toString('hex')).join(':');
+}
+
+function decrypt(payload, key) {
+    try {
+        const [iv, tag, data] = String(payload).split(':').map(h => Buffer.from(h, 'hex'));
+        const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+        decipher.setAuthTag(tag);
+        return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+    } catch (err) {
+        return '';
+    }
+}
+
+async function loadConfig(pool) {
+    const [rows] = await pool.query("SELECT setting_key, setting_value FROM integration_settings WHERE setting_key LIKE 'ml_%'");
+    const stored = Object.fromEntries(rows.map(r => [r.setting_key, r.setting_value]));
+    const key = await getEncryptionKey(pool);
+    const base = envConfig();
+    config = {
+        clientId: stored.ml_client_id || base.clientId,
+        clientSecret: stored.ml_client_secret ? decrypt(stored.ml_client_secret, key) : base.clientSecret,
+        siteId: stored.ml_site_id || base.siteId,
+        affiliateParams: stored.ml_affiliate_params !== undefined ? stored.ml_affiliate_params : base.affiliateParams,
+        categories: stored.ml_categories || base.categories
+    };
+    tokenCache = { value: null, expiresAt: 0 };
+}
+
+async function saveConfig(pool, input) {
+    const key = await getEncryptionKey(pool);
+    const upsert = (k, v) => pool.query(
+        'INSERT INTO integration_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)', [k, v]);
+
+    if (typeof input.clientId === 'string') await upsert('ml_client_id', input.clientId.trim());
+    // An empty secret means "keep the current one"; the secret is never sent back to the browser.
+    if (typeof input.clientSecret === 'string' && input.clientSecret.trim()) {
+        await upsert('ml_client_secret', encrypt(input.clientSecret.trim(), key));
+    }
+    if (typeof input.siteId === 'string' && /^ML[A-Z]$/.test(input.siteId.trim())) await upsert('ml_site_id', input.siteId.trim());
+    if (typeof input.affiliateParams === 'string') await upsert('ml_affiliate_params', input.affiliateParams.trim().replace(/^\?/, ''));
+    if (typeof input.categories === 'string') await upsert('ml_categories', input.categories.trim());
+    await loadConfig(pool);
+}
+
+function getPublicConfig() {
+    return {
+        configured: isConfigured(),
+        clientId: config.clientId,
+        hasClientSecret: Boolean(config.clientSecret),
+        siteId: config.siteId,
+        affiliateParams: config.affiliateParams,
+        categories: config.categories
+    };
+}
+
+async function testCredentials() {
+    tokenCache = { value: null, expiresAt: 0 };
+    await getAccessToken();
+    return true;
+}
+
+async function getAccessToken() {
+    if (!isConfigured()) throw new Error('Credenciais do Mercado Livre não configuradas.');
+    if (tokenCache.value && Date.now() < tokenCache.expiresAt - 60000) return tokenCache.value;
+
+    const response = await fetch(`${ML_API}/oauth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+        body: new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: config.clientId,
+            client_secret: config.clientSecret
+        })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.access_token) {
+        throw new Error(`Falha ao obter token do Mercado Livre (HTTP ${response.status}).`);
+    }
+    tokenCache = { value: data.access_token, expiresAt: Date.now() + (data.expires_in || 21600) * 1000 };
+    return tokenCache.value;
+}
+
+async function mlGet(pathAndQuery) {
+    const token = await getAccessToken();
+    const response = await fetch(`${ML_API}${pathAndQuery}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+    });
+    if (response.status === 401) tokenCache = { value: null, expiresAt: 0 };
+    const body = await response.json().catch(() => null);
+    return { status: response.status, ok: response.ok, body };
+}
+
+// Multiget returns [{code, body}] preserving the requested order.
+async function fetchItems(ids) {
+    const results = new Map();
+    for (let i = 0; i < ids.length; i += MULTIGET_SIZE) {
+        const batch = ids.slice(i, i + MULTIGET_SIZE);
+        const res = await mlGet(`/items?ids=${batch.join(',')}&attributes=${ITEM_ATTRIBUTES}`);
+        if (!res.ok || !Array.isArray(res.body)) {
+            throw new Error(`Falha ao consultar itens no Mercado Livre (HTTP ${res.status}).`);
+        }
+        res.body.forEach((entry, idx) => results.set(batch[idx], entry));
+    }
+    return results;
+}
+
+function buildAffiliateUrl(permalink) {
+    if (!permalink) return '';
+    const params = new URLSearchParams(config.affiliateParams);
+    const url = new URL(permalink);
+    params.forEach((value, key) => url.searchParams.set(key, value));
+    return url.toString();
+}
+
+function normalizeItem(item) {
+    const price = Number(item.price) || 0;
+    const oldPrice = Number(item.original_price) || null;
+    const discount = oldPrice && oldPrice > price ? Math.round((1 - price / oldPrice) * 100) : 0;
+    const pictures = (item.pictures || []).map(p => p.secure_url || p.url).filter(Boolean);
+    const thumb = (item.thumbnail || '').replace(/^http:/, 'https:').replace(/-I\.jpg$/, '-O.jpg');
+    return {
+        item_id: item.id,
+        title: item.title,
+        price,
+        old_price: oldPrice,
+        discount_pct: discount,
+        image: pictures[0] || thumb,
+        image_2: pictures[1] || '',
+        permalink: item.permalink,
+        category_id: item.category_id || '',
+        sold_quantity: Number(item.sold_quantity) || 0,
+        available_quantity: Number(item.available_quantity) || 0,
+        free_shipping: item.shipping && item.shipping.free_shipping ? 1 : 0,
+        condition: item.condition
+    };
+}
+
+// Score 0-100: demand (sales), deal, shipping and affinity with what already converts on the storefront.
+function scoreItem(item, categoryClicks = 0) {
+    const demand = Math.min(1, Math.log10(item.sold_quantity + 1) / 4) * 45;
+    const deal = Math.min(item.discount_pct, 50) / 50 * 25;
+    const shipping = item.free_shipping ? 10 : 0;
+    const stock = item.available_quantity >= 5 ? 5 : 0;
+    const affinity = Math.min(categoryClicks, 20) / 20 * 15;
+    const score = Math.round(demand + deal + shipping + stock + affinity);
+    const reasons = [];
+    if (item.sold_quantity >= 100) reasons.push(`${item.sold_quantity}+ vendidos`);
+    if (item.discount_pct >= 10) reasons.push(`${item.discount_pct}% OFF`);
+    if (item.free_shipping) reasons.push('frete grátis');
+    if (categoryClicks > 0) reasons.push('categoria com cliques na vitrine');
+    return { score, reason: reasons.join(' · ') };
+}
+
+function isSellable(item) {
+    return item.status === 'active' && item.available_quantity > 0;
+}
+
+async function collectCandidateIds({ queries = [], categories = [], topClicked = [] }) {
+    const found = new Map();
+    const errors = [];
+    const add = (id, source) => {
+        if (/^ML[A-Z]\d+$/.test(id || '') && !found.has(id)) found.set(id, source);
+    };
+
+    async function fromSearch(params, source) {
+        const res = await mlGet(`/sites/${config.siteId}/search?${new URLSearchParams({ limit: '20', ...params })}`);
+        if (!res.ok) return errors.push(`${source}: HTTP ${res.status}`);
+        (res.body.results || []).forEach(r => add(r.id, source));
+    }
+
+    for (const q of queries) await fromSearch({ q, sort: 'relevance' }, `busca:${q}`).catch(e => errors.push(e.message));
+
+    for (const category of (categories.length ? categories : discoveryCategories())) {
+        try {
+            const res = await mlGet(`/highlights/${config.siteId}/category/${category}`);
+            if (!res.ok) { errors.push(`destaques ${category}: HTTP ${res.status}`); continue; }
+            for (const entry of (res.body.content || []).slice(0, 20)) {
+                if (entry.type === 'ITEM') add(entry.id, `destaques:${category}`);
+                else if (entry.type === 'PRODUCT') {
+                    const product = await mlGet(`/products/${entry.id}`);
+                    const winner = product.ok && product.body.buy_box_winner;
+                    if (winner) add(winner.item_id, `destaques:${category}`);
+                }
+            }
+        } catch (e) { errors.push(e.message); }
+    }
+
+    try {
+        const trends = await mlGet(`/trends/${config.siteId}`);
+        if (trends.ok && Array.isArray(trends.body)) {
+            for (const trend of trends.body.slice(0, 5)) {
+                await fromSearch({ q: trend.keyword, limit: '10' }, `tendência:${trend.keyword}`);
+            }
+        } else errors.push(`tendências: HTTP ${trends.status}`);
+    } catch (e) { errors.push(e.message); }
+
+    for (const name of topClicked) {
+        const q = String(name).split(/\s+/).slice(0, 4).join(' ');
+        await fromSearch({ q, limit: '10' }, `similar:${q}`).catch(e => errors.push(e.message));
+    }
+
+    return { ids: [...found.keys()], sources: found, errors };
+}
+
+async function ensureCandidateTable(pool) {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS product_candidates (
+            item_id VARCHAR(30) PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            price DECIMAL(10,2),
+            old_price DECIMAL(10,2) NULL,
+            discount_pct INT DEFAULT 0,
+            image MEDIUMTEXT,
+            image_2 MEDIUMTEXT,
+            permalink TEXT,
+            affiliate_url MEDIUMTEXT,
+            category_id VARCHAR(30),
+            store_category VARCHAR(100) DEFAULT '',
+            sold_quantity INT DEFAULT 0,
+            available_quantity INT DEFAULT 0,
+            free_shipping TINYINT(1) DEFAULT 0,
+            score INT DEFAULT 0,
+            reason VARCHAR(255) DEFAULT '',
+            source VARCHAR(120) DEFAULT '',
+            status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_candidates_status (status, score)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+}
+
+async function getSalesFlow(pool) {
+    const [byCategory] = await pool.query(
+        `SELECT category, COUNT(*) AS clicks FROM clicks
+         WHERE created_at >= (NOW() - INTERVAL 30 DAY) AND category <> ''
+         GROUP BY category ORDER BY clicks DESC`
+    );
+    const [byProduct] = await pool.query(
+        `SELECT name, COUNT(*) AS clicks FROM clicks
+         WHERE created_at >= (NOW() - INTERVAL 30 DAY)
+         GROUP BY product_id, name ORDER BY clicks DESC LIMIT 3`
+    );
+    return { byCategory, topClicked: byProduct.map(r => r.name).filter(Boolean) };
+}
+
+async function discoverCandidates(pool, options = {}) {
+    const flow = await getSalesFlow(pool);
+    const { ids, sources, errors } = await collectCandidateIds({ ...options, topClicked: flow.topClicked });
+    const [existing] = await pool.query('SELECT item_id FROM product_candidates UNION SELECT id FROM products');
+    const known = new Set(existing.map(r => String(r.item_id)));
+    const fresh = ids.filter(id => !known.has(id));
+    if (!fresh.length) return { added: 0, scanned: ids.length, errors };
+
+    const items = await fetchItems(fresh);
+    const maxClicks = flow.byCategory.length ? Number(flow.byCategory[0].clicks) : 0;
+    let added = 0;
+
+    for (const [id, entry] of items) {
+        if (entry.code !== 200 || !isSellable(entry.body)) continue;
+        const item = normalizeItem(entry.body);
+        if (!item.image || item.price <= 0) continue;
+        const { score, reason } = scoreItem(item, maxClicks ? Math.round(maxClicks / 2) : 0);
+        await pool.query(
+            `INSERT IGNORE INTO product_candidates
+             (item_id, title, price, old_price, discount_pct, image, image_2, permalink, affiliate_url,
+              category_id, sold_quantity, available_quantity, free_shipping, score, reason, source)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, item.title.slice(0, 255), item.price, item.old_price, item.discount_pct, item.image, item.image_2,
+                item.permalink, buildAffiliateUrl(item.permalink), item.category_id, item.sold_quantity,
+                item.available_quantity, item.free_shipping, score, reason, (sources.get(id) || '').slice(0, 120)]
+        );
+        added++;
+    }
+    return { added, scanned: ids.length, errors };
+}
+
+// Resolves which Mercado Livre entity a storefront product points to (item listing or catalog product).
+function resolveMlRef(product) {
+    const id = String(product.id);
+    if (/^ML[A-Z]\d+$/.test(id)) return { kind: 'item', mlId: id };
+    const url = String(product.url || '');
+    const catalog = /\/p\/(ML[A-Z]\d+)/.exec(url);
+    if (catalog) return { kind: 'catalog', mlId: catalog[1] };
+    const item = /(ML[A-Z])-?(\d{6,})/.exec(url);
+    if (item) return { kind: 'item', mlId: `${item[1]}${item[2]}` };
+    return null;
+}
+
+async function mapLimit(list, limit, fn) {
+    const queue = [...list];
+    await Promise.all(Array.from({ length: Math.min(limit, queue.length) }, async () => {
+        while (queue.length) await fn(queue.shift());
+    }));
+}
+
+// Removes storefront products and drops pending candidates that are no longer purchasable.
+async function verifyAvailability(pool) {
+    const summary = { checked: 0, removed: [], priceUpdated: 0, candidatesDropped: 0, error: null };
+    try {
+        const [products] = await pool.query('SELECT id, name, price, url FROM products');
+        const [candidates] = await pool.query("SELECT item_id FROM product_candidates WHERE status = 'pending'");
+        const refs = products.map(p => ({ product: p, ref: resolveMlRef(p) })).filter(r => r.ref);
+        const itemIds = [...new Set([
+            ...refs.filter(r => r.ref.kind === 'item').map(r => r.ref.mlId),
+            ...candidates.map(c => c.item_id)
+        ])];
+        const items = itemIds.length ? await fetchItems(itemIds) : new Map();
+        const isItemGone = entry => entry && (entry.code === 404 || (entry.code === 200 && !isSellable(entry.body)));
+        const removeProduct = async product => {
+            await pool.query('DELETE FROM products WHERE id = ?', [product.id]);
+            summary.removed.push({ id: product.id, name: product.name });
+        };
+        summary.checked = refs.length + candidates.length;
+
+        const catalogRefs = refs.filter(r => r.ref.kind === 'catalog');
+        const gonePromises = [];
+        await mapLimit(catalogRefs, 5, async ({ product, ref }) => {
+            const res = await mlGet(`/products/${ref.mlId}`);
+            if (res.status === 404 || (res.ok && res.body && res.body.status && res.body.status !== 'active')) {
+                gonePromises.push(product);
+            } else if (!res.ok) {
+                throw new Error(`Falha ao consultar produto de catálogo (HTTP ${res.status}).`);
+            }
+        });
+        for (const product of gonePromises) await removeProduct(product);
+
+        for (const { product, ref } of refs.filter(r => r.ref.kind === 'item')) {
+            const entry = items.get(ref.mlId);
+            if (isItemGone(entry)) {
+                await removeProduct(product);
+            } else if (entry && entry.code === 200 && Number(entry.body.price) > 0 && Number(entry.body.price) !== Number(product.price)) {
+                await pool.query('UPDATE products SET price = ?, oldPrice = ? WHERE id = ?',
+                    [entry.body.price, entry.body.original_price || null, product.id]);
+                summary.priceUpdated++;
+            }
+        }
+
+        for (const candidate of candidates) {
+            if (isItemGone(items.get(candidate.item_id))) {
+                await pool.query('DELETE FROM product_candidates WHERE item_id = ?', [candidate.item_id]);
+                summary.candidatesDropped++;
+            }
+        }
+    } catch (err) {
+        // On API failures nothing further is removed, so an outage never empties the storefront.
+        summary.error = err.message;
+    }
+    return summary;
+}
+module.exports = {
+    isConfigured, ensureConfigTable, loadConfig, saveConfig, getPublicConfig, testCredentials, ensureCandidateTable, discoverCandidates, verifyAvailability, getSalesFlow, buildAffiliateUrl
+};

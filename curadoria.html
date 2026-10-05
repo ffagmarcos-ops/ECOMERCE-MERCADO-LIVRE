@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curadoria Mercado Livre • Tudo pra Você</title>
+<style>
+    :root { --bg:#0b0b10; --card:#15151d; --border:#262633; --text:#f1f1f5; --muted:#8b8ba0; --accent:#ff1a75; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
+    header { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
+    header h1 { font-size:20px; margin:0; }
+    a { color:var(--accent); text-decoration:none; }
+    main { max-width:1280px; margin:0 auto; padding:24px; }
+    .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:20px; }
+    .kpi, .panel { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+    .kpi b { display:block; font-size:26px; margin-top:4px; }
+    .kpi span, .muted { color:var(--muted); font-size:12px; }
+    .panels { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:12px; margin-bottom:20px; }
+    .panel h2 { margin:0 0 10px; font-size:14px; }
+    .bar { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:12px; }
+    .bar i { display:block; height:8px; background:var(--accent); border-radius:4px; }
+    input, select, button { font:inherit; color:var(--text); background:#0f0f16; border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
+    button { cursor:pointer; background:var(--accent); border-color:var(--accent); font-weight:600; }
+    button.secondary { background:transparent; border-color:var(--border); }
+    button.ok { background:var(--ok); border-color:var(--ok); color:#04130a; }
+    button.bad { background:transparent; border-color:var(--bad); color:var(--bad); }
+    button:disabled { opacity:.5; cursor:wait; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .row input { flex:1; min-width:200px; }
+    .tabs { display:flex; gap:6px; margin:20px 0 12px; }
+    .tabs button { background:transparent; border-color:var(--border); }
+    .tabs button.active { background:var(--accent); border-color:var(--accent); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:14px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+    .card img { width:100%; height:200px; object-fit:contain; background:#fff; }
+    .card .body { padding:12px; display:flex; flex-direction:column; gap:8px; flex:1; }
+    .title { font-size:13px; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .price { font-size:20px; font-weight:700; }
+    .price s { font-size:12px; color:var(--muted); font-weight:400; margin-left:6px; }
+    .score { display:inline-block; padding:2px 8px; border-radius:99px; font-size:12px; font-weight:700; }
+    .s-high { background:rgba(34,197,94,.18); color:var(--ok); } .s-mid { background:rgba(245,158,11,.18); color:var(--warn); } .s-low { background:rgba(239,68,68,.18); color:var(--bad); }
+    .card input, .card select { width:100%; font-size:12px; }
+    .actions { display:flex; gap:8px; margin-top:auto; }
+    .actions button { flex:1; }
+    .cfg { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
+    .cfg label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
+    #msg { margin:10px 0; font-size:13px; min-height:18px; }
+    .empty { text-align:center; padding:48px; color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+    <h1>🔎 Curadoria Mercado Livre</h1>
+    <div class="row"><a href="/admin">← Painel</a></div>
+</header>
+<main>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="panel" style="margin-bottom:20px">
+        <h2>⚙️ Configuração da integração Mercado Livre</h2>
+        <div class="cfg">
+            <label>Client ID (App ID)<input id="cfgId" autocomplete="off"></label>
+            <label>Client Secret<input id="cfgSecret" type="password" autocomplete="new-password" placeholder="••••••••"></label>
+            <label>País (site)<select id="cfgSite"><option value="MLB">Brasil (MLB)</option><option value="MLA">Argentina (MLA)</option><option value="MLM">México (MLM)</option><option value="MLC">Chile (MLC)</option><option value="MCO">Colômbia (MCO)</option></select></label>
+            <label>Parâmetros de afiliado<input id="cfgAff" placeholder="matt_tool=123&amp;matt_word=seu_id"></label>
+            <label>Categorias de descoberta<input id="cfgCats" placeholder="MLB1574,MLB1246"></label>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <button id="cfgSave">Salvar</button>
+            <button id="cfgTest" class="secondary">Testar conexão</button>
+            <span class="muted" id="cfgInfo"></span>
+        </div>
+        <p class="muted">O Client Secret é guardado criptografado e nunca é exibido novamente. Deixe em branco para mantê-lo.</p>
+    </div>
+    <div class="panels">
+        <div class="panel"><h2>📈 Fluxo de vendas (cliques por categoria, 30 dias)</h2><div id="flow"></div></div>
+        <div class="panel">
+            <h2>🧭 Buscar novos produtos</h2>
+            <div class="row">
+                <input id="queries" placeholder="Termos separados por vírgula (opcional)">
+                <button id="discoverBtn">Buscar</button>
+            </div>
+            <p class="muted">Sem termos, usa destaques das categorias, tendências e produtos similares aos mais clicados na vitrine.</p>
+        </div>
+        <div class="panel">
+            <h2>🧹 Verificação de disponibilidade</h2>
+            <div class="row"><button id="verifyBtn" class="secondary">Verificar agora</button></div>
+            <p class="muted" id="verifyInfo"></p>
+        </div>
+    </div>
+
+    <div id="msg"></div>
+    <div class="tabs" id="tabs">
+        <button data-status="pending" class="active">Pendentes</button>
+        <button data-status="approved">Aprovados</button>
+        <button data-status="rejected">Rejeitados</button>
+    </div>
+    <div class="grid" id="grid"></div>
+</main>
+
+<script>
+const token = sessionStorage.getItem('admin-access-token');
+if (!token) location.href = '/admin';
+
+const CATEGORIES = ['casa', 'organização', 'eletrônicos', 'beleza', 'utilidades'];
+let status = 'pending';
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = v => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const safeUrl = u => (/^https:\/\//i.test(u) ? u : '');
+
+async function api(path, options = {}) {
+    const response = await fetch(`/api/curation/${path}`, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) }
+    });
+    if (response.status === 401) { sessionStorage.removeItem('admin-access-token'); location.href = '/admin'; }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    return data;
+}
+
+function say(text, bad) { $('msg').style.color = bad ? 'var(--bad)' : 'var(--muted)'; $('msg').textContent = text; }
+
+function renderOverview(o) {
+    const count = s => (o.candidateCounts.find(c => c.status === s) || { total: 0 }).total;
+    $('kpis').innerHTML = [
+        ['Na vitrine', o.storefrontProducts], ['Pendentes de aprovação', count('pending')],
+        ['Aprovados', count('approved')], ['Rejeitados', count('rejected')],
+        ['API Mercado Livre', o.configured ? 'Conectada' : 'Não configurada']
+    ].map(([l, v]) => `<div class="kpi"><span>${l}</span><b>${esc(v)}</b></div>`).join('');
+
+    const max = Math.max(1, ...o.categoryClicks.map(c => Number(c.clicks)));
+    $('flow').innerHTML = o.categoryClicks.length
+        ? o.categoryClicks.map(c => `<div class="bar"><span style="width:110px">${esc(c.category)}</span><i style="width:${Math.round(Number(c.clicks) / max * 100)}%"></i><span>${c.clicks}</span></div>`).join('')
+        : '<p class="muted">Ainda sem cliques registrados.</p>';
+
+    const v = o.lastAvailabilityCheck;
+    $('verifyInfo').textContent = v
+        ? `Última: ${new Date(v.at).toLocaleString('pt-BR')} — ${v.checked} verificados, ${v.removed.length} removidos, ${v.priceUpdated} preços atualizados${v.error ? ` (erro: ${v.error})` : ''}.`
+        : 'Executa automaticamente a cada 6h (ML_VERIFY_INTERVAL_HOURS).';
+}
+
+function card(c) {
+    const cls = c.score >= 60 ? 's-high' : c.score >= 35 ? 's-mid' : 's-low';
+    const url = safeUrl(c.affiliate_url);
+    const options = CATEGORIES.map(cat => `<option ${cat === (c.store_category || 'utilidades') ? 'selected' : ''}>${esc(cat)}</option>`).join('');
+    const pending = c.status !== 'approved';
+    return `<div class="card" data-id="${esc(c.item_id)}">
+        <img src="${esc(safeUrl(c.image))}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        <div class="body">
+            <div><span class="score ${cls}">Score ${c.score}</span> <span class="muted">${esc(c.source)}</span></div>
+            <div class="title" title="${esc(c.title)}">${esc(c.title)}</div>
+            <div class="price">${money(c.price)}${c.old_price ? `<s>${money(c.old_price)}</s>` : ''}</div>
+            <div class="muted">${esc(c.reason) || '—'} · ${c.sold_quantity} vendidos · ${c.available_quantity} em estoque</div>
+            <select class="cat">${options}</select>
+            <input class="aff" value="${esc(url)}" placeholder="Link de afiliado (https://...)">
+            <div class="row"><a href="${esc(safeUrl(c.permalink))}" target="_blank" rel="noopener noreferrer">Ver no ML ↗</a></div>
+            <div class="actions">
+                ${pending ? '<button class="ok" data-act="approved">Aprovar</button>' : ''}
+                ${c.status !== 'rejected' ? '<button class="bad" data-act="rejected">Rejeitar</button>' : '<button class="secondary" data-act="pending">Reabrir</button>'}
+            </div>
+        </div></div>`;
+}
+
+async function load() {
+    try {
+        const [o, list] = await Promise.all([api('overview'), api(`candidates?status=${status}`)]);
+        renderOverview(o);
+        $('grid').innerHTML = list.length ? list.map(card).join('') : '<div class="empty" style="grid-column:1/-1">Nenhum produto nesta lista. Use “Buscar” para trazer sugestões.</div>';
+    } catch (e) { say(e.message, true); }
+}
+
+$('tabs').addEventListener('click', e => {
+    if (!e.target.dataset.status) return;
+    status = e.target.dataset.status;
+    document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b === e.target));
+    load();
+});
+
+$('grid').addEventListener('click', async e => {
+    const act = e.target.dataset.act;
+    if (!act) return;
+    const el = e.target.closest('.card');
+    e.target.disabled = true;
+    try {
+        await api(`candidates/${encodeURIComponent(el.dataset.id)}`, {
+            method: 'PUT',
+            body: JSON.stringify({ status: act, affiliate_url: el.querySelector('.aff').value.trim(), store_category: el.querySelector('.cat').value })
+        });
+        say(act === 'approved' ? 'Produto publicado na vitrine.' : 'Atualizado.');
+        load();
+    } catch (err) { say(err.message, true); e.target.disabled = false; }
+});
+
+$('discoverBtn').addEventListener('click', async () => {
+    $('discoverBtn').disabled = true; say('Buscando no Mercado Livre...');
+    try {
+        const queries = $('queries').value.split(',').map(s => s.trim()).filter(Boolean);
+        const r = await api('discover', { method: 'POST', body: JSON.stringify({ queries }) });
+        say(`${r.added} novos sugeridos (${r.scanned} analisados).${r.errors.length ? ' Avisos: ' + r.errors.join(' | ') : ''}`, r.errors.length && !r.added);
+        load();
+    } catch (e) { say(e.message, true); }
+    $('discoverBtn').disabled = false;
+});
+
+$('verifyBtn').addEventListener('click', async () => {
+    $('verifyBtn').disabled = true; say('Verificando disponibilidade...');
+    try {
+        const r = await api('verify', { method: 'POST' });
+        say(r.error ? `Erro: ${r.error}` : `${r.checked} verificados, ${r.removed.length} removidos da vitrine.`, !!r.error);
+        load();
+    } catch (e) { say(e.message, true); }
+    $('verifyBtn').disabled = false;
+});
+
+async function loadConfig() {
+    try {
+        const c = await api('config');
+        $('cfgId').value = c.clientId; $('cfgAff').value = c.affiliateParams; $('cfgCats').value = c.categories; $('cfgSite').value = c.siteId;
+        $('cfgSecret').value = '';
+        $('cfgSecret').placeholder = c.hasClientSecret ? '•••••••• (salvo)' : 'Cole o Client Secret';
+        $('cfgInfo').textContent = c.configured ? '✔ Credenciais informadas' : 'Credenciais pendentes';
+    } catch (e) { say(e.message, true); }
+}
+
+$('cfgSave').addEventListener('click', async () => {
+    $('cfgSave').disabled = true;
+    try {
+        await api('config', { method: 'PUT', body: JSON.stringify({
+            clientId: $('cfgId').value, clientSecret: $('cfgSecret').value, siteId: $('cfgSite').value,
+            affiliateParams: $('cfgAff').value, categories: $('cfgCats').value
+        }) });
+        say('Configuração salva.');
+        await loadConfig(); load();
+    } catch (e) { say(e.message, true); }
+    $('cfgSave').disabled = false;
+});
+
+$('cfgTest').addEventListener('click', async () => {
+    $('cfgTest').disabled = true; say('Testando conexão...');
+    try { await api('config/test', { method: 'POST' }); say('Conexão com o Mercado Livre OK.'); }
+    catch (e) { say(`Falha: ${e.message}`, true); }
+    $('cfgTest').disabled = false;
+});
+
+loadConfig();
+load();
+</script>
+</body>
+</html>

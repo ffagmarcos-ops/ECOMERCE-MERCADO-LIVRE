@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const swaggerUi = require('swagger-ui-express');
 const openApiSpec = require('./openapi.json');
+const curation = require('./ml-curation');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -254,6 +255,10 @@ async function initDB() {
                 INDEX idx_api_tokens_user (created_by, token_type, revoked_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
+
+        await curation.ensureConfigTable(pool);
+        await curation.loadConfig(pool);
+        await curation.ensureCandidateTable(pool);
 
         console.log("Database tables verified/created successfully.");
 
@@ -751,12 +756,142 @@ app.post('/api/stats/reset', requireApiToken, async (req, res) => {
     }
 });
 
+// 6. Curadoria Mercado Livre
+let lastAvailabilityCheck = null;
+
+async function runAvailabilityCheck() {
+    const summary = await curation.verifyAvailability(pool);
+    lastAvailabilityCheck = { ...summary, at: new Date().toISOString() };
+    if (summary.removed.length || summary.error) console.log('Availability check:', JSON.stringify(lastAvailabilityCheck));
+    return lastAvailabilityCheck;
+}
+
+const verifyIntervalHours = Number(process.env.ML_VERIFY_INTERVAL_HOURS || 6);
+if (curation.isConfigured() && verifyIntervalHours > 0) {
+    setInterval(() => runAvailabilityCheck().catch(err => console.error('Availability check failed:', err.message)),
+        verifyIntervalHours * 3600 * 1000).unref();
+}
+
+app.get('/api/curation/config', requireApiToken, (req, res) => {
+    res.json(curation.getPublicConfig());
+});
+
+app.put('/api/curation/config', requireApiToken, async (req, res) => {
+    try {
+        await curation.saveConfig(pool, req.body || {});
+        res.json(curation.getPublicConfig());
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/curation/config/test', requireApiToken, async (req, res) => {
+    try {
+        if (!curation.isConfigured()) return res.status(400).json({ error: 'Informe Client ID e Client Secret.' });
+        await curation.testCredentials();
+        res.json({ success: true });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+app.get('/api/curation/overview', requireApiToken, async (req, res) => {
+    try {
+        const flow = await curation.getSalesFlow(pool);
+        const [counts] = await pool.query('SELECT status, COUNT(*) AS total FROM product_candidates GROUP BY status');
+        const [[stock]] = await pool.query('SELECT COUNT(*) AS total FROM products');
+        res.json({
+            configured: curation.isConfigured(),
+            categoryClicks: flow.byCategory,
+            topClicked: flow.topClicked,
+            candidateCounts: counts,
+            storefrontProducts: stock.total,
+            lastAvailabilityCheck
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/curation/candidates', requireApiToken, async (req, res) => {
+    try {
+        const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : 'pending';
+        const [rows] = await pool.query(
+            'SELECT * FROM product_candidates WHERE status = ? ORDER BY score DESC, sold_quantity DESC LIMIT 200', [status]);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/curation/discover', requireApiToken, async (req, res) => {
+    try {
+        if (!curation.isConfigured()) {
+            return res.status(400).json({ error: 'Configure as credenciais do Mercado Livre na curadoria (Configuração da integração).' });
+        }
+        const clean = list => (Array.isArray(list) ? list : []).map(v => String(v).trim()).filter(Boolean).slice(0, 10);
+        const result = await curation.discoverCandidates(pool, {
+            queries: clean(req.body.queries),
+            categories: clean(req.body.categories).filter(c => /^ML[A-Z]\d+$/.test(c))
+        });
+        res.json(result);
+    } catch (err) {
+        res.status(502).json({ error: err.message });
+    }
+});
+
+app.put('/api/curation/candidates/:id', requireApiToken, async (req, res) => {
+    try {
+        const { status, affiliate_url: affiliateUrl, store_category: storeCategory } = req.body;
+        if (!['approved', 'rejected', 'pending'].includes(status)) {
+            return res.status(400).json({ error: 'Invalid status.' });
+        }
+        const [rows] = await pool.query('SELECT * FROM product_candidates WHERE item_id = ?', [req.params.id]);
+        if (!rows.length) return res.status(404).json({ error: 'Candidate not found.' });
+        const c = rows[0];
+        const url = String(affiliateUrl || c.affiliate_url || '');
+        if (status === 'approved' && !/^https:\/\//i.test(url)) {
+            return res.status(400).json({ error: 'A valid https affiliate link is required.' });
+        }
+        const category = String(storeCategory || c.store_category || 'utilidades').slice(0, 100);
+
+        if (status === 'approved') {
+            await pool.query(
+                `INSERT INTO products (id, name, category, brand, price, oldPrice, badge, emoji, glowColor, searchKeys, url, img_url, img_url_2, video_url)
+                 VALUES (?, ?, ?, 'Curadoria', ?, ?, ?, '', 'rgba(255,26,117,0.3)', ?, ?, ?, ?, '')
+                 ON DUPLICATE KEY UPDATE price = VALUES(price), oldPrice = VALUES(oldPrice), url = VALUES(url)`,
+                [c.item_id, c.title, category, c.price, c.old_price, c.discount_pct >= 5 ? `${c.discount_pct}% OFF` : '',
+                    `${c.title} ${category}`.toLowerCase(), url, c.image, c.image_2 || '']
+            );
+        }
+        await pool.query(
+            'UPDATE product_candidates SET status = ?, affiliate_url = ?, store_category = ? WHERE item_id = ?',
+            [status, url, category, c.item_id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/curation/verify', requireApiToken, async (req, res) => {
+    try {
+        if (!curation.isConfigured()) {
+            return res.status(400).json({ error: 'Configure as credenciais do Mercado Livre na curadoria (Configuração da integração).' });
+        }
+        res.json(await runAvailabilityCheck());
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // Admin redirect helper
 app.get('/api-docs/openapi.json', (req, res) => res.json(openApiSpec));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, { swaggerOptions: { persistAuthorization: false } }));
 
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+app.get('/admin/curadoria', (req, res) => {
+    res.sendFile(path.join(__dirname, 'curadoria.html'));
 });
 
 app.get('/health', (req, res) => {
