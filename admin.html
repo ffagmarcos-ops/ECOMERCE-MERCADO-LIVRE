@@ -1576,7 +1576,8 @@
                     const caret = single ? '' : `<i class="fa-solid fa-chevron-down text-[9px] transition ${openGroup === index ? 'rotate-180' : ''}"></i>`;
                     btn.innerHTML = `<i class="${group.icon}"></i> ${group.label} ${caret}`;
                     btn.setAttribute('aria-expanded', String(openGroup === index));
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', event => {
+                        event.stopPropagation();
                         if (single) return selectTab(items[0].id);
                         openGroup = openGroup === index ? null : index;
                         renderTabs();
@@ -3093,7 +3094,8 @@
 
                 // Presets Logic
                 document.querySelectorAll('.preset-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', event => {
+                        event.stopPropagation();
                         const theme = btn.getAttribute('data-theme');
                         
                         let customTheme = {};
@@ -3651,7 +3653,8 @@
 
                 // Atrelar Clique de Edição de Produtos (Edit Product button)
                 document.querySelectorAll('.edit-prod-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', event => {
+                        event.stopPropagation();
                         const id = parseInt(btn.getAttribute('data-id')) || btn.getAttribute('data-id');
                         const prod = customProducts.find(p => p.id === id);
                         
@@ -6075,7 +6078,8 @@
 
                 // Eventos de Ações Dinâmicas
                 container.querySelectorAll('.remove-camp-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', event => {
+                        event.stopPropagation();
                         const id = btn.getAttribute('data-id');
                         creativeCampaigns = creativeCampaigns.filter(c => c.id !== id);
                         showToast('Campanha removida da fila!', 'info');
@@ -6084,7 +6088,8 @@
                 });
 
                 container.querySelectorAll('.generate-now-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', event => {
+                        event.stopPropagation();
                         const id = btn.getAttribute('data-id');
                         const camp = creativeCampaigns.find(c => c.id === id);
                         if (camp) {
@@ -6099,7 +6104,8 @@
                 });
 
                 container.querySelectorAll('.copy-text-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', event => {
+                        event.stopPropagation();
                         const text = btn.getAttribute('data-text');
                         navigator.clipboard.writeText(text).then(() => {
                             showToast('Copiado para a área de transferência!', 'success');
@@ -6108,7 +6114,8 @@
                 });
 
                 container.querySelectorAll('.re-gen-img-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', event => {
+                        event.stopPropagation();
                         const campId = btn.getAttribute('data-camp');
                         const format = btn.getAttribute('data-format');
                         const angle = btn.getAttribute('data-angle');
