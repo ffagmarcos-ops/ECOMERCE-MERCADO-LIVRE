@@ -408,6 +408,40 @@ async function verifyAvailability(pool) {
     }
     return summary;
 }
+// Checks list entries against the official API: current price, photos and availability.
+// Entries are { mlbId, permalink }. Ambiguous ids (user products, unknown links) are left untouched.
+async function enrichRefs(entries) {
+    const result = {};
+    const itemEntries = [];
+    const catalogEntries = [];
+    for (const entry of entries) {
+        const id = String(entry.mlbId || '');
+        const url = String(entry.permalink || '');
+        const catalog = /\/p\/(ML[A-Z]\d+)/.exec(url);
+        if (catalog) catalogEntries.push({ key: id, mlId: catalog[1] });
+        else if (/^ML[A-Z]\d{7,11}$/.test(id) && !/\/up\//.test(url)) itemEntries.push({ key: id, mlId: id });
+    }
+    const itemMap = itemEntries.length ? await fetchItems([...new Set(itemEntries.map(e => e.mlId))]) : new Map();
+    for (const { key, mlId } of itemEntries) {
+        const entry = itemMap.get(mlId);
+        if (!entry) continue;
+        if (entry.code === 404) result[key] = { available: false };
+        else if (entry.code === 200) {
+            const n = normalizeItem(entry.body);
+            result[key] = { available: isSellable(entry.body), title: n.title, price: n.price, oldPrice: n.old_price, image: n.image, permalink: n.permalink };
+        }
+    }
+    await mapLimit(catalogEntries, 5, async ({ key, mlId }) => {
+        const res = await mlGet(`/products/${mlId}`);
+        if (res.status === 404) result[key] = { available: false };
+        else if (res.ok && res.body) {
+            const pic = (res.body.pictures || [])[0];
+            result[key] = { available: !res.body.status || res.body.status === 'active', title: res.body.name, image: pic ? (pic.secure_url || pic.url) : '' };
+        }
+    });
+    return result;
+}
+
 module.exports = {
-    isConfigured, ensureConfigTable, loadConfig, saveConfig, getPublicConfig, testCredentials, ensureCandidateTable, discoverCandidates, verifyAvailability, getSalesFlow, buildAffiliateUrl
+    enrichRefs, isConfigured, ensureConfigTable, loadConfig, saveConfig, getPublicConfig, testCredentials, ensureCandidateTable, discoverCandidates, verifyAvailability, getSalesFlow, buildAffiliateUrl
 };

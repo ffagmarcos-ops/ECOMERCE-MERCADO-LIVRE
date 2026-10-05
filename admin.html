@@ -4608,7 +4608,37 @@
                                 uniqueItemsMap[baseLink] = item;
                             }
                         });
-                        const finalItems = Object.values(uniqueItemsMap);
+                        let finalItems = Object.values(uniqueItemsMap);
+
+                        try {
+                            addLog('Consultando a API oficial do Mercado Livre (preço, foto e disponibilidade)...');
+                            const enrichRes = await authenticatedAdminFetch(`${API_BASE}/curation/enrich`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ items: finalItems.map(i => ({ mlbId: i.mlbId, permalink: i.permalink })) })
+                            });
+                            if (enrichRes.ok) {
+                                const info = await enrichRes.json();
+                                let updated = 0, dropped = 0;
+                                finalItems = finalItems.filter(item => {
+                                    const data = info[item.mlbId];
+                                    if (!data) return true;
+                                    if (!data.available) { dropped++; return false; }
+                                    if (data.price > 0) item.price = data.price;
+                                    if (data.image) item.thumbnail = data.image;
+                                    updated++;
+                                    return true;
+                                });
+                                addLog(`API oficial: ${updated} item(ns) atualizado(s), ${dropped} indisponível(is) ignorado(s).`, 'success');
+                            } else {
+                                addLog('API oficial indisponível (credenciais não configuradas ou bloqueio). Usando os dados da página.', 'warn');
+                            }
+                        } catch (enrichErr) {
+                            addLog('Não foi possível consultar a API oficial. Usando os dados da página.', 'warn');
+                        }
+                        if (finalItems.length === 0) {
+                            throw new Error('Todos os itens da lista estão indisponíveis no Mercado Livre.');
+                        }
 
                         if (finalItems.length === 0) {
                             throw new Error('Nenhum produto válido contendo preço e link foi localizado na página. Certifique-se de rolar a página até o fim antes de copiar o código fonte.');
