@@ -933,6 +933,18 @@ app.post('/api/curation/enrich', requireApiToken, async (req, res) => {
         res.status(502).json({ error: err.message });
     }
 });
+app.post('/api/curation/refresh-images', requireApiToken, async (req, res) => {
+    try {
+        if (!curation.isConfigured()) {
+            return res.status(400).json({ error: 'Configure as credenciais do Mercado Livre na curadoria (Configuração da integração).' });
+        }
+        const summary = await curation.refreshImages(pool);
+        if (summary.error) return res.status(502).json({ error: summary.error });
+        res.json(summary);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // Admin redirect helper
 app.get('/api-docs/openapi.json', (req, res) => res.json(openApiSpec));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, { swaggerOptions: { persistAuthorization: false } }));

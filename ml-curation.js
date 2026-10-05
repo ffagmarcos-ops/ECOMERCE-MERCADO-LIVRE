@@ -442,6 +442,38 @@ async function enrichRefs(entries) {
     return result;
 }
 
+// Refreshes product photos from the official API. Photos uploaded manually (not hosted by ML) are kept.
+async function refreshImages(pool) {
+    const summary = { checked: 0, updated: 0, skipped: 0, unavailable: 0, error: null };
+    try {
+        const [products] = await pool.query('SELECT id, name, url, img_url FROM products');
+        const isMlImage = value => !value || /mlstatic\.com/i.test(value);
+        const targets = [];
+        for (const product of products) {
+            const ref = resolveMlRef(product);
+            if (!ref || !isMlImage(product.img_url)) { summary.skipped++; continue; }
+            targets.push({ product, ref });
+        }
+        summary.checked = targets.length;
+        const info = await enrichRefs(targets.map(({ ref }) => ({
+            mlbId: ref.mlId,
+            permalink: ref.kind === 'catalog' ? `/p/${ref.mlId}` : ''
+        })));
+        for (const { product, ref } of targets) {
+            const data = info[ref.mlId];
+            if (!data) { summary.skipped++; continue; }
+            if (!data.available) summary.unavailable++;
+            if (data.image && data.image !== product.img_url) {
+                await pool.query('UPDATE products SET img_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [data.image, product.id]);
+                summary.updated++;
+            }
+        }
+    } catch (err) {
+        summary.error = err.message;
+    }
+    return summary;
+}
+
 module.exports = {
-    enrichRefs, isConfigured, ensureConfigTable, loadConfig, saveConfig, getPublicConfig, testCredentials, ensureCandidateTable, discoverCandidates, verifyAvailability, getSalesFlow, buildAffiliateUrl
+    refreshImages, enrichRefs, isConfigured, ensureConfigTable, loadConfig, saveConfig, getPublicConfig, testCredentials, ensureCandidateTable, discoverCandidates, verifyAvailability, getSalesFlow, buildAffiliateUrl
 };

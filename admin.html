@@ -3438,6 +3438,14 @@
 
                         <div id="vitrines-manager"></div>
 
+                        <div class="bg-admin-card border border-admin-border rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-black uppercase text-white tracking-wider flex items-center gap-2"><i class="fa-solid fa-image text-admin-accentBlue"></i> Atualizar imagens dos produtos</h3>
+                                <p class="text-[11px] text-admin-textMuted mt-1">Busca as fotos atuais no Mercado Livre (API oficial). Fotos enviadas por você não são alteradas.</p>
+                            </div>
+                            <button type="button" id="refresh-images-btn" class="px-4 py-2.5 rounded-xl bg-admin-accentBlue text-white text-xs font-bold disabled:opacity-50 shrink-0"><i class="fa-solid fa-rotate mr-1"></i> Atualizar imagens</button>
+                        </div>
+
                         <!-- Sincronização Automática Box -->
                         <div class="bg-gradient-to-r from-admin-card via-admin-card to-pink-950/10 border border-admin-border hover:border-admin-accentGold/30 rounded-2xl p-5 md:p-6 space-y-4 transition duration-300 animate-fade-in">
                             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-admin-border pb-3">
@@ -3690,6 +3698,24 @@
                 `;
 
                 renderVitrinesManager(document.getElementById('vitrines-manager'), customProducts);
+
+                const refreshImagesBtn = document.getElementById('refresh-images-btn');
+                refreshImagesBtn.addEventListener('click', async () => {
+                    refreshImagesBtn.disabled = true;
+                    refreshImagesBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Atualizando...';
+                    try {
+                        const res = await authenticatedAdminFetch(`${API_BASE}/curation/refresh-images`, { method: 'POST' });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+                        showToast(`${data.updated} imagem(ns) atualizada(s) de ${data.checked} verificada(s).`, 'success');
+                        if (data.updated > 0) await syncAdminDataFromServer();
+                    } catch (err) {
+                        showToast('Não foi possível atualizar as imagens: ' + err.message, 'error');
+                    } finally {
+                        refreshImagesBtn.disabled = false;
+                        refreshImagesBtn.innerHTML = '<i class="fa-solid fa-rotate mr-1"></i> Atualizar imagens';
+                    }
+                });
 
                 // --- Lógica do Botão Cancelar Edição ---
                 const cancelEditBtn = document.getElementById('prod-cancel-edit-btn');
