@@ -94,7 +94,17 @@
             <label>Direção<select id="fOrder"><option value="desc">Maior → menor</option><option value="asc">Menor → maior</option></select></label>
             <label>Itens exibidos<select id="fLimit"><option value="100">100</option><option value="200" selected>200</option><option value="350">350</option><option value="500">500</option></select></label>
             <label class="check"><input id="fFreeShipping" type="checkbox"> Só com frete grátis</label>
+            <label>Atualizar automaticamente<select id="fAutoRefresh">
+                <option value="0">Desligado</option>
+                <option value="15000">A cada 15s</option>
+                <option value="30000">A cada 30s</option>
+                <option value="60000">A cada 1 min</option>
+                <option value="120000">A cada 2 min</option>
+                <option value="300000">A cada 5 min</option>
+                <option value="600000">A cada 10 min</option>
+            </select></label>
         </div>
+        <p class="muted" id="autoRefreshInfo"></p>
     </div>
 
     <div id="msg"></div>
@@ -221,17 +231,44 @@ function updateSelCount() {
     $('selCount').textContent = `${selected.size} selecionado(s)`;
 }
 
-async function load() {
+async function load(preserveSelection) {
     try {
         rows = await api(`candidates?${queryString()}`);
-        selected.clear();
-        $('headCheck').checked = false; $('selectAll').checked = false;
+        if (!preserveSelection) {
+            selected.clear();
+            $('headCheck').checked = false; $('selectAll').checked = false;
+        } else {
+            // Drop selections for items that disappeared from the list (e.g. filtered out or deleted).
+            const ids = new Set(rows.map(r => r.item_id));
+            [...selected].forEach(id => { if (!ids.has(id)) selected.delete(id); });
+        }
         $('tbody').innerHTML = rows.length ? rows.map(row).join('') : '<tr><td colspan="12" class="empty">Nenhum produto encontrado com esses filtros.</td></tr>';
         $('totalCount').textContent = `${rows.length} item(ns) exibido(s)`;
         updateSelCount();
         document.querySelectorAll('thead th[data-sort]').forEach(th => th.classList.toggle('active', th.dataset.sort === $('fSort').value));
+        markRefreshed();
     } catch (e) { say(e.message, true); }
 }
+
+const AUTO_REFRESH_KEY = 'ml_curation_auto_refresh_ms';
+let autoRefreshTimer = null;
+
+function markRefreshed() {
+    $('autoRefreshInfo').textContent = Number($('fAutoRefresh').value)
+        ? `Última atualização automática: ${new Date().toLocaleTimeString('pt-BR')}.`
+        : '';
+}
+
+function applyAutoRefresh() {
+    clearInterval(autoRefreshTimer);
+    const ms = Number($('fAutoRefresh').value) || 0;
+    localStorage.setItem(AUTO_REFRESH_KEY, String(ms));
+    if (ms > 0) autoRefreshTimer = setInterval(() => load(true), ms);
+    markRefreshed();
+}
+
+$('fAutoRefresh').value = localStorage.getItem(AUTO_REFRESH_KEY) || '0';
+$('fAutoRefresh').addEventListener('change', applyAutoRefresh);
 
 $('tabs').addEventListener('click', e => {
     if (!e.target.dataset.status) return;
@@ -329,6 +366,7 @@ $('verifyBtn').addEventListener('click', async () => {
 
 loadFacets();
 load();
+applyAutoRefresh();
 </script>
 </body>
 </html>

@@ -121,10 +121,23 @@
     </div>
 
     <div id="msg"></div>
-    <div class="tabs" id="tabs">
-        <button data-status="pending" class="active">Pendentes</button>
-        <button data-status="approved">Aprovados</button>
-        <button data-status="rejected">Rejeitados</button>
+    <div class="row" style="justify-content:space-between;margin-bottom:4px">
+        <div class="tabs" id="tabs">
+            <button data-status="pending" class="active">Pendentes</button>
+            <button data-status="approved">Aprovados</button>
+            <button data-status="rejected">Rejeitados</button>
+        </div>
+        <label class="muted" style="display:flex;align-items:center;gap:6px">Atualizar automaticamente
+            <select id="fAutoRefresh">
+                <option value="0">Desligado</option>
+                <option value="15000">A cada 15s</option>
+                <option value="30000">A cada 30s</option>
+                <option value="60000">A cada 1 min</option>
+                <option value="120000">A cada 2 min</option>
+                <option value="300000">A cada 5 min</option>
+                <option value="600000">A cada 10 min</option>
+            </select>
+        </label>
     </div>
     <div class="grid" id="grid"></div>
 </main>
@@ -201,6 +214,17 @@ async function load() {
         $('grid').innerHTML = list.length ? list.map(card).join('') : '<div class="empty" style="grid-column:1/-1">Nenhum produto nesta lista. Use “Buscar” para trazer sugestões.</div>';
     } catch (e) { say(e.message, true); }
 }
+
+const AUTO_REFRESH_KEY = 'ml_curation_auto_refresh_ms';
+let autoRefreshTimer = null;
+function applyAutoRefresh() {
+    clearInterval(autoRefreshTimer);
+    const ms = Number($('fAutoRefresh').value) || 0;
+    localStorage.setItem(AUTO_REFRESH_KEY, String(ms));
+    if (ms > 0) autoRefreshTimer = setInterval(load, ms);
+}
+$('fAutoRefresh').value = localStorage.getItem(AUTO_REFRESH_KEY) || '0';
+$('fAutoRefresh').addEventListener('change', applyAutoRefresh);
 
 $('tabs').addEventListener('click', e => {
     if (!e.target.dataset.status) return;
@@ -311,6 +335,7 @@ $('mlDisconnect').addEventListener('click', async () => {
 $('guideRedirect').textContent = `${location.origin}/oauth/ml/callback`;
 loadConfig();
 load();
+applyAutoRefresh();
 </script>
 </body>
 </html>
