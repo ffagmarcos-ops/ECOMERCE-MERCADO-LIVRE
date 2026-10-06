@@ -834,6 +834,42 @@ app.post('/api/curation/config/test', requireApiToken, async (req, res) => {
         res.status(400).json({ error: err.message });
     }
 });
+
+// Starts the "connect Mercado Livre account" flow: the browser is redirected to this URL by the
+// admin UI, which full-page navigates to Mercado Livre's own login/authorization screen.
+app.get('/api/curation/ml/authorize', requireApiToken, async (req, res) => {
+    try {
+        const url = await curation.getAuthorizationUrl(pool);
+        res.json({ url });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.post('/api/curation/ml/disconnect', requireApiToken, async (req, res) => {
+    try {
+        await curation.disconnectUserAccount(pool);
+        res.json(curation.getPublicConfig());
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Public: Mercado Livre redirects the admin's browser here after they approve (or deny) access.
+// Not behind requireApiToken because it's a server-to-browser redirect, not an API call with a bearer token.
+app.get('/oauth/ml/callback', async (req, res) => {
+    const backTo = '/admin/curadoria';
+    if (req.query.error) {
+        return res.redirect(`${backTo}?ml_error=${encodeURIComponent(String(req.query.error_description || req.query.error))}`);
+    }
+    try {
+        await curation.connectUserAccount(pool, { code: req.query.code, state: req.query.state });
+        res.redirect(`${backTo}?ml_connected=1`);
+    } catch (err) {
+        res.redirect(`${backTo}?ml_error=${encodeURIComponent(err.message)}`);
+    }
+});
+
 app.get('/api/curation/overview', requireApiToken, async (req, res) => {
     try {
         const flow = await curation.getSalesFlow(pool);
@@ -852,12 +888,51 @@ app.get('/api/curation/overview', requireApiToken, async (req, res) => {
     }
 });
 
+// Columns the curation dashboard is allowed to sort by (whitelisted to avoid building SQL from raw user input).
+const CANDIDATE_SORT_COLUMNS = {
+    score: 'score', price: 'price', discount: 'discount_pct', sold: 'sold_quantity',
+    stock: 'available_quantity', created: 'created_at', title: 'title'
+};
+
+// Shared by the list endpoint and its CSV/export-style uses: turns dashboard query params into a safe WHERE clause.
+function buildCandidateFilters(query) {
+    const where = [];
+    const params = [];
+    const status = ['pending', 'approved', 'rejected'].includes(query.status) ? query.status : (query.status === 'all' ? null : 'pending');
+    if (status) { where.push('status = ?'); params.push(status); }
+    if (query.q) { where.push('title LIKE ?'); params.push(`%${String(query.q).slice(0, 100)}%`); }
+    if (query.category) { where.push('store_category = ?'); params.push(String(query.category).slice(0, 100)); }
+    if (query.source) { where.push('source LIKE ?'); params.push(`%${String(query.source).slice(0, 100)}%`); }
+    if (query.minScore) { where.push('score >= ?'); params.push(Number(query.minScore) || 0); }
+    if (query.minDiscount) { where.push('discount_pct >= ?'); params.push(Number(query.minDiscount) || 0); }
+    if (query.minPrice) { where.push('price >= ?'); params.push(Number(query.minPrice) || 0); }
+    if (query.maxPrice) { where.push('price <= ?'); params.push(Number(query.maxPrice) || 0); }
+    if (query.freeShipping === '1') where.push('free_shipping = 1');
+    return { where: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
+}
+
 app.get('/api/curation/candidates', requireApiToken, async (req, res) => {
     try {
-        const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : 'pending';
+        const { where, params } = buildCandidateFilters(req.query);
+        const sortCol = CANDIDATE_SORT_COLUMNS[req.query.sort] || 'score';
+        const order = req.query.order === 'asc' ? 'ASC' : 'DESC';
+        const limit = Math.min(Number(req.query.limit) || 200, 500);
         const [rows] = await pool.query(
-            'SELECT * FROM product_candidates WHERE status = ? ORDER BY score DESC, sold_quantity DESC LIMIT 200', [status]);
+            `SELECT * FROM product_candidates ${where} ORDER BY ${sortCol} ${order}, sold_quantity DESC LIMIT ${limit}`, params);
         res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Distinct filter values (store categories / sources) so the dashboard can build its filter dropdowns.
+app.get('/api/curation/candidates/facets', requireApiToken, async (req, res) => {
+    try {
+        const [categories] = await pool.query(
+            "SELECT DISTINCT store_category AS value FROM product_candidates WHERE store_category <> '' ORDER BY value");
+        const [sources] = await pool.query(
+            "SELECT DISTINCT source AS value FROM product_candidates WHERE source <> '' ORDER BY value");
+        res.json({ categories: categories.map(r => r.value), sources: sources.map(r => r.value) });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -879,37 +954,62 @@ app.post('/api/curation/discover', requireApiToken, async (req, res) => {
     }
 });
 
+// Applies a status change (and, when approving, publishes/updates the storefront product). Shared by the
+// single-candidate PUT route and the dashboard's bulk endpoint.
+async function applyCandidateDecision(itemId, { status, affiliateUrl, storeCategory }) {
+    if (!['approved', 'rejected', 'pending'].includes(status)) throw new Error('Invalid status.');
+    const [rows] = await pool.query('SELECT * FROM product_candidates WHERE item_id = ?', [itemId]);
+    if (!rows.length) throw new Error('Candidate not found.');
+    const c = rows[0];
+    const url = String(affiliateUrl || c.affiliate_url || '');
+    if (status === 'approved' && !/^https:\/\//i.test(url)) {
+        throw new Error('A valid https affiliate link is required.');
+    }
+    const category = String(storeCategory || c.store_category || 'utilidades').slice(0, 100);
+
+    if (status === 'approved') {
+        await pool.query(
+            `INSERT INTO products (id, name, category, brand, price, oldPrice, badge, emoji, glowColor, searchKeys, url, img_url, img_url_2, video_url)
+             VALUES (?, ?, ?, 'Curadoria', ?, ?, ?, '', 'rgba(255,26,117,0.3)', ?, ?, ?, ?, '')
+             ON DUPLICATE KEY UPDATE price = VALUES(price), oldPrice = VALUES(oldPrice), url = VALUES(url)`,
+            [c.item_id, c.title, category, c.price, c.old_price, c.discount_pct >= 5 ? `${c.discount_pct}% OFF` : '',
+                `${c.title} ${category}`.toLowerCase(), url, c.image, c.image_2 || '']
+        );
+    }
+    await pool.query(
+        'UPDATE product_candidates SET status = ?, affiliate_url = ?, store_category = ? WHERE item_id = ?',
+        [status, url, category, c.item_id]);
+}
+
 app.put('/api/curation/candidates/:id', requireApiToken, async (req, res) => {
     try {
-        const { status, affiliate_url: affiliateUrl, store_category: storeCategory } = req.body;
-        if (!['approved', 'rejected', 'pending'].includes(status)) {
-            return res.status(400).json({ error: 'Invalid status.' });
-        }
-        const [rows] = await pool.query('SELECT * FROM product_candidates WHERE item_id = ?', [req.params.id]);
-        if (!rows.length) return res.status(404).json({ error: 'Candidate not found.' });
-        const c = rows[0];
-        const url = String(affiliateUrl || c.affiliate_url || '');
-        if (status === 'approved' && !/^https:\/\//i.test(url)) {
-            return res.status(400).json({ error: 'A valid https affiliate link is required.' });
-        }
-        const category = String(storeCategory || c.store_category || 'utilidades').slice(0, 100);
-
-        if (status === 'approved') {
-            await pool.query(
-                `INSERT INTO products (id, name, category, brand, price, oldPrice, badge, emoji, glowColor, searchKeys, url, img_url, img_url_2, video_url)
-                 VALUES (?, ?, ?, 'Curadoria', ?, ?, ?, '', 'rgba(255,26,117,0.3)', ?, ?, ?, ?, '')
-                 ON DUPLICATE KEY UPDATE price = VALUES(price), oldPrice = VALUES(oldPrice), url = VALUES(url)`,
-                [c.item_id, c.title, category, c.price, c.old_price, c.discount_pct >= 5 ? `${c.discount_pct}% OFF` : '',
-                    `${c.title} ${category}`.toLowerCase(), url, c.image, c.image_2 || '']
-            );
-        }
-        await pool.query(
-            'UPDATE product_candidates SET status = ?, affiliate_url = ?, store_category = ? WHERE item_id = ?',
-            [status, url, category, c.item_id]);
+        await applyCandidateDecision(req.params.id, {
+            status: req.body.status, affiliateUrl: req.body.affiliate_url, storeCategory: req.body.store_category
+        });
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(err.message === 'Candidate not found.' ? 404 : 400).json({ error: err.message });
     }
+});
+
+// Bulk apply (used by the selection dashboard: approve/reject/reopen many candidates at once).
+app.post('/api/curation/candidates/bulk', requireApiToken, async (req, res) => {
+    const ids = Array.isArray(req.body.ids) ? [...new Set(req.body.ids.map(String))].slice(0, 200) : [];
+    const { status, store_category: storeCategory } = req.body;
+    if (!ids.length) return res.status(400).json({ error: 'Informe ao menos um item.' });
+    if (!['approved', 'rejected', 'pending'].includes(status)) return res.status(400).json({ error: 'Invalid status.' });
+
+    let updated = 0;
+    const errors = [];
+    for (const id of ids) {
+        try {
+            await applyCandidateDecision(id, { status, storeCategory });
+            updated++;
+        } catch (err) {
+            errors.push(`${id}: ${err.message}`);
+        }
+    }
+    res.json({ updated, errors });
 });
 
 app.post('/api/curation/verify', requireApiToken, async (req, res) => {
@@ -956,6 +1056,10 @@ app.get('/admin', (req, res) => {
 
 app.get('/admin/curadoria', (req, res) => {
     res.sendFile(path.join(__dirname, 'curadoria.html'));
+});
+
+app.get('/admin/curadoria/selecao', (req, res) => {
+    res.sendFile(path.join(__dirname, 'curadoria-selecao.html'));
 });
 
 app.get('/health', (req, res) => {

@@ -56,7 +56,7 @@
 <body>
 <header>
     <h1>🔎 Curadoria Mercado Livre</h1>
-    <div class="row"><a href="/admin">← Painel</a></div>
+    <div class="row"><a href="/admin/curadoria/selecao">🗂️ Dashboard de seleção →</a> <a href="/admin">← Painel</a></div>
 </header>
 <main>
     <div class="kpis" id="kpis"></div>
@@ -69,10 +69,10 @@
                 <li>Acesse <a href="https://developers.mercadolivre.com.br/devcenter" target="_blank" rel="noopener noreferrer">developers.mercadolivre.com.br/devcenter</a> e entre com a conta do Mercado Livre que será dona da aplicação.</li>
                 <li>Clique em <b>Criar nova aplicação</b>.</li>
                 <li>Preencha <b>Nome</b>, <b>Nome curto</b> e <b>Descrição</b> (ex.: “Curadoria de produtos da minha loja”). Se pedir, aceite os termos e envie um logo.</li>
-                <li>Em <b>URI de redirecionamento</b>, informe o endereço da sua loja: <code id="guideRedirect"></code> (precisa ser <code>https</code>; não é usada nesta integração).</li>
-                <li>Em <b>Escopos</b>, marque apenas leitura (<b>read</b>). Não é preciso escrita nem notificações.</li>
+                <li>Em <b>URI de redirecionamento</b>, informe exatamente: <code id="guideRedirect"></code> (precisa ser <code>https</code> e ser <b>idêntica</b> à usada abaixo — essa URL é obrigatória para o botão “Conectar conta do Mercado Livre”).</li>
+                <li>Em <b>Escopos</b>, marque leitura (<b>read</b>). Não é preciso escrita nem notificações.</li>
                 <li>Salve. Na página da aplicação, copie o <b>App ID</b> → cole em <b>Client ID</b> abaixo, e a <b>Secret Key</b> → cole em <b>Client Secret</b>.</li>
-                <li>Clique em <b>Salvar</b> e depois em <b>Testar conexão</b>. Se aparecer “OK”, já pode usar <b>Buscar</b>.</li>
+                <li>Clique em <b>Salvar</b> e depois em <b>Testar conexão</b>. Se aparecer “OK”, use <b>Conectar conta do Mercado Livre</b> para autorizar a busca de produtos (obrigatório desde que o Mercado Livre passou a exigir login do vendedor para pesquisar).</li>
             </ol>
             <p class="muted"><b>Parâmetros de afiliado:</b> no seu painel do Programa de Afiliados do Mercado Livre, copie um link de produto e use o trecho depois do “?” (ex.: <code>matt_tool=123&amp;matt_word=seu_id</code>). Ele é anexado a todos os links aprovados.<br>
             <b>Categorias:</b> IDs separados por vírgula (ex.: <code>MLB1574</code> = Casa, <code>MLB1246</code> = Beleza); a lista completa está em <code>api.mercadolibre.com/sites/MLB/categories</code>.<br>
@@ -91,6 +91,12 @@
             <span class="muted" id="cfgInfo"></span>
         </div>
         <p class="muted">O Client Secret é guardado criptografado e nunca é exibido novamente. Deixe em branco para mantê-lo.</p>
+        <div class="row" style="margin-top:10px">
+            <button id="mlConnect" class="secondary">🔗 Conectar conta do Mercado Livre</button>
+            <button id="mlDisconnect" class="secondary" style="display:none">Desconectar</button>
+            <span class="muted" id="mlStatus"></span>
+        </div>
+        <p class="muted">A busca por palavras-chave, tendências e produtos similares exige uma conta de vendedor conectada (o Mercado Livre não aceita mais essas buscas apenas com Client ID/Secret).</p>
     </div>
     <div class="panels">
         <div class="panel"><h2>📈 Fluxo de vendas (cliques por categoria, 30 dias)</h2><div id="flow"></div></div>
@@ -241,6 +247,9 @@ async function loadConfig() {
         $('cfgSecret').value = '';
         $('cfgSecret').placeholder = c.hasClientSecret ? '•••••••• (salvo)' : 'Cole o Client Secret';
         $('cfgInfo').textContent = c.configured ? '✔ Credenciais informadas' : 'Credenciais pendentes';
+        $('mlStatus').textContent = c.mlUserConnected ? `✔ Conta conectada (usuário ${c.mlUserId})` : 'Conta não conectada — busca por palavras-chave/tendências ficará indisponível.';
+        $('mlDisconnect').style.display = c.mlUserConnected ? '' : 'none';
+        $('mlConnect').textContent = c.mlUserConnected ? '🔗 Reconectar conta do Mercado Livre' : '🔗 Conectar conta do Mercado Livre';
     } catch (e) { say(e.message, true); }
 }
 
@@ -264,7 +273,34 @@ $('cfgTest').addEventListener('click', async () => {
     $('cfgTest').disabled = false;
 });
 
-$('guideRedirect').textContent = location.origin;
+$('mlConnect').addEventListener('click', async () => {
+    $('mlConnect').disabled = true;
+    try {
+        const { url } = await api('ml/authorize');
+        location.href = url; // full navigation: the seller logs in on Mercado Livre's own page
+    } catch (e) { say(`Falha ao iniciar conexão: ${e.message}`, true); $('mlConnect').disabled = false; }
+});
+
+$('mlDisconnect').addEventListener('click', async () => {
+    if (!confirm('Desconectar a conta do Mercado Livre? A busca por palavras-chave/tendências deixará de funcionar até reconectar.')) return;
+    $('mlDisconnect').disabled = true;
+    try { await api('ml/disconnect', { method: 'POST' }); say('Conta desconectada.'); await loadConfig(); }
+    catch (e) { say(e.message, true); }
+    $('mlDisconnect').disabled = false;
+});
+
+(function handleOAuthRedirectParams() {
+    const params = new URLSearchParams(location.search);
+    if (params.has('ml_connected')) say('Conta do Mercado Livre conectada com sucesso!');
+    else if (params.has('ml_error')) say(`Falha ao conectar conta do Mercado Livre: ${params.get('ml_error')}`, true);
+    if (params.has('ml_connected') || params.has('ml_error')) {
+        params.delete('ml_connected'); params.delete('ml_error');
+        const qs = params.toString();
+        history.replaceState(null, '', location.pathname + (qs ? `?${qs}` : ''));
+    }
+})();
+
+$('guideRedirect').textContent = `${location.origin}/oauth/ml/callback`;
 loadConfig();
 load();
 </script>

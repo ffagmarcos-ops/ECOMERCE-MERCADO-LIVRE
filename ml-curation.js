@@ -9,6 +9,32 @@ const MULTIGET_SIZE = 20;
 
 let tokenCache = { value: null, expiresAt: 0 };
 
+// Cache for the user-authorized token (OAuth authorization_code flow), required by endpoints
+// like /sites/{site}/search that Mercado Livre no longer accepts with app-only (client_credentials) tokens.
+let userTokenCache = { access: null, refresh: null, expiresAt: 0, userId: null };
+
+// Mercado Livre's login/authorization host varies per country (note "mercadolivre" for Brazil).
+const AUTH_HOSTS = {
+    MLB: 'auth.mercadolivre.com.br',
+    MLA: 'auth.mercadolibre.com.ar',
+    MLM: 'auth.mercadolibre.com.mx',
+    MLC: 'auth.mercadolibre.cl',
+    MCO: 'auth.mercadolibre.com.co',
+    MLU: 'auth.mercadolibre.com.uy',
+    MLV: 'auth.mercadolibre.com.ve',
+    MPE: 'auth.mercadolibre.com.pe',
+    MEC: 'auth.mercadolibre.com.ec',
+    MBO: 'auth.mercadolibre.com.bo',
+    MPY: 'auth.mercadolibre.com.py',
+    MCR: 'auth.mercadolibre.co.cr',
+    MPA: 'auth.mercadolibre.com.pa',
+    MHN: 'auth.mercadolibre.com.hn',
+    MNI: 'auth.mercadolibre.com.ni',
+    MGT: 'auth.mercadolibre.com.gt',
+    MSV: 'auth.mercadolibre.com.sv',
+    MDO: 'auth.mercadolibre.com.do'
+};
+
 // Per-installation configuration (white label): stored in the database, with env vars as fallback.
 let config = envConfig();
 
@@ -18,7 +44,9 @@ function envConfig() {
         clientSecret: process.env.ML_CLIENT_SECRET || '',
         siteId: process.env.ML_SITE_ID || 'MLB',
         affiliateParams: process.env.ML_AFFILIATE_PARAMS || '',
-        categories: process.env.ML_DISCOVERY_CATEGORIES || 'MLB1574,MLB1246,MLB1000,MLB1648'
+        categories: process.env.ML_DISCOVERY_CATEGORIES || 'MLB1574,MLB1246,MLB1000,MLB1648',
+        // Must match exactly an "Authorized redirect URI" registered for the app in the ML DevCenter.
+        redirectUri: process.env.ML_REDIRECT_URI || (process.env.APP_DOMAIN ? `https://${process.env.APP_DOMAIN}/oauth/ml/callback` : '')
     };
 }
 
@@ -81,15 +109,26 @@ async function loadConfig(pool) {
         clientSecret: stored.ml_client_secret ? decrypt(stored.ml_client_secret, key) : base.clientSecret,
         siteId: stored.ml_site_id || base.siteId,
         affiliateParams: stored.ml_affiliate_params !== undefined ? stored.ml_affiliate_params : base.affiliateParams,
-        categories: stored.ml_categories || base.categories
+        categories: stored.ml_categories || base.categories,
+        redirectUri: base.redirectUri
     };
     tokenCache = { value: null, expiresAt: 0 };
+    userTokenCache = {
+        access: stored.ml_user_access_token ? decrypt(stored.ml_user_access_token, key) : null,
+        refresh: stored.ml_user_refresh_token ? decrypt(stored.ml_user_refresh_token, key) : null,
+        expiresAt: Number(stored.ml_user_token_expires_at) || 0,
+        userId: stored.ml_user_id || null
+    };
 }
 
 async function saveConfig(pool, input) {
     const key = await getEncryptionKey(pool);
     const upsert = (k, v) => pool.query(
         'INSERT INTO integration_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)', [k, v]);
+
+    // A connected user token is tied to this app/credential pair; drop it so stale state isn't reported as "connected".
+    const clientIdChanged = typeof input.clientId === 'string' && input.clientId.trim() && input.clientId.trim() !== config.clientId;
+    if (clientIdChanged) await clearUserToken(pool);
 
     if (typeof input.clientId === 'string') await upsert('ml_client_id', input.clientId.trim());
     // An empty secret means "keep the current one"; the secret is never sent back to the browser.
@@ -109,8 +148,15 @@ function getPublicConfig() {
         hasClientSecret: Boolean(config.clientSecret),
         siteId: config.siteId,
         affiliateParams: config.affiliateParams,
-        categories: config.categories
+        categories: config.categories,
+        redirectUri: config.redirectUri,
+        mlUserConnected: isUserConnected(),
+        mlUserId: userTokenCache.userId || null
     };
+}
+
+function isUserConnected() {
+    return Boolean(userTokenCache.access || userTokenCache.refresh);
 }
 
 async function testCredentials() {
@@ -140,12 +186,144 @@ async function getAccessToken() {
     return tokenCache.value;
 }
 
-async function mlGet(pathAndQuery) {
-    const token = await getAccessToken();
+// Persists the user-authorized token pair (encrypted) so it survives restarts, and refreshes the in-memory cache.
+async function persistUserToken(pool, data) {
+    const key = await getEncryptionKey(pool);
+    const upsert = (k, v) => pool.query(
+        'INSERT INTO integration_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)', [k, v]);
+
+    await upsert('ml_user_access_token', encrypt(data.access_token, key));
+    // Mercado Livre rotates refresh tokens on every use; keep the latest one or the previous one is lost.
+    if (data.refresh_token) await upsert('ml_user_refresh_token', encrypt(data.refresh_token, key));
+    const expiresAt = Date.now() + (data.expires_in || 21600) * 1000;
+    await upsert('ml_user_token_expires_at', String(expiresAt));
+    if (data.user_id) await upsert('ml_user_id', String(data.user_id));
+
+    userTokenCache = {
+        access: data.access_token,
+        refresh: data.refresh_token || userTokenCache.refresh,
+        expiresAt,
+        userId: data.user_id || userTokenCache.userId
+    };
+}
+
+async function clearUserToken(pool) {
+    await pool.query("DELETE FROM integration_settings WHERE setting_key IN ('ml_user_access_token', 'ml_user_refresh_token', 'ml_user_token_expires_at', 'ml_user_id')");
+    userTokenCache = { access: null, refresh: null, expiresAt: 0, userId: null };
+}
+
+// Returns a valid user access token, refreshing it first if needed. Returns null when not connected
+// or when the refresh token itself has been revoked (the caller then falls back to the app token).
+async function ensureUserAccessToken(pool) {
+    if (userTokenCache.access && Date.now() < userTokenCache.expiresAt - 60000) return userTokenCache.access;
+    if (!userTokenCache.refresh) return null;
+    try {
+        const response = await fetch(`${ML_API}/oauth/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+            body: new URLSearchParams({
+                grant_type: 'refresh_token',
+                client_id: config.clientId,
+                client_secret: config.clientSecret,
+                refresh_token: userTokenCache.refresh
+            })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.access_token) return null;
+        await persistUserToken(pool, data);
+        return userTokenCache.access;
+    } catch (err) {
+        return null;
+    }
+}
+
+function signState(key, payload) {
+    return crypto.createHmac('sha256', key).update(payload).digest('hex');
+}
+
+// Stateless CSRF token for the OAuth redirect round-trip: timestamp + HMAC, valid for 10 minutes.
+async function buildOAuthState(pool) {
+    const key = await getEncryptionKey(pool);
+    const payload = String(Date.now());
+    return `${payload}.${signState(key, payload)}`;
+}
+
+async function isOAuthStateValid(pool, state) {
+    const [payload, signature] = String(state || '').split('.');
+    if (!payload || !signature) return false;
+    const key = await getEncryptionKey(pool);
+    const expected = signState(key, payload);
+    const a = Buffer.from(signature);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+    const age = Date.now() - Number(payload);
+    return age >= 0 && age < 10 * 60 * 1000;
+}
+
+// Builds the Mercado Livre login URL. The user approves access once; we then hold a refresh token
+// that keeps working even after the short-lived access token expires.
+async function getAuthorizationUrl(pool) {
+    if (!isConfigured()) throw new Error('Configure o Client ID e o Client Secret antes de conectar a conta.');
+    if (!config.redirectUri) throw new Error('Defina ML_REDIRECT_URI (ou APP_DOMAIN) no ambiente do servidor para habilitar a conexão com o Mercado Livre.');
+    const authHost = AUTH_HOSTS[config.siteId] || 'auth.mercadolibre.com';
+    const url = new URL(`https://${authHost}/authorization`);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('client_id', config.clientId);
+    url.searchParams.set('redirect_uri', config.redirectUri);
+    // offline_access is required to receive a refresh_token, so the server can renew access
+    // without asking the seller to log in again every few hours.
+    url.searchParams.set('scope', 'offline_access read');
+    url.searchParams.set('state', await buildOAuthState(pool));
+    return url.toString();
+}
+
+// Handles the OAuth callback: validates the state and exchanges the authorization code for tokens.
+async function connectUserAccount(pool, { code, state }) {
+    if (!(await isOAuthStateValid(pool, state))) {
+        throw new Error('Estado de autorização inválido ou expirado. Tente conectar novamente.');
+    }
+    if (!code) throw new Error('Código de autorização ausente na resposta do Mercado Livre.');
+    if (!config.redirectUri) throw new Error('ML_REDIRECT_URI não configurado.');
+
+    const response = await fetch(`${ML_API}/oauth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+        body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: config.clientId,
+            client_secret: config.clientSecret,
+            code,
+            redirect_uri: config.redirectUri
+        })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.access_token) {
+        throw new Error(`Falha ao autorizar a conta do Mercado Livre (HTTP ${response.status}).`);
+    }
+    await persistUserToken(pool, data);
+    return { userId: data.user_id || null };
+}
+
+async function disconnectUserAccount(pool) {
+    await clearUserToken(pool);
+}
+
+async function mlGet(pathAndQuery, { preferUser = false } = {}) {
+    let token;
+    let usingUser = false;
+    if (preferUser && userTokenCache.access && Date.now() < userTokenCache.expiresAt - 60000) {
+        token = userTokenCache.access;
+        usingUser = true;
+    } else {
+        token = await getAccessToken();
+    }
     const response = await fetch(`${ML_API}${pathAndQuery}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
     });
-    if (response.status === 401) tokenCache = { value: null, expiresAt: 0 };
+    if (response.status === 401) {
+        if (usingUser) userTokenCache.expiresAt = 0;
+        else tokenCache = { value: null, expiresAt: 0 };
+    }
     const body = await response.json().catch(() => null);
     return { status: response.status, ok: response.ok, body };
 }
@@ -215,15 +393,20 @@ function isSellable(item) {
     return item.status === 'active' && item.available_quantity > 0;
 }
 
-async function collectCandidateIds({ queries = [], categories = [], topClicked = [] }) {
+async function collectCandidateIds(pool, { queries = [], categories = [], topClicked = [] }) {
     const found = new Map();
     const errors = [];
+    // Proactively refresh/validate the user token once so every fromSearch() call below can reuse it from cache.
+    await ensureUserAccessToken(pool);
     const add = (id, source) => {
         if (/^ML[A-Z]\d+$/.test(id || '') && !found.has(id)) found.set(id, source);
     };
 
     async function fromSearch(params, source) {
-        const res = await mlGet(`/sites/${config.siteId}/search?${new URLSearchParams({ limit: '20', ...params })}`);
+        // The search endpoint now requires a user-authorized token; app-only (client_credentials)
+        // tokens get a 403 from Mercado Livre, so skip the call entirely if nobody is connected.
+        if (!isUserConnected()) return errors.push(`${source}: conecte a conta do Mercado Livre na configuração da integração para habilitar buscas.`);
+        const res = await mlGet(`/sites/${config.siteId}/search?${new URLSearchParams({ limit: '20', ...params })}`, { preferUser: true });
         if (!res.ok) return errors.push(`${source}: HTTP ${res.status}`);
         (res.body.results || []).forEach(r => add(r.id, source));
     }
@@ -306,7 +489,7 @@ async function getSalesFlow(pool) {
 
 async function discoverCandidates(pool, options = {}) {
     const flow = await getSalesFlow(pool);
-    const { ids, sources, errors } = await collectCandidateIds({ ...options, topClicked: flow.topClicked });
+    const { ids, sources, errors } = await collectCandidateIds(pool, { ...options, topClicked: flow.topClicked });
     const [existing] = await pool.query('SELECT item_id FROM product_candidates UNION SELECT id FROM products');
     const known = new Set(existing.map(r => String(r.item_id)));
     const fresh = ids.filter(id => !known.has(id));
@@ -477,5 +660,6 @@ async function refreshImages(pool, ids = null) {
 }
 
 module.exports = {
-    refreshImages, enrichRefs, isConfigured, ensureConfigTable, loadConfig, saveConfig, getPublicConfig, testCredentials, ensureCandidateTable, discoverCandidates, verifyAvailability, getSalesFlow, buildAffiliateUrl
+    refreshImages, enrichRefs, isConfigured, ensureConfigTable, loadConfig, saveConfig, getPublicConfig, testCredentials, ensureCandidateTable, discoverCandidates, verifyAvailability, getSalesFlow, buildAffiliateUrl,
+    getAuthorizationUrl, connectUserAccount, disconnectUserAccount, isUserConnected
 };

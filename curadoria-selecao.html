@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard de Seleção • Curadoria Mercado Livre</title>
+<style>
+    :root { --bg:#0b0b10; --card:#15151d; --border:#262633; --text:#f1f1f5; --muted:#8b8ba0; --accent:#ff1a75; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
+    header { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
+    header h1 { font-size:20px; margin:0; }
+    a { color:var(--accent); text-decoration:none; }
+    main { max-width:1440px; margin:0 auto; padding:24px; }
+    .panel { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:16px; }
+    input, select, button { font:inherit; color:var(--text); background:#0f0f16; border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
+    button { cursor:pointer; background:var(--accent); border-color:var(--accent); font-weight:600; }
+    button.secondary { background:transparent; border-color:var(--border); }
+    button.ok { background:var(--ok); border-color:var(--ok); color:#04130a; }
+    button.bad { background:transparent; border-color:var(--bad); color:var(--bad); }
+    button:disabled { opacity:.5; cursor:wait; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .tabs { display:flex; gap:6px; }
+    .tabs button { background:transparent; border-color:var(--border); }
+    .tabs button.active { background:var(--accent); border-color:var(--accent); }
+    .filters { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin-top:12px; }
+    .filters label { display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--muted); }
+    .filters label.check { flex-direction:row; align-items:center; gap:6px; font-size:12px; }
+    .filters input, .filters select { width:100%; }
+    .toolbar { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+    .count { font-size:12px; color:var(--muted); }
+    #msg { margin:10px 0; font-size:13px; min-height:18px; }
+    .tablewrap { overflow-x:auto; border:1px solid var(--border); border-radius:12px; background:var(--card); }
+    table { width:100%; border-collapse:collapse; font-size:13px; min-width:1100px; }
+    th, td { padding:8px 10px; border-bottom:1px solid var(--border); text-align:left; vertical-align:middle; }
+    th { color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; white-space:nowrap; cursor:pointer; user-select:none; }
+    th.active { color:var(--text); }
+    th .arrow { font-size:10px; }
+    tbody tr:hover { background:#1a1a24; }
+    td.thumb img { width:52px; height:52px; object-fit:contain; background:#fff; border-radius:6px; }
+    td.title { max-width:260px; }
+    .title-text { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.3; }
+    .price { font-weight:700; white-space:nowrap; }
+    .price s { font-size:11px; color:var(--muted); font-weight:400; margin-left:4px; }
+    .score { display:inline-block; padding:2px 8px; border-radius:99px; font-size:12px; font-weight:700; white-space:nowrap; }
+    .s-high { background:rgba(34,197,94,.18); color:var(--ok); } .s-mid { background:rgba(245,158,11,.18); color:var(--warn); } .s-low { background:rgba(239,68,68,.18); color:var(--bad); }
+    td.cat select, td.aff input { font-size:12px; min-width:140px; }
+    td.actions { white-space:nowrap; }
+    td.actions button { padding:5px 8px; font-size:12px; }
+    .muted { color:var(--muted); font-size:12px; }
+    .empty { text-align:center; padding:48px; color:var(--muted); }
+    .bulkbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+</style>
+</head>
+<body>
+<header>
+    <h1>🗂️ Dashboard de Seleção — Curadoria</h1>
+    <div class="row"><a href="/admin/curadoria">← Curadoria</a> <a href="/admin">Painel</a></div>
+</header>
+<main>
+    <div class="panel">
+        <div class="tabs" id="tabs">
+            <button data-status="pending" class="active">Pendentes</button>
+            <button data-status="approved">Aprovados</button>
+            <button data-status="rejected">Rejeitados</button>
+            <button data-status="all">Todos</button>
+        </div>
+        <div class="filters">
+            <label>Buscar no título<input id="fQ" placeholder="ex.: fone, cafeteira..."></label>
+            <label>Categoria da vitrine<select id="fCategory"><option value="">Todas</option></select></label>
+            <label>Origem<select id="fSource"><option value="">Todas</option></select></label>
+            <label>Score mínimo<input id="fMinScore" type="number" min="0" max="100" placeholder="0"></label>
+            <label>Desconto mínimo (%)<input id="fMinDiscount" type="number" min="0" max="100" placeholder="0"></label>
+            <label>Preço mínimo<input id="fMinPrice" type="number" min="0" step="0.01" placeholder="R$"></label>
+            <label>Preço máximo<input id="fMaxPrice" type="number" min="0" step="0.01" placeholder="R$"></label>
+            <label>Ordenar por<select id="fSort">
+                <option value="score">Score</option>
+                <option value="discount">Desconto</option>
+                <option value="price">Preço</option>
+                <option value="sold">Vendidos</option>
+                <option value="stock">Estoque</option>
+                <option value="created">Mais recentes</option>
+                <option value="title">Título</option>
+            </select></label>
+            <label>Direção<select id="fOrder"><option value="desc">Maior → menor</option><option value="asc">Menor → maior</option></select></label>
+            <label>Itens exibidos<select id="fLimit"><option value="100">100</option><option value="200" selected>200</option><option value="350">350</option><option value="500">500</option></select></label>
+            <label class="check"><input id="fFreeShipping" type="checkbox"> Só com frete grátis</label>
+        </div>
+    </div>
+
+    <div id="msg"></div>
+
+    <div class="toolbar">
+        <div class="bulkbar">
+            <label class="check"><input id="selectAll" type="checkbox"> Selecionar todos visíveis</label>
+            <span class="count" id="selCount">0 selecionados</span>
+            <select id="bulkCategory"><option value="">Manter categoria atual</option></select>
+            <button id="bulkApprove" class="ok">✅ Adicionar selecionados à vitrine</button>
+            <button id="bulkReject" class="bad">❌ Rejeitar selecionados</button>
+            <button id="bulkReopen" class="secondary">↩️ Reabrir selecionados</button>
+        </div>
+        <span class="count" id="totalCount"></span>
+    </div>
+
+    <div class="tablewrap">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:28px"><input id="headCheck" type="checkbox"></th>
+                    <th style="width:60px"></th>
+                    <th data-sort="title">Produto</th>
+                    <th data-sort="price">Preço</th>
+                    <th data-sort="discount">Desc.</th>
+                    <th data-sort="score">Score</th>
+                    <th>Origem</th>
+                    <th>Categoria</th>
+                    <th>Link de afiliado</th>
+                    <th data-sort="sold">Vendidos</th>
+                    <th data-sort="stock">Estoque</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+</main>
+
+<script>
+const token = sessionStorage.getItem('admin-access-token');
+if (!token) location.href = '/admin';
+
+const CATEGORIES = ['casa', 'organização', 'eletrônicos', 'beleza', 'utilidades'];
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = v => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const safeUrl = u => (/^https:\/\//i.test(u) ? u : '');
+
+async function api(path, options = {}) {
+    const response = await fetch(`/api/curation/${path}`, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) }
+    });
+    if (response.status === 401) { sessionStorage.removeItem('admin-access-token'); location.href = '/admin'; }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    return data;
+}
+
+function say(text, bad) { $('msg').style.color = bad ? 'var(--bad)' : 'var(--muted)'; $('msg').textContent = text; }
+
+let rows = [];
+const selected = new Set();
+
+function state() {
+    return {
+        status: document.querySelector('#tabs button.active').dataset.status,
+        sort: $('fSort').value,
+        order: $('fOrder').value,
+        q: $('fQ').value.trim(),
+        category: $('fCategory').value,
+        source: $('fSource').value,
+        minScore: $('fMinScore').value,
+        minDiscount: $('fMinDiscount').value,
+        minPrice: $('fMinPrice').value,
+        maxPrice: $('fMaxPrice').value,
+        freeShipping: $('fFreeShipping').checked ? '1' : '',
+        limit: $('fLimit').value
+    };
+}
+
+function queryString() {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(state())) if (v) params.set(k, v);
+    return params.toString();
+}
+
+async function loadFacets() {
+    try {
+        const { categories, sources } = await api('candidates/facets');
+        const cats = [...new Set([...CATEGORIES, ...categories])];
+        $('fCategory').innerHTML = '<option value="">Todas</option>' + cats.map(c => `<option>${esc(c)}</option>`).join('');
+        $('bulkCategory').innerHTML = '<option value="">Manter categoria atual</option>' + cats.map(c => `<option>${esc(c)}</option>`).join('');
+        $('fSource').innerHTML = '<option value="">Todas</option>' + sources.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    } catch (e) { say(e.message, true); }
+}
+
+function row(c) {
+    const cls = c.score >= 60 ? 's-high' : c.score >= 35 ? 's-mid' : 's-low';
+    const url = safeUrl(c.affiliate_url);
+    const options = CATEGORIES.map(cat => `<option ${cat === (c.store_category || 'utilidades') ? 'selected' : ''}>${esc(cat)}</option>`).join('');
+    const pending = c.status !== 'approved';
+    return `<tr data-id="${esc(c.item_id)}">
+        <td><input class="rowCheck" type="checkbox" ${selected.has(c.item_id) ? 'checked' : ''}></td>
+        <td class="thumb"><img src="${esc(safeUrl(c.image))}" alt="" loading="lazy" referrerpolicy="no-referrer"></td>
+        <td class="title"><div class="title-text" title="${esc(c.title)}">${esc(c.title)}</div><a href="${esc(safeUrl(c.permalink))}" target="_blank" rel="noopener noreferrer">Ver no ML ↗</a></td>
+        <td class="price">${money(c.price)}${c.old_price ? `<s>${money(c.old_price)}</s>` : ''}</td>
+        <td>${c.discount_pct ? `${c.discount_pct}%` : '—'}</td>
+        <td><span class="score ${cls}">${c.score}</span></td>
+        <td class="muted">${esc(c.source)}</td>
+        <td class="cat"><select class="cat-input">${options}</select></td>
+        <td class="aff"><input class="aff-input" value="${esc(url)}" placeholder="https://..."></td>
+        <td>${c.sold_quantity}</td>
+        <td>${c.available_quantity}</td>
+        <td class="actions">
+            ${pending ? '<button class="ok" data-act="approved">Aprovar</button>' : ''}
+            ${c.status !== 'rejected' ? '<button class="bad" data-act="rejected">Rejeitar</button>' : '<button class="secondary" data-act="pending">Reabrir</button>'}
+        </td>
+    </tr>`;
+}
+
+function updateSelCount() {
+    $('selCount').textContent = `${selected.size} selecionado(s)`;
+}
+
+async function load() {
+    try {
+        rows = await api(`candidates?${queryString()}`);
+        selected.clear();
+        $('headCheck').checked = false; $('selectAll').checked = false;
+        $('tbody').innerHTML = rows.length ? rows.map(row).join('') : '<tr><td colspan="12" class="empty">Nenhum produto encontrado com esses filtros.</td></tr>';
+        $('totalCount').textContent = `${rows.length} item(ns) exibido(s)`;
+        updateSelCount();
+        document.querySelectorAll('thead th[data-sort]').forEach(th => th.classList.toggle('active', th.dataset.sort === $('fSort').value));
+    } catch (e) { say(e.message, true); }
+}
+
+$('tabs').addEventListener('click', e => {
+    if (!e.target.dataset.status) return;
+    document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b === e.target));
+    load();
+});
+
+let qTimer;
+$('fQ').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(load, 400); });
+['fCategory', 'fSource', 'fMinScore', 'fMinDiscount', 'fMinPrice', 'fMaxPrice', 'fSort', 'fOrder', 'fLimit', 'fFreeShipping'].forEach(id => {
+    $(id).addEventListener('change', load);
+});
+
+document.querySelectorAll('thead th[data-sort]').forEach(th => th.addEventListener('click', () => {
+    if ($('fSort').value === th.dataset.sort) {
+        $('fOrder').value = $('fOrder').value === 'desc' ? 'asc' : 'desc';
+    } else {
+        $('fSort').value = th.dataset.sort;
+    }
+    load();
+}));
+
+$('headCheck').addEventListener('change', e => {
+    document.querySelectorAll('.rowCheck').forEach(cb => { cb.checked = e.target.checked; });
+    rows.forEach(r => { if (e.target.checked) selected.add(r.item_id); else selected.delete(r.item_id); });
+    updateSelCount();
+});
+$('selectAll').addEventListener('change', e => { $('headCheck').checked = e.target.checked; $('headCheck').dispatchEvent(new Event('change')); });
+
+$('tbody').addEventListener('change', e => {
+    if (!e.target.classList.contains('rowCheck')) return;
+    const id = e.target.closest('tr').dataset.id;
+    if (e.target.checked) selected.add(id); else selected.delete(id);
+    updateSelCount();
+});
+
+$('tbody').addEventListener('click', async e => {
+    const act = e.target.dataset.act;
+    if (!act) return;
+    const tr = e.target.closest('tr');
+    e.target.disabled = true;
+    try {
+        await api(`candidates/${encodeURIComponent(tr.dataset.id)}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                status: act,
+                affiliate_url: tr.querySelector('.aff-input').value.trim(),
+                store_category: tr.querySelector('.cat-input').value
+            })
+        });
+        say(act === 'approved' ? 'Produto adicionado à vitrine.' : 'Atualizado.');
+        load();
+    } catch (err) { say(err.message, true); e.target.disabled = false; }
+});
+
+async function bulkApply(status) {
+    if (!selected.size) return say('Selecione ao menos um item.', true);
+    const label = status === 'approved' ? 'adicionar à vitrine' : status === 'rejected' ? 'rejeitar' : 'reabrir';
+    if (!confirm(`Confirma ${label} ${selected.size} item(ns)?`)) return;
+    document.querySelectorAll('.bulkbar button').forEach(b => b.disabled = true);
+    try {
+        const body = { ids: [...selected], status };
+        if ($('bulkCategory').value) body.store_category = $('bulkCategory').value;
+        const r = await api('candidates/bulk', { method: 'POST', body: JSON.stringify(body) });
+        say(`${r.updated} item(ns) atualizado(s).${r.errors.length ? ' Avisos: ' + r.errors.join(' | ') : ''}`, r.errors.length > 0 && !r.updated);
+        load();
+    } catch (e) { say(e.message, true); }
+    document.querySelectorAll('.bulkbar button').forEach(b => b.disabled = false);
+}
+
+$('bulkApprove').addEventListener('click', () => bulkApply('approved'));
+$('bulkReject').addEventListener('click', () => bulkApply('rejected'));
+$('bulkReopen').addEventListener('click', () => bulkApply('pending'));
+
+loadFacets();
+load();
+</script>
+</body>
+</html>
