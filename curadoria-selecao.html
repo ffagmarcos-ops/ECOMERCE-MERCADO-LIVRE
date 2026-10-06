@@ -59,6 +59,15 @@
 </header>
 <main>
     <div class="panel">
+        <h2 style="margin:0 0 10px;font-size:14px">🧭 Buscar novos produtos no Mercado Livre</h2>
+        <div class="row">
+            <input id="queries" placeholder="Termos separados por vírgula (opcional, ex.: fone bluetooth, cafeteira)">
+            <button id="discoverBtn">Buscar</button>
+            <button id="verifyBtn" class="secondary">🧹 Verificar disponibilidade</button>
+        </div>
+        <p class="muted">Sem termos, usa destaques das categorias, tendências e produtos similares aos mais clicados na vitrine. Exige uma conta de vendedor conectada em <a href="/admin/curadoria">Curadoria</a> para buscas por palavra-chave, tendências e similares.</p>
+    </div>
+    <div class="panel">
         <div class="tabs" id="tabs">
             <button data-status="pending" class="active">Pendentes</button>
             <button data-status="approved">Aprovados</button>
@@ -296,6 +305,27 @@ async function bulkApply(status) {
 $('bulkApprove').addEventListener('click', () => bulkApply('approved'));
 $('bulkReject').addEventListener('click', () => bulkApply('rejected'));
 $('bulkReopen').addEventListener('click', () => bulkApply('pending'));
+
+$('discoverBtn').addEventListener('click', async () => {
+    $('discoverBtn').disabled = true; say('Buscando no Mercado Livre...');
+    try {
+        const queries = $('queries').value.split(',').map(s => s.trim()).filter(Boolean);
+        const r = await api('discover', { method: 'POST', body: JSON.stringify({ queries }) });
+        say(`${r.added} novos sugeridos (${r.scanned} analisados).${r.errors.length ? ' Avisos: ' + r.errors.join(' | ') : ''}`, r.errors.length && !r.added);
+        loadFacets(); load();
+    } catch (e) { say(e.message, true); }
+    $('discoverBtn').disabled = false;
+});
+
+$('verifyBtn').addEventListener('click', async () => {
+    $('verifyBtn').disabled = true; say('Verificando disponibilidade...');
+    try {
+        const r = await api('verify', { method: 'POST' });
+        say(r.error ? `Erro: ${r.error}` : `${r.checked} verificados, ${r.removed.length} removidos da vitrine.`, !!r.error);
+        load();
+    } catch (e) { say(e.message, true); }
+    $('verifyBtn').disabled = false;
+});
 
 loadFacets();
 load();
