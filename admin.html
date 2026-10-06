@@ -250,7 +250,10 @@
         <footer class="bg-black/60 border-t border-admin-border py-4 text-center text-xs text-admin-textMuted">
             <div class="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-2">
                 <p>&copy; 2026 Tudo pra Você - Painel Administrativo.</p>
-                <a href="/admin/curadoria" class="uppercase tracking-widest text-[9px] font-bold text-admin-accentGold">Curadoria Mercado Livre &rarr;</a>
+                <div class="flex gap-4">
+                    <a href="/admin/curadoria" class="uppercase tracking-widest text-[9px] font-bold text-admin-accentGold">Curadoria Mercado Livre &rarr;</a>
+                    <a href="/admin/curadoria/selecao" class="uppercase tracking-widest text-[9px] font-bold text-admin-accentGold">Dashboard de Seleção &rarr;</a>
+                </div>
             </div>
         </footer>
     </div>
@@ -1547,7 +1550,10 @@
             // --- TAB RENDER LOGIC ---
             const tabGroups = [
                 { label: 'Dashboard', icon: 'fa-solid fa-chart-line', tabs: ['estatisticas-config'] },
-                { label: 'Produtos', icon: 'fa-solid fa-cart-plus', tabs: ['produtos-config', 'promocoes-config', 'escolhas-config'], links: [{ label: 'Curadoria Mercado Livre', icon: 'fa-solid fa-magnifying-glass-chart', href: '/admin/curadoria' }] },
+                { label: 'Produtos', icon: 'fa-solid fa-cart-plus', tabs: ['produtos-config', 'promocoes-config', 'escolhas-config'], links: [
+                    { label: 'Curadoria Mercado Livre', icon: 'fa-solid fa-magnifying-glass-chart', href: '/admin/curadoria' },
+                    { label: 'Dashboard de Seleção', icon: 'fa-solid fa-table-list', href: '/admin/curadoria/selecao' }
+                ] },
                 { label: 'Visual', icon: 'fa-solid fa-palette', tabs: ['logo-config', 'banners-config', 'cores-config'] },
                 { label: 'Marketing', icon: 'fa-solid fa-bullhorn', tabs: ['marketing-config', 'creatives-config'] },
                 { label: 'Sistema', icon: 'fa-solid fa-key', tabs: ['api-tokens-config'] }
