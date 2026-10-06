@@ -11,6 +11,8 @@
     header { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
     header h1 { font-size:20px; margin:0; }
     a { color:var(--accent); text-decoration:none; }
+    .nav-links { display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+    .nav-links a.active { color:var(--text); font-weight:700; pointer-events:none; border-bottom:2px solid var(--accent); padding-bottom:2px; }
     main { max-width:1280px; margin:0 auto; padding:24px; }
     .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:20px; }
     .kpi, .panel { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
@@ -56,7 +58,11 @@
 <body>
 <header>
     <h1>🔎 Curadoria Mercado Livre</h1>
-    <div class="row"><a href="/admin/curadoria/selecao">🗂️ Dashboard de seleção →</a> <a href="/admin">← Painel</a></div>
+    <nav class="nav-links">
+        <a href="/admin">⚙️ Painel</a>
+        <a href="/admin/curadoria" class="active">🔎 Curadoria Mercado Livre</a>
+        <a href="/admin/curadoria/selecao">🗂️ Dashboard de Seleção</a>
+    </nav>
 </header>
 <main>
     <div class="kpis" id="kpis"></div>
@@ -76,7 +82,8 @@
             </ol>
             <p class="muted"><b>Parâmetros de afiliado:</b> no seu painel do Programa de Afiliados do Mercado Livre, copie um link de produto e use o trecho depois do “?” (ex.: <code>matt_tool=123&amp;matt_word=seu_id</code>). Ele é anexado a todos os links aprovados.<br>
             <b>Categorias:</b> IDs separados por vírgula (ex.: <code>MLB1574</code> = Casa, <code>MLB1246</code> = Beleza); a lista completa está em <code>api.mercadolibre.com/sites/MLB/categories</code>.<br>
-            Os nomes das telas do Mercado Livre podem variar um pouco; o essencial é criar a aplicação e copiar o App ID e a Secret Key. Nunca compartilhe a Secret Key.</p>
+            Os nomes das telas do Mercado Livre podem variar um pouco; o essencial é criar a aplicação e copiar o App ID e a Secret Key. Nunca compartilhe a Secret Key.<br>
+            <b>Erro "HTTP 403" ao buscar:</b> desde 2023 o Mercado Livre restringe a busca por palavra-chave, tendências e produtos similares a integradores certificados — isso acontece mesmo com a conta conectada. Não é uma falha do painel. Use o campo <b>"Adicionar por link/código"</b> no <a href="/admin/curadoria/selecao">Dashboard de Seleção</a> para colar o link do produto (copiado diretamente do site do Mercado Livre) e adicioná-lo manualmente.</p>
         </details>
         <div class="cfg">
             <label>Client ID (App ID)<input id="cfgId" autocomplete="off"></label>

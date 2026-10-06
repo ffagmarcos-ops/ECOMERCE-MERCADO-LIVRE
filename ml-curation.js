@@ -416,7 +416,14 @@ async function collectCandidateIds(pool, { queries = [], categories = [], topCli
         // tokens get a 403 from Mercado Livre, so skip the call entirely if nobody is connected.
         if (!isUserConnected()) return errors.push(`${source}: conecte a conta do Mercado Livre na configuração da integração para habilitar buscas.`);
         const res = await mlGet(`/sites/${config.siteId}/search?${new URLSearchParams({ limit: '20', ...params })}`, { preferUser: true });
-        if (!res.ok) return errors.push(`${source}: HTTP ${res.status}`);
+        if (!res.ok) {
+            // HTTP 403 here means the Mercado Livre platform itself is blocking the public search endpoint
+            // for this application (restricted to certified integrators since 2023), not a bug in this app.
+            const hint = res.status === 403
+                ? ' (o Mercado Livre restringiu a busca por palavra-chave a integradores certificados; use "Adicionar por link/código" para incluir produtos manualmente)'
+                : '';
+            return errors.push(`${source}: HTTP ${res.status}${hint}`);
+        }
         (res.body.results || []).forEach(r => add(r.id, source));
     }
 
@@ -525,6 +532,65 @@ async function discoverCandidates(pool, options = {}) {
         added++;
     }
     return { added, scanned: ids.length, errors };
+}
+
+// Adds candidates directly from item IDs or product links, bypassing the search endpoint entirely.
+// Useful because Mercado Livre now restricts /sites/{site}/search to certified integrators (HTTP 403)
+// even for authorized sellers; pasting a link found by browsing the site manually still works since
+// /items/{id} and /products/{id} remain open to any authorized app.
+async function addCandidatesByRef(pool, refs) {
+    const errors = [];
+    const itemIds = new Map(); // mlId -> raw ref (for error messages)
+    const catalogIds = new Map();
+
+    for (const raw of refs) {
+        const value = String(raw).trim();
+        if (!value) continue;
+        const ref = resolveMlRef(/^ML[A-Z]\d+$/.test(value) ? { id: value } : { url: value });
+        if (!ref) { errors.push(`${value}: não reconhecido como item ou link do Mercado Livre.`); continue; }
+        if (ref.kind === 'item') itemIds.set(ref.mlId, value);
+        else catalogIds.set(ref.mlId, value);
+    }
+
+    // Catalog links resolve to a "buy box" winning item, which is what actually gets sold/shipped.
+    await mapLimit([...catalogIds.entries()], 5, async ([mlId, raw]) => {
+        const res = await mlGet(`/products/${mlId}`);
+        const winner = res.ok && res.body && res.body.buy_box_winner;
+        if (winner && winner.item_id) itemIds.set(winner.item_id, raw);
+        else errors.push(`${raw}: produto de catálogo sem vendedor disponível (HTTP ${res.status}).`);
+    });
+
+    if (!itemIds.size) return { added: 0, scanned: refs.length, errors };
+
+    const [existing] = await pool.query('SELECT item_id FROM product_candidates UNION SELECT id FROM products');
+    const known = new Set(existing.map(r => String(r.item_id)));
+    const fresh = [...itemIds.keys()].filter(id => !known.has(id));
+    for (const id of [...itemIds.keys()].filter(id => known.has(id))) {
+        errors.push(`${itemIds.get(id)}: já está na lista de candidatos ou publicado na loja.`);
+    }
+    if (!fresh.length) return { added: 0, scanned: refs.length, errors };
+
+    const items = await fetchItems(fresh);
+    let added = 0;
+    for (const [id, entry] of items) {
+        const raw = itemIds.get(id);
+        if (entry.code !== 200) { errors.push(`${raw}: HTTP ${entry.code}.`); continue; }
+        if (!isSellable(entry.body)) { errors.push(`${raw}: item pausado ou sem estoque no Mercado Livre.`); continue; }
+        const item = normalizeItem(entry.body);
+        if (!item.image || item.price <= 0) { errors.push(`${raw}: sem foto ou preço válido.`); continue; }
+        const { score, reason } = scoreItem(item, 0);
+        await pool.query(
+            `INSERT IGNORE INTO product_candidates
+             (item_id, title, price, old_price, discount_pct, image, image_2, permalink, affiliate_url,
+              category_id, sold_quantity, available_quantity, free_shipping, score, reason, source)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, item.title.slice(0, 255), item.price, item.old_price, item.discount_pct, item.image, item.image_2,
+                item.permalink, buildAffiliateUrl(item.permalink), item.category_id, item.sold_quantity,
+                item.available_quantity, item.free_shipping, score, `${reason ? reason + ' · ' : ''}adicionado manualmente`.slice(0, 255), 'manual']
+        );
+        added++;
+    }
+    return { added, scanned: refs.length, errors };
 }
 
 // Resolves which Mercado Livre entity a storefront product points to (item listing or catalog product).
@@ -669,6 +735,6 @@ async function refreshImages(pool, ids = null) {
 }
 
 module.exports = {
-    refreshImages, enrichRefs, isConfigured, ensureConfigTable, loadConfig, saveConfig, getPublicConfig, testCredentials, ensureCandidateTable, discoverCandidates, verifyAvailability, getSalesFlow, buildAffiliateUrl,
+    refreshImages, enrichRefs, isConfigured, ensureConfigTable, loadConfig, saveConfig, getPublicConfig, testCredentials, ensureCandidateTable, discoverCandidates, addCandidatesByRef, verifyAvailability, getSalesFlow, buildAffiliateUrl,
     getAuthorizationUrl, connectUserAccount, disconnectUserAccount, isUserConnected
 };

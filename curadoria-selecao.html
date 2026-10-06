@@ -11,6 +11,8 @@
     header { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
     header h1 { font-size:20px; margin:0; }
     a { color:var(--accent); text-decoration:none; }
+    .nav-links { display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+    .nav-links a.active { color:var(--text); font-weight:700; pointer-events:none; border-bottom:2px solid var(--accent); padding-bottom:2px; }
     main { max-width:1440px; margin:0 auto; padding:24px; }
     .panel { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:16px; }
     input, select, button { font:inherit; color:var(--text); background:#0f0f16; border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
@@ -55,7 +57,11 @@
 <body>
 <header>
     <h1>🗂️ Dashboard de Seleção — Curadoria</h1>
-    <div class="row"><a href="/admin/curadoria">← Curadoria</a> <a href="/admin">Painel</a></div>
+    <nav class="nav-links">
+        <a href="/admin">⚙️ Painel</a>
+        <a href="/admin/curadoria">🔎 Curadoria Mercado Livre</a>
+        <a href="/admin/curadoria/selecao" class="active">🗂️ Dashboard de Seleção</a>
+    </nav>
 </header>
 <main>
     <div class="panel">
@@ -65,7 +71,12 @@
             <button id="discoverBtn">Buscar</button>
             <button id="verifyBtn" class="secondary">🧹 Verificar disponibilidade</button>
         </div>
-        <p class="muted">Sem termos, usa destaques das categorias, tendências e produtos similares aos mais clicados na vitrine. Exige uma conta de vendedor conectada em <a href="/admin/curadoria">Curadoria</a> para buscas por palavra-chave, tendências e similares.</p>
+        <p class="muted">Sem termos, usa destaques das categorias, tendências e produtos similares aos mais clicados na vitrine. Exige uma conta de vendedor conectada em <a href="/admin/curadoria">Curadoria</a> para buscas por palavra-chave, tendências e similares. Desde 2023 o Mercado Livre restringe essas buscas a integradores certificados — se aparecer "HTTP 403", use a opção abaixo para adicionar manualmente.</p>
+        <div class="row" style="margin-top:12px;align-items:flex-start">
+            <input id="refs" placeholder="Cole links ou códigos do Mercado Livre, um por linha ou separados por vírgula (ex.: https://produto.mercadolivre.com.br/... , MLB1234567890)" style="flex:3">
+            <button id="addRefBtn">➕ Adicionar por link/código</button>
+        </div>
+        <p class="muted">Encontre o produto normalmente em mercadolivre.com.br, copie o link (ou o código MLB do anúncio) e cole aqui. Funciona mesmo sem a busca por palavra-chave.</p>
     </div>
     <div class="panel">
         <div class="tabs" id="tabs">
@@ -362,6 +373,19 @@ $('verifyBtn').addEventListener('click', async () => {
         load();
     } catch (e) { say(e.message, true); }
     $('verifyBtn').disabled = false;
+});
+
+$('addRefBtn').addEventListener('click', async () => {
+    const refs = $('refs').value.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+    if (!refs.length) return say('Cole ao menos um link ou código do Mercado Livre.', true);
+    $('addRefBtn').disabled = true; say('Adicionando produto(s)...');
+    try {
+        const r = await api('candidates/add-by-ref', { method: 'POST', body: JSON.stringify({ refs }) });
+        say(`${r.added} adicionado(s) de ${r.scanned} informado(s).${r.errors.length ? ' Avisos: ' + r.errors.join(' | ') : ''}`, r.errors.length && !r.added);
+        if (r.added) $('refs').value = '';
+        loadFacets(); load();
+    } catch (e) { say(e.message, true); }
+    $('addRefBtn').disabled = false;
 });
 
 loadFacets();

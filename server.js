@@ -954,6 +954,23 @@ app.post('/api/curation/discover', requireApiToken, async (req, res) => {
     }
 });
 
+// Adds candidates by pasting item IDs/links directly, bypassing /search (which Mercado Livre now
+// restricts to certified integrators and returns HTTP 403 for even authorized seller tokens).
+app.post('/api/curation/candidates/add-by-ref', requireApiToken, async (req, res) => {
+    try {
+        if (!curation.isConfigured()) {
+            return res.status(400).json({ error: 'Configure as credenciais do Mercado Livre na curadoria (Configuração da integração).' });
+        }
+        const refs = (Array.isArray(req.body.refs) ? req.body.refs : [])
+            .map(v => String(v).trim()).filter(Boolean).slice(0, 50);
+        if (!refs.length) return res.status(400).json({ error: 'Informe ao menos um link ou código (ex.: MLB1234567890).' });
+        const result = await curation.addCandidatesByRef(pool, refs);
+        res.json(result);
+    } catch (err) {
+        res.status(502).json({ error: err.message });
+    }
+});
+
 // Applies a status change (and, when approving, publishes/updates the storefront product). Shared by the
 // single-candidate PUT route and the dashboard's bulk endpoint.
 async function applyCandidateDecision(itemId, { status, affiliateUrl, storeCategory }) {
