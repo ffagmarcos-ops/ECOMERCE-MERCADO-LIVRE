@@ -84,6 +84,11 @@
             <label>País (site)<select id="cfgSite"><option value="MLB">Brasil (MLB)</option><option value="MLA">Argentina (MLA)</option><option value="MLM">México (MLM)</option><option value="MLC">Chile (MLC)</option><option value="MCO">Colômbia (MCO)</option></select></label>
             <label>Parâmetros de afiliado<input id="cfgAff" placeholder="matt_tool=123&amp;matt_word=seu_id"></label>
             <label>Categorias de descoberta<input id="cfgCats" placeholder="MLB1574,MLB1246"></label>
+            <label>URI de redirecionamento (callback)<input id="cfgRedirect" placeholder="https://seudominio.com/oauth/ml/callback"></label>
+        </div>
+        <div class="row" style="margin-top:4px">
+            <button id="cfgRedirectDefault" class="secondary" type="button">Usar domínio atual</button>
+            <span class="muted">Precisa ser idêntica à cadastrada no DevCenter do Mercado Livre. Em um app white label, cada cliente/domínio tem a sua própria.</span>
         </div>
         <div class="row" style="margin-top:10px">
             <button id="cfgSave">Salvar</button>
@@ -244,6 +249,7 @@ async function loadConfig() {
     try {
         const c = await api('config');
         $('cfgId').value = c.clientId; $('cfgAff').value = c.affiliateParams; $('cfgCats').value = c.categories; $('cfgSite').value = c.siteId;
+        $('cfgRedirect').value = c.redirectUri || '';
         $('cfgSecret').value = '';
         $('cfgSecret').placeholder = c.hasClientSecret ? '•••••••• (salvo)' : 'Cole o Client Secret';
         $('cfgInfo').textContent = c.configured ? '✔ Credenciais informadas' : 'Credenciais pendentes';
@@ -253,12 +259,14 @@ async function loadConfig() {
     } catch (e) { say(e.message, true); }
 }
 
+$('cfgRedirectDefault').addEventListener('click', () => { $('cfgRedirect').value = `${location.origin}/oauth/ml/callback`; });
+
 $('cfgSave').addEventListener('click', async () => {
     $('cfgSave').disabled = true;
     try {
         await api('config', { method: 'PUT', body: JSON.stringify({
             clientId: $('cfgId').value, clientSecret: $('cfgSecret').value, siteId: $('cfgSite').value,
-            affiliateParams: $('cfgAff').value, categories: $('cfgCats').value
+            affiliateParams: $('cfgAff').value, categories: $('cfgCats').value, redirectUri: $('cfgRedirect').value
         }) });
         say('Configuração salva.');
         await loadConfig(); load();

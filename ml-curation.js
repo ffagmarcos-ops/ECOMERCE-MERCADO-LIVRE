@@ -110,7 +110,9 @@ async function loadConfig(pool) {
         siteId: stored.ml_site_id || base.siteId,
         affiliateParams: stored.ml_affiliate_params !== undefined ? stored.ml_affiliate_params : base.affiliateParams,
         categories: stored.ml_categories || base.categories,
-        redirectUri: base.redirectUri
+        // White label: each installation can set its own callback URL from the admin panel.
+        // Falls back to ML_REDIRECT_URI/APP_DOMAIN env vars when nothing is saved yet.
+        redirectUri: stored.ml_redirect_uri || base.redirectUri
     };
     tokenCache = { value: null, expiresAt: 0 };
     userTokenCache = {
@@ -138,6 +140,13 @@ async function saveConfig(pool, input) {
     if (typeof input.siteId === 'string' && /^ML[A-Z]$/.test(input.siteId.trim())) await upsert('ml_site_id', input.siteId.trim());
     if (typeof input.affiliateParams === 'string') await upsert('ml_affiliate_params', input.affiliateParams.trim().replace(/^\?/, ''));
     if (typeof input.categories === 'string') await upsert('ml_categories', input.categories.trim());
+    if (typeof input.redirectUri === 'string') {
+        const redirectUri = input.redirectUri.trim().replace(/\/$/, '');
+        if (redirectUri && !/^https:\/\/.+/i.test(redirectUri)) {
+            throw new Error('A URI de redirecionamento precisa começar com https://.');
+        }
+        await upsert('ml_redirect_uri', redirectUri);
+    }
     await loadConfig(pool);
 }
 
@@ -264,7 +273,7 @@ async function isOAuthStateValid(pool, state) {
 // that keeps working even after the short-lived access token expires.
 async function getAuthorizationUrl(pool) {
     if (!isConfigured()) throw new Error('Configure o Client ID e o Client Secret antes de conectar a conta.');
-    if (!config.redirectUri) throw new Error('Defina ML_REDIRECT_URI (ou APP_DOMAIN) no ambiente do servidor para habilitar a conexão com o Mercado Livre.');
+    if (!config.redirectUri) throw new Error('Defina a URI de redirecionamento na configuração da integração (ou ML_REDIRECT_URI/APP_DOMAIN no servidor) para habilitar a conexão com o Mercado Livre.');
     const authHost = AUTH_HOSTS[config.siteId] || 'auth.mercadolibre.com';
     const url = new URL(`https://${authHost}/authorization`);
     url.searchParams.set('response_type', 'code');
@@ -283,7 +292,7 @@ async function connectUserAccount(pool, { code, state }) {
         throw new Error('Estado de autorização inválido ou expirado. Tente conectar novamente.');
     }
     if (!code) throw new Error('Código de autorização ausente na resposta do Mercado Livre.');
-    if (!config.redirectUri) throw new Error('ML_REDIRECT_URI não configurado.');
+    if (!config.redirectUri) throw new Error('URI de redirecionamento não configurada.');
 
     const response = await fetch(`${ML_API}/oauth/token`, {
         method: 'POST',
