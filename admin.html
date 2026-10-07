@@ -1134,6 +1134,7 @@
                 { id: 'produtos-config', label: 'Cadastrar Produtos', icon: 'fa-solid fa-cart-plus' },
                 { id: 'marketing-config', label: 'Marketing & SEO', icon: 'fa-solid fa-bullhorn' },
                 { id: 'creatives-config', label: 'Criador de Criativos', icon: 'fa-solid fa-wand-magic-sparkles' },
+                { id: 'telegram-config', label: 'Telegram: Ofertas', icon: 'fa-brands fa-telegram' },
                 { id: 'api-tokens-config', label: 'Tokens de API', icon: 'fa-solid fa-key' }
             ];
 
@@ -1556,7 +1557,7 @@
                     { label: 'Dashboard de Seleção', icon: 'fa-solid fa-table-list', href: '/admin/curadoria/selecao' }
                 ] },
                 { label: 'Visual', icon: 'fa-solid fa-palette', tabs: ['logo-config', 'banners-config', 'cores-config'] },
-                { label: 'Marketing', icon: 'fa-solid fa-bullhorn', tabs: ['marketing-config', 'creatives-config'] },
+                { label: 'Marketing', icon: 'fa-solid fa-bullhorn', tabs: ['marketing-config', 'creatives-config', 'telegram-config'] },
                 { label: 'Sistema', icon: 'fa-solid fa-key', tabs: ['api-tokens-config'] }
             ];
             const curationPages = {
@@ -1687,6 +1688,9 @@
                             break;
                         case 'creatives-config':
                             loadCreativesTab();
+                            break;
+                        case 'telegram-config':
+                            loadTelegramTab();
                             break;
                         case 'api-tokens-config':
                             loadApiTokensTab();
@@ -5086,6 +5090,228 @@
             // ==========================================
             // TAB 6: MARKETING & SEO
             // ==========================================
+            function loadTelegramTab() {
+                const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+                }[char]));
+                const defaultTemplate = [
+                    '🔥 {title}', '',
+                    '💰 Por {price}',
+                    '{discount_line}', '',
+                    '🛒 Comprar agora: {affiliate_url}'
+                ].join('\n');
+
+                tabContent.innerHTML = `
+                    <div class="space-y-6 animate-fade-in text-white">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-wide flex items-center gap-2">
+                                <i class="fa-brands fa-telegram text-sky-400"></i> Divulgação de Ofertas no Telegram
+                            </h2>
+                            <p class="text-xs text-admin-textMuted mt-1">Configure vários canais, crie um template específico para cada canal e agende ofertas aprovadas na curadoria.</p>
+                        </div>
+                        <details class="bg-admin-bg border border-admin-border rounded-xl p-4" open>
+                            <summary class="cursor-pointer text-sm font-bold text-admin-accentGold">Como criar e configurar o bot e os canais</summary>
+                            <ol class="mt-3 space-y-2 text-xs text-admin-textMuted list-decimal list-inside leading-relaxed">
+                                <li>No Telegram, abra o <b class="text-white">@BotFather</b>, envie <code>/newbot</code>, escolha o nome e copie o token gerado.</li>
+                                <li>Adicione o bot como <b class="text-white">administrador</b> de cada canal, com permissão para publicar mensagens.</li>
+                                <li>Publique uma mensagem de teste no canal. Depois abra <code>https://api.telegram.org/botSEU_TOKEN/getUpdates</code> e copie o <b class="text-white">chat.id</b>.</li>
+                                <li>Para canais públicos, o Chat ID normalmente começa com <code>-100</code>. Nunca compartilhe o token do bot.</li>
+                                <li>Cadastre cada canal abaixo. Use <b class="text-white">Testar</b> para confirmar que o bot consegue acessar o destino.</li>
+                            </ol>
+                        </details>
+                        <div class="grid lg:grid-cols-2 gap-5">
+                            <section class="bg-admin-card border border-admin-border rounded-xl p-5 space-y-4">
+                                <h3 class="text-sm font-bold">Canais do Telegram</h3>
+                                <div class="grid sm:grid-cols-2 gap-3">
+                                    <input id="telegram-channel-name" class="admin-input text-xs" placeholder="Nome do canal">
+                                    <input id="telegram-channel-chat-id" class="admin-input text-xs" placeholder="Chat ID (ex.: -100123...)">
+                                </div>
+                                <input id="telegram-channel-token" class="admin-input text-xs" type="password" placeholder="Token do bot (obrigatório ao criar)">
+                                <div class="flex justify-end">
+                                    <button id="telegram-save-channel" class="bg-admin-accentBlue text-white font-bold px-4 py-2 rounded-lg text-xs">Adicionar canal</button>
+                                </div>
+                                <div id="telegram-channels" class="space-y-2"></div>
+                            </section>
+                            <section class="bg-admin-card border border-admin-border rounded-xl p-5 space-y-4">
+                                <h3 class="text-sm font-bold">Templates por canal</h3>
+                                <select id="telegram-template-channel" class="admin-input text-xs"><option value="">Selecione o canal</option></select>
+                                <input id="telegram-template-name" class="admin-input text-xs" placeholder="Nome do template">
+                                <textarea id="telegram-template-body" class="admin-textarea text-xs h-36" placeholder="Texto da oferta">${escapeHtml(defaultTemplate)}</textarea>
+                                <p class="text-[10px] text-admin-textMuted">Variáveis: {title}, {price}, {old_price}, {discount}, {discount_line}, {affiliate_url}</p>
+                                <div class="flex justify-end">
+                                    <button id="telegram-save-template" class="bg-admin-accentBlue text-white font-bold px-4 py-2 rounded-lg text-xs">Salvar template</button>
+                                </div>
+                                <div id="telegram-templates" class="space-y-2"></div>
+                            </section>
+                        </div>
+                        <section class="bg-admin-card border border-admin-border rounded-xl p-5 space-y-4">
+                            <div class="flex items-center justify-between gap-3 flex-wrap">
+                                <h3 class="text-sm font-bold">Agendar ofertas aprovadas</h3>
+                                <button id="telegram-refresh" class="text-xs text-admin-accentGold font-bold">Atualizar dados</button>
+                            </div>
+                            <div class="grid md:grid-cols-3 gap-3">
+                                <select id="telegram-schedule-channel" class="admin-input text-xs"><option value="">Canal do template</option></select>
+                                <select id="telegram-schedule-template" class="admin-input text-xs"><option value="">Template</option></select>
+                                <input id="telegram-schedule-date" class="admin-input text-xs" type="datetime-local">
+                            </div>
+                            <div id="telegram-offers" class="max-h-72 overflow-y-auto space-y-2 border border-admin-border rounded-lg p-3"></div>
+                            <div class="flex justify-end">
+                                <button id="telegram-schedule" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black font-extrabold px-5 py-2.5 rounded-lg text-xs">Agendar selecionadas</button>
+                            </div>
+                        </section>
+                        <section class="bg-admin-card border border-admin-border rounded-xl p-5">
+                            <h3 class="text-sm font-bold mb-3">Fila de publicações</h3>
+                            <div id="telegram-schedules" class="space-y-2"></div>
+                        </section>
+                    </div>
+                `;
+
+                const post = async (path, body) => {
+                    const response = await authenticatedAdminFetch(`${API_BASE}${path}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    const payload = await response.json();
+                    if (!response.ok) throw new Error(payload.error || 'Não foi possível concluir a operação.');
+                    return payload;
+                };
+
+                let config = { channels: [], templates: [], schedules: [] };
+                let offers = [];
+                const channelSelects = [
+                    document.getElementById('telegram-template-channel'),
+                    document.getElementById('telegram-schedule-channel')
+                ];
+
+                function renderConfig() {
+                    channelSelects.forEach(select => {
+                        const current = select.value;
+                        const label = select.id.includes('template') ? 'Selecione o canal' : 'Canal do template';
+                        select.innerHTML = `<option value="">${label}</option>` +
+                            config.channels.map(channel => `<option value="${channel.id}">${escapeHtml(channel.name)}</option>`).join('');
+                        select.value = current;
+                    });
+                    document.getElementById('telegram-channels').innerHTML = config.channels.length
+                        ? config.channels.map(channel => `
+                            <div class="flex items-center justify-between gap-2 border border-admin-border rounded-lg p-2.5 text-xs">
+                                <span><b>${escapeHtml(channel.name)}</b><small class="block text-admin-textMuted">${escapeHtml(channel.chatId)}</small></span>
+                                <span class="flex gap-2">
+                                    <button data-telegram-test="${channel.id}" class="text-sky-400 font-bold">Testar</button>
+                                    <button data-telegram-delete-channel="${channel.id}" class="text-red-400 font-bold">Excluir</button>
+                                </span>
+                            </div>`).join('')
+                        : '<p class="text-xs text-admin-textMuted">Nenhum canal configurado.</p>';
+                    document.getElementById('telegram-templates').innerHTML = config.templates.length
+                        ? config.templates.map(template => `
+                            <div class="border border-admin-border rounded-lg p-2.5 text-xs">
+                                <b>${escapeHtml(template.name)}</b><span class="text-admin-textMuted"> · canal ${escapeHtml(config.channels.find(c => c.id === template.channel_id)?.name || template.channel_id)}</span>
+                                <pre class="mt-1 text-[10px] text-admin-textMuted whitespace-pre-wrap">${escapeHtml(template.body)}</pre>
+                                <button data-telegram-delete-template="${template.id}" class="text-red-400 font-bold">Excluir</button>
+                            </div>`).join('')
+                        : '<p class="text-xs text-admin-textMuted">Nenhum template configurado.</p>';
+                    const templateSelect = document.getElementById('telegram-schedule-template');
+                    const selectedChannel = Number(document.getElementById('telegram-schedule-channel').value);
+                    templateSelect.innerHTML = '<option value="">Template</option>' +
+                        config.templates.filter(t => !selectedChannel || Number(t.channel_id) === selectedChannel)
+                            .map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+                    document.getElementById('telegram-schedules').innerHTML = config.schedules.length
+                        ? config.schedules.map(schedule => `
+                            <div class="flex items-center justify-between gap-2 border border-admin-border rounded-lg p-2.5 text-xs">
+                                <span><b>${escapeHtml(schedule.title || schedule.item_id)}</b><small class="block text-admin-textMuted">${escapeHtml(schedule.channel_name)} · ${escapeHtml(new Date(schedule.scheduled_at).toLocaleString('pt-BR'))}</small></span>
+                                <span class="${schedule.status === 'published' ? 'text-emerald-400' : schedule.status === 'failed' ? 'text-red-400' : 'text-admin-accentGold'}">${escapeHtml(schedule.status)}</span>
+                            </div>`).join('')
+                        : '<p class="text-xs text-admin-textMuted">Nenhuma publicação agendada.</p>';
+                }
+
+                function renderOffers() {
+                    document.getElementById('telegram-offers').innerHTML = offers.length
+                        ? offers.map(offer => `
+                            <label class="flex items-start gap-2 text-xs cursor-pointer">
+                                <input type="checkbox" value="${escapeHtml(offer.item_id)}" class="telegram-offer mt-1">
+                                <span><b>${escapeHtml(offer.title)}</b><small class="block text-admin-textMuted">${Number(offer.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} · ${offer.discount_pct || 0}% OFF</small></span>
+                            </label>`).join('')
+                        : '<p class="text-xs text-admin-textMuted">Nenhuma oferta aprovada disponível.</p>';
+                }
+
+                async function refresh() {
+                    const [configResponse, offersResponse] = await Promise.all([
+                        authenticatedAdminFetch(`${API_BASE}/telegram/config`),
+                        authenticatedAdminFetch(`${API_BASE}/telegram/offers`)
+                    ]);
+                    config = await configResponse.json();
+                    offers = await offersResponse.json();
+                    renderConfig();
+                    renderOffers();
+                }
+
+                document.getElementById('telegram-save-channel').addEventListener('click', async () => {
+                    try {
+                        config = await post('/telegram/channels', {
+                            name: document.getElementById('telegram-channel-name').value,
+                            chatId: document.getElementById('telegram-channel-chat-id').value,
+                            botToken: document.getElementById('telegram-channel-token').value
+                        });
+                        document.getElementById('telegram-channel-name').value = '';
+                        document.getElementById('telegram-channel-chat-id').value = '';
+                        document.getElementById('telegram-channel-token').value = '';
+                        renderConfig();
+                        showToast('Canal adicionado.', 'success');
+                    } catch (error) { showToast(error.message, 'error'); }
+                });
+                document.getElementById('telegram-save-template').addEventListener('click', async () => {
+                    try {
+                        config = await post('/telegram/templates', {
+                            channelId: document.getElementById('telegram-template-channel').value,
+                            name: document.getElementById('telegram-template-name').value,
+                            body: document.getElementById('telegram-template-body').value
+                        });
+                        renderConfig();
+                        showToast('Template salvo.', 'success');
+                    } catch (error) { showToast(error.message, 'error'); }
+                });
+                document.getElementById('telegram-schedule-channel').addEventListener('change', renderConfig);
+                document.getElementById('telegram-refresh').addEventListener('click', refresh);
+                document.getElementById('telegram-schedule').addEventListener('click', async () => {
+                    try {
+                        const itemIds = [...document.querySelectorAll('.telegram-offer:checked')].map(input => input.value);
+                        const channelId = document.getElementById('telegram-schedule-channel').value;
+                        config = await post('/telegram/schedules', {
+                            itemIds,
+                            channelIds: channelId ? [channelId] : [],
+                            templateId: document.getElementById('telegram-schedule-template').value,
+                            scheduledAt: document.getElementById('telegram-schedule-date').value
+                        });
+                        renderConfig();
+                        showToast('Ofertas agendadas.', 'success');
+                    } catch (error) { showToast(error.message, 'error'); }
+                });
+                document.getElementById('telegram-channels').addEventListener('click', async event => {
+                    const testId = event.target.dataset.telegramTest;
+                    const deleteId = event.target.dataset.telegramDeleteChannel;
+                    try {
+                        if (testId) {
+                            const response = await authenticatedAdminFetch(`${API_BASE}/telegram/channels/${testId}/test`, { method: 'POST' });
+                            const payload = await response.json();
+                            if (!response.ok) throw new Error(payload.error);
+                            showToast(`Conectado a ${payload.title}.`, 'success');
+                        } else if (deleteId && await showConfirmDialog({ title: 'Excluir canal?', text: 'Os templates e agendamentos deste canal também serão excluídos.', confirmText: 'Excluir' })) {
+                            config = await (await authenticatedAdminFetch(`${API_BASE}/telegram/channels/${deleteId}`, { method: 'DELETE' })).json();
+                            renderConfig();
+                        }
+                    } catch (error) { showToast(error.message, 'error'); }
+                });
+                document.getElementById('telegram-templates').addEventListener('click', async event => {
+                    const id = event.target.dataset.telegramDeleteTemplate;
+                    if (!id) return;
+                    try {
+                        config = await (await authenticatedAdminFetch(`${API_BASE}/telegram/templates/${id}`, { method: 'DELETE' })).json();
+                        renderConfig();
+                    } catch (error) { showToast(error.message, 'error'); }
+                });
+                refresh().catch(error => showToast(error.message, 'error'));
+            }
+
             function loadMarketingTab() {
                 tabContent.innerHTML = `
                     <div class="space-y-6">

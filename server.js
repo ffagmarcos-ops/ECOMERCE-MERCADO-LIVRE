@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const swaggerUi = require('swagger-ui-express');
 const openApiSpec = require('./openapi.json');
 const curation = require('./ml-curation');
+const telegram = require('./telegram');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -259,6 +260,7 @@ async function initDB() {
         await curation.ensureConfigTable(pool);
         await curation.loadConfig(pool);
         await curation.ensureCandidateTable(pool);
+        await telegram.ensureTables(pool);
 
         console.log("Database tables verified/created successfully.");
 
@@ -578,6 +580,89 @@ app.post('/api/settings', requireApiToken, async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/telegram/config', requireApiToken, async (req, res) => {
+    try {
+        res.json(await telegram.listConfig(pool));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/telegram/offers', requireApiToken, async (req, res) => {
+    try {
+        res.json(await telegram.listOffers(pool));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/telegram/channels', requireApiToken, async (req, res) => {
+    try {
+        await telegram.saveChannel(pool, req.body || {});
+        res.json(await telegram.listConfig(pool));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.delete('/api/telegram/channels/:id', requireApiToken, async (req, res) => {
+    try {
+        await telegram.deleteChannel(pool, req.params.id);
+        res.json(await telegram.listConfig(pool));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.post('/api/telegram/channels/:id/test', requireApiToken, async (req, res) => {
+    try {
+        const chat = await telegram.testChannel(pool, req.params.id);
+        res.json({ ok: true, title: chat.title || chat.username || chat.first_name || 'Canal conectado' });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.post('/api/telegram/templates', requireApiToken, async (req, res) => {
+    try {
+        await telegram.saveTemplate(pool, req.body || {});
+        res.json(await telegram.listConfig(pool));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.delete('/api/telegram/templates/:id', requireApiToken, async (req, res) => {
+    try {
+        await telegram.deleteTemplate(pool, req.params.id);
+        res.json(await telegram.listConfig(pool));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.post('/api/telegram/schedules', requireApiToken, async (req, res) => {
+    try {
+        await telegram.schedule(pool, req.body || {});
+        res.json(await telegram.listConfig(pool));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.post('/api/telegram/schedules/:id/publish-now', requireApiToken, async (req, res) => {
+    try {
+        await pool.query(
+            "UPDATE telegram_schedules SET scheduled_at = NOW(), status = 'scheduled', error_message = NULL WHERE id = ? AND status IN ('failed', 'scheduled')",
+            [req.params.id]
+        );
+        await telegram.processDue(pool);
+        res.json(await telegram.listConfig(pool));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
     }
 });
 
@@ -1087,6 +1172,12 @@ app.get('/health', (req, res) => {
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+setInterval(() => {
+    if (pool) {
+        telegram.processDue(pool).catch(err => console.error('Telegram scheduler failed:', err.message));
+    }
+}, 30000);
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

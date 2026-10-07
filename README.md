@@ -44,6 +44,19 @@ O sistema entrega uma vitrine pública para os produtos e um painel interno para
 * Operações administrativas exigem o cabeçalho `Authorization: Bearer <token>`. Leituras públicas da vitrine permanecem abertas.
 * Execute `npm run validate:api` para validar o OpenAPI e confirmar que todas as rotas Express estão documentadas.
 
+### Divulgação de ofertas no Telegram
+
+Na aba **Marketing → Telegram: Ofertas**, é possível cadastrar vários canais, associar um template a cada canal e agendar ofertas aprovadas na curadoria.
+
+1. No Telegram, abra o `@BotFather`, envie `/newbot` e copie o token criado.
+2. Adicione o bot como administrador do canal, com permissão para publicar mensagens.
+3. Publique uma mensagem de teste no canal e consulte `https://api.telegram.org/botSEU_TOKEN/getUpdates` para obter o `chat.id`.
+4. Cadastre o nome, o Chat ID e o token no painel e clique em **Testar**.
+5. Crie um template para o canal. Os campos disponíveis são `{title}`, `{price}`, `{old_price}`, `{discount}`, `{discount_line}` e `{affiliate_url}`.
+6. Selecione ofertas aprovadas, o canal, o template e a data para criar o agendamento.
+
+Os tokens dos bots são armazenados criptografados. O bot precisa permanecer administrador do canal para que o worker de publicação consiga enviar as ofertas. O WhatsApp será integrado em uma etapa separada.
+
 ## Funcionalidades principais
 
 * Catálogo dinâmico com produtos premium.
