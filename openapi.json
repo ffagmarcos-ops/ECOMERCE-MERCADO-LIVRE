@@ -13,6 +13,7 @@
     { "name": "Estatísticas", "description": "Visitas, cliques e métricas administrativas." },
     { "name": "Telegram", "description": "Canais, templates e agendamento de ofertas no Telegram." },
     { "name": "WhatsApp", "description": "Configuração de canais via Evolution API e WhatsApp Cloud API." },
+    { "name": "Meta", "description": "Publicação de ofertas em Páginas do Facebook e contas profissionais do Instagram." },
     { "name": "Sistema", "description": "Saúde e páginas web." }
   ],
   "paths": {
@@ -225,6 +226,16 @@
     },
     "/api/whatsapp/channels/{id}/cloud/status": {
       "get": { "tags": ["WhatsApp"], "summary": "Validar credenciais da WhatsApp Cloud API", "operationId": "getWhatsAppCloudStatus", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Dados do número configurado." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
+    },
+    "/api/meta/config": {
+      "get": { "tags": ["Meta"], "summary": "Consultar configuração Facebook e Instagram sem segredos", "operationId": "getMetaConfig", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Configuração pública." }, "401": { "$ref": "#/components/responses/Unauthorized" } } },
+      "post": { "tags": ["Meta"], "summary": "Salvar configuração da Meta", "operationId": "saveMetaConfig", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "appId": { "type": "string" }, "pageId": { "type": "string" }, "pageAccessToken": { "type": "string" }, "instagramUserId": { "type": "string" }, "instagramAccessToken": { "type": "string" }, "graphVersion": { "type": "string" }, "autoFacebook": { "type": "boolean" }, "autoInstagram": { "type": "boolean" } } } } } }, "responses": { "200": { "$ref": "#/components/responses/Success" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
+    },
+    "/api/meta/offers": {
+      "get": { "tags": ["Meta"], "summary": "Listar ofertas aprovadas para publicação", "operationId": "listMetaOffers", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Ofertas aprovadas." }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
+    },
+    "/api/meta/publish": {
+      "post": { "tags": ["Meta"], "summary": "Publicar ofertas selecionadas no Facebook e Instagram", "operationId": "publishMetaOffers", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["itemIds"], "properties": { "itemIds": { "type": "array", "items": { "type": "string" } }, "networks": { "type": "array", "items": { "type": "string", "enum": ["facebook", "instagram"] } } } } } } }, "responses": { "200": { "description": "Resultado por oferta e rede." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
     },
     "/health": {
       "get": { "tags": ["Sistema"], "summary": "Verificar saúde do servidor", "operationId": "healthCheck", "responses": { "200": { "description": "Servidor ativo.", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean", "example": true } } } } } } } }

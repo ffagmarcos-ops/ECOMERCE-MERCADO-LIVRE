@@ -89,6 +89,17 @@ O destino é opcional nesta etapa e fica salvo junto da instância. A publicaç�
 
 Tokens e API Keys são armazenados criptografados e nunca são retornados pela API. A Cloud API oficial não publica diretamente em Canais do WhatsApp: ela permite mensagens para destinatários que deram opt-in e para templates aprovados pela Meta. A automação de divulgação por esse fluxo será adicionada em uma etapa posterior.
 
+### Publicação no Facebook e Instagram
+
+Na aba **Marketing → Facebook & Instagram**, é possível publicar ofertas aprovadas manualmente ou automaticamente no momento da aprovação.
+
+1. Crie um app Business em [Meta for Developers](https://developers.facebook.com/apps) e solicite as permissões necessárias para publicar em uma Página.
+2. Informe o **Page ID** e um **Page Access Token** com permissão de publicação.
+3. Para o Instagram, use uma conta profissional (Business ou Creator), informe o **Instagram User ID** e um token com permissão de publicação de conteúdo.
+4. Selecione as redes de publicação automática ou use a lista de ofertas para publicar manualmente.
+
+A primeira versão publica uma imagem com legenda e link da oferta. A imagem precisa estar disponível em uma URL HTTPS pública. Tokens são armazenados criptografados e nunca retornados ao navegador. A Meta pode exigir revisão do aplicativo, autorização de publicação da Página e limites de uso antes da operação em produção.
+
 ## Funcionalidades principais
 
 * Catálogo dinâmico com produtos premium.

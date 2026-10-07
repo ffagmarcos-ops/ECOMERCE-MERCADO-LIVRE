@@ -1136,6 +1136,7 @@
                 { id: 'creatives-config', label: 'Criador de Criativos', icon: 'fa-solid fa-wand-magic-sparkles' },
                 { id: 'telegram-config', label: 'Telegram: Ofertas', icon: 'fa-brands fa-telegram' },
                 { id: 'whatsapp-config', label: 'WhatsApp: Canais', icon: 'fa-brands fa-whatsapp' },
+                { id: 'meta-config', label: 'Facebook & Instagram', icon: 'fa-brands fa-meta' },
                 { id: 'api-tokens-config', label: 'Tokens de API', icon: 'fa-solid fa-key' }
             ];
 
@@ -1558,7 +1559,7 @@
                     { label: 'Dashboard de Seleção', icon: 'fa-solid fa-table-list', href: '/admin/curadoria/selecao' }
                 ] },
                 { label: 'Visual', icon: 'fa-solid fa-palette', tabs: ['logo-config', 'banners-config', 'cores-config'] },
-                { label: 'Marketing', icon: 'fa-solid fa-bullhorn', tabs: ['marketing-config', 'creatives-config', 'telegram-config', 'whatsapp-config'] },
+                { label: 'Marketing', icon: 'fa-solid fa-bullhorn', tabs: ['marketing-config', 'creatives-config', 'telegram-config', 'whatsapp-config', 'meta-config'] },
                 { label: 'Sistema', icon: 'fa-solid fa-key', tabs: ['api-tokens-config'] }
             ];
             const curationPages = {
@@ -1695,6 +1696,9 @@
                             break;
                         case 'whatsapp-config':
                             loadWhatsAppTab();
+                            break;
+                        case 'meta-config':
+                            loadMetaTab();
                             break;
                         case 'api-tokens-config':
                             loadApiTokensTab();
@@ -5356,6 +5360,159 @@
                     } catch (error) { showToast(error.message, 'error'); }
                 });
                 updateProviderFields();
+                refresh().catch(error => showToast(error.message, 'error'));
+            }
+
+            function loadMetaTab() {
+                const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+                }[char]));
+                tabContent.innerHTML = `
+                    <div class="space-y-6 animate-fade-in text-white">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-wide flex items-center gap-2"><i class="fa-brands fa-meta text-sky-400"></i> Facebook e Instagram</h2>
+                            <p class="text-xs text-admin-textMuted mt-1">Publique ofertas aprovadas manualmente ou automaticamente em uma Página do Facebook e em uma conta profissional do Instagram.</p>
+                        </div>
+                        <details class="bg-admin-bg border border-admin-border rounded-xl p-4" open>
+                            <summary class="cursor-pointer text-sm font-bold text-admin-accentGold">Antes de preencher esta tela</summary>
+                            <ol class="mt-3 space-y-2 text-xs text-admin-textMuted list-decimal list-inside leading-relaxed">
+                                <li>Acesse <a class="text-admin-accentGold underline" href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer">Meta for Developers</a> e crie ou selecione um aplicativo do tipo <b class="text-white">Business</b>.</li>
+                                <li>Adicione os produtos <b class="text-white">Facebook Login</b> e <b class="text-white">Instagram Graph API</b>. Para uso em produção, conclua a verificação do negócio e a revisão das permissões solicitadas.</li>
+                                <li>A Página do Facebook deve ser administrada pelo mesmo Business Manager que possui acesso à conta do aplicativo.</li>
+                                <li>O Instagram deve ser uma conta profissional <b class="text-white">Business ou Creator</b>, vinculada a uma Página do Facebook. Contas pessoais não podem publicar por esta integração.</li>
+                                <li>As imagens das ofertas precisam estar em uma URL <b class="text-white">HTTPS pública</b>; a Meta não consegue buscar imagens que só existam no computador, em localhost ou atrás de login.</li>
+                            </ol>
+                        </details>
+                        <div class="grid lg:grid-cols-2 gap-5">
+                            <details class="bg-admin-bg border border-admin-border rounded-xl p-4" open>
+                                <summary class="cursor-pointer text-sm font-bold text-sky-400">Como configurar o Facebook</summary>
+                                <ol class="mt-3 space-y-2 text-xs text-admin-textMuted list-decimal list-inside leading-relaxed">
+                                    <li>No painel da Meta, abra <b class="text-white">Configurações do app → Básico</b> e copie o <b class="text-white">App ID</b>.</li>
+                                    <li>Em <b class="text-white">Facebook Login → Configuração</b>, gere um token de usuário com as permissões <code>pages_show_list</code>, <code>pages_read_engagement</code> e <code>pages_manage_posts</code>.</li>
+                                    <li>Troque o token de usuário por um <b class="text-white">Page Access Token</b> da Página que fará as publicações. O token precisa continuar válido e ter acesso à Página.</li>
+                                    <li>Consulte <code>/me/accounts</code> na Graph API Explorer ou no Gerenciador de Negócios e copie o <b class="text-white">ID numérico da Página</b>, não o nome nem a URL.</li>
+                                    <li>Preencha <b class="text-white">Page ID</b> e <b class="text-white">Page Access Token</b>. O campo de token fica vazio depois de salvar por segurança; vazio significa manter o token já salvo.</li>
+                                </ol>
+                                <p class="mt-3 text-[10px] text-amber-300">A publicação é feita como foto da Página, usando a imagem da oferta, a legenda e o link afiliado.</p>
+                            </details>
+                            <details class="bg-admin-bg border border-admin-border rounded-xl p-4" open>
+                                <summary class="cursor-pointer text-sm font-bold text-pink-400">Como configurar o Instagram</summary>
+                                <ol class="mt-3 space-y-2 text-xs text-admin-textMuted list-decimal list-inside leading-relaxed">
+                                    <li>No Instagram, confirme em <b class="text-white">Configurações → Tipo de conta</b> que o perfil é Business ou Creator.</li>
+                                    <li>Vincule o perfil a uma Página do Facebook em <b class="text-white">Central de Contas</b> ou nas configurações da Página.</li>
+                                    <li>Solicite <code>instagram_basic</code>, <code>instagram_content_publish</code> e, quando usar Facebook Login, <code>pages_read_engagement</code>.</li>
+                                    <li>Obtenha o <b class="text-white">Instagram User ID</b> pela conta profissional vinculada. É um identificador numérico, diferente do @nome do perfil.</li>
+                                    <li>Use um token com permissão de publicação para essa conta e informe-o no campo <b class="text-white">Token Instagram</b>. Ele também é limpo da tela após salvar.</li>
+                                </ol>
+                                <p class="mt-3 text-[10px] text-amber-300">A publicação no Instagram ocorre em duas etapas: criar o contêiner da imagem e depois publicar o contêiner. A imagem deve permanecer acessível até a Meta concluir o processamento.</p>
+                            </details>
+                        </div>
+                        <details class="bg-admin-bg border border-admin-border rounded-xl p-4">
+                            <summary class="cursor-pointer text-sm font-bold text-violet-400">O que informar em cada campo</summary>
+                            <div class="mt-3 space-y-2 text-xs text-admin-textMuted leading-relaxed">
+                                <p><b class="text-white">App ID:</b> identificador do aplicativo na Meta. É opcional para a publicação, mas ajuda a identificar a integração.</p>
+                                <p><b class="text-white">Versão Graph API:</b> versão ativa da API, no formato <code>v23.0</code>. Use uma versão suportada pelo seu aplicativo.</p>
+                                <p><b class="text-white">Facebook Page ID:</b> ID numérico da Página onde as ofertas serão publicadas.</p>
+                                <p><b class="text-white">Page Access Token:</b> token da Página, nunca o App Secret. Não compartilhe esse valor.</p>
+                                <p><b class="text-white">Instagram User ID:</b> ID numérico do perfil profissional, nunca o nome iniciado por <code>@</code>.</p>
+                                <p><b class="text-white">Token Instagram:</b> token com <code>instagram_content_publish</code>. Deixe vazio apenas quando quiser preservar o token já armazenado.</p>
+                            </div>
+                        </details>
+                        <details class="bg-admin-bg border border-admin-border rounded-xl p-4">
+                            <summary class="cursor-pointer text-sm font-bold text-emerald-400">Publicação automática e manual</summary>
+                            <ul class="mt-3 space-y-2 text-xs text-admin-textMuted list-disc list-inside leading-relaxed">
+                                <li><b class="text-white">Automática:</b> marque uma ou ambas as opções e salve. Quando uma oferta for aprovada na curadoria, o sistema tentará publicar somente nas redes marcadas.</li>
+                                <li><b class="text-white">Manual:</b> atualize a lista, marque as ofertas aprovadas, selecione Facebook e/ou Instagram e clique em <b class="text-white">Publicar selecionadas</b>.</li>
+                                <li>O resultado aparece na lista por rede. Uma falha em uma rede não impede a tentativa na outra.</li>
+                                <li>Antes de ativar o modo automático, faça uma publicação manual de teste com uma oferta aprovada.</li>
+                            </ul>
+                        </details>
+                        <details class="bg-admin-bg border border-admin-border rounded-xl p-4">
+                            <summary class="cursor-pointer text-sm font-bold text-amber-300">Erros comuns e como corrigir</summary>
+                            <ul class="mt-3 space-y-2 text-xs text-admin-textMuted list-disc list-inside leading-relaxed">
+                                <li><b class="text-white">Invalid OAuth access token:</b> gere um token novo, confirme a validade e verifique se ele pertence à Página/conta correta.</li>
+                                <li><b class="text-white">Permissions error:</b> solicite as permissões listadas acima e confira se o usuário do token tem função administrativa na Página.</li>
+                                <li><b class="text-white">Instagram account not eligible:</b> converta o perfil para Business/Creator e confirme o vínculo com a Página.</li>
+                                <li><b class="text-white">Image download failed:</b> use uma URL HTTPS pública, sem autenticação, que retorne diretamente PNG, JPEG ou WebP.</li>
+                                <li><b class="text-white">Token expirado:</b> substitua o token nos campos correspondentes e salve novamente. Os tokens existentes nunca são exibidos.</li>
+                            </ul>
+                        </details>
+                        <section class="bg-admin-card border border-admin-border rounded-xl p-5 space-y-4">
+                            <h3 class="text-sm font-bold">Configuração</h3>
+                            <div class="grid md:grid-cols-2 gap-3">
+                                <input id="meta-app-id" class="admin-input text-xs" placeholder="App ID (opcional)">
+                                <input id="meta-graph-version" class="admin-input text-xs" placeholder="Versão Graph API (ex.: v23.0)">
+                                <input id="meta-page-id" class="admin-input text-xs" placeholder="Facebook Page ID">
+                                <input id="meta-page-token" class="admin-input text-xs" type="password" placeholder="Page Access Token (deixe vazio para manter)">
+                                <input id="meta-instagram-id" class="admin-input text-xs" placeholder="Instagram User ID">
+                                <input id="meta-instagram-token" class="admin-input text-xs" type="password" placeholder="Token Instagram (deixe vazio para manter)">
+                            </div>
+                            <div class="flex flex-wrap gap-4 text-xs text-admin-textMuted">
+                                <label><input id="meta-auto-facebook" type="checkbox" class="mr-2">Publicar automaticamente no Facebook ao aprovar</label>
+                                <label><input id="meta-auto-instagram" type="checkbox" class="mr-2">Publicar automaticamente no Instagram ao aprovar</label>
+                            </div>
+                            <div class="flex justify-end"><button id="meta-save" class="bg-admin-accentBlue text-white font-bold px-4 py-2 rounded-lg text-xs">Salvar configuração</button></div>
+                        </section>
+                        <section class="bg-admin-card border border-admin-border rounded-xl p-5 space-y-4">
+                            <div class="flex items-center justify-between gap-3 flex-wrap"><h3 class="text-sm font-bold">Publicação manual</h3><button id="meta-refresh" class="text-xs text-admin-accentGold font-bold">Atualizar ofertas</button></div>
+                            <div id="meta-offers" class="max-h-80 overflow-y-auto space-y-2 border border-admin-border rounded-lg p-3"></div>
+                            <div class="flex flex-wrap items-center justify-end gap-3">
+                                <label class="text-xs"><input id="meta-publish-facebook" type="checkbox" checked class="mr-1"> Facebook</label>
+                                <label class="text-xs"><input id="meta-publish-instagram" type="checkbox" checked class="mr-1"> Instagram</label>
+                                <button id="meta-publish" class="bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black font-extrabold px-5 py-2.5 rounded-lg text-xs">Publicar selecionadas</button>
+                            </div>
+                        </section>
+                    </div>`;
+                const request = async (path, options = {}) => {
+                    const response = await authenticatedAdminFetch(`${API_BASE}${path}`, options);
+                    const payload = await response.json();
+                    if (!response.ok) throw new Error(payload.error || 'Operação não concluída.');
+                    return payload;
+                };
+                const refresh = async () => {
+                    const [config, offers] = await Promise.all([request('/meta/config'), request('/meta/offers')]);
+                    document.getElementById('meta-app-id').value = config.appId || '';
+                    document.getElementById('meta-graph-version').value = config.graphVersion || 'v23.0';
+                    document.getElementById('meta-page-id').value = config.pageId || '';
+                    document.getElementById('meta-instagram-id').value = config.instagramUserId || '';
+                    document.getElementById('meta-auto-facebook').checked = Boolean(config.autoFacebook);
+                    document.getElementById('meta-auto-instagram').checked = Boolean(config.autoInstagram);
+                    document.getElementById('meta-offers').innerHTML = offers.map(offer => `
+                        <label class="flex items-start gap-2 text-xs border-b border-admin-border pb-2">
+                            <input type="checkbox" class="meta-offer mt-1" value="${escapeHtml(offer.item_id)}">
+                            <span><b>${escapeHtml(offer.title)}</b><br><span class="text-admin-textMuted">${escapeHtml(offer.price)} · ${escapeHtml(offer.meta_status || 'não publicado')}</span></span>
+                        </label>`).join('') || '<p class="text-xs text-admin-textMuted">Nenhuma oferta aprovada.</p>';
+                };
+                document.getElementById('meta-save').addEventListener('click', async () => {
+                    try {
+                        await request('/meta/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                            appId: document.getElementById('meta-app-id').value,
+                            graphVersion: document.getElementById('meta-graph-version').value,
+                            pageId: document.getElementById('meta-page-id').value,
+                            pageAccessToken: document.getElementById('meta-page-token').value,
+                            instagramUserId: document.getElementById('meta-instagram-id').value,
+                            instagramAccessToken: document.getElementById('meta-instagram-token').value,
+                            autoFacebook: document.getElementById('meta-auto-facebook').checked,
+                            autoInstagram: document.getElementById('meta-auto-instagram').checked
+                        }) });
+                        document.getElementById('meta-page-token').value = '';
+                        document.getElementById('meta-instagram-token').value = '';
+                        showToast('Configuração Meta salva.', 'success');
+                    } catch (error) { showToast(error.message, 'error'); }
+                });
+                document.getElementById('meta-refresh').addEventListener('click', () => refresh().catch(error => showToast(error.message, 'error')));
+                document.getElementById('meta-publish').addEventListener('click', async () => {
+                    const networks = [];
+                    if (document.getElementById('meta-publish-facebook').checked) networks.push('facebook');
+                    if (document.getElementById('meta-publish-instagram').checked) networks.push('instagram');
+                    const itemIds = [...document.querySelectorAll('.meta-offer:checked')].map(input => input.value);
+                    try {
+                        const result = await request('/meta/publish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemIds, networks }) });
+                        const failed = result.results.flatMap(item => item.results.filter(entry => !entry.ok));
+                        showToast(failed.length ? `Publicação concluída com ${failed.length} falha(s).` : 'Ofertas publicadas com sucesso.', failed.length ? 'error' : 'success');
+                        await refresh();
+                    } catch (error) { showToast(error.message, 'error'); }
+                });
                 refresh().catch(error => showToast(error.message, 'error'));
             }
 

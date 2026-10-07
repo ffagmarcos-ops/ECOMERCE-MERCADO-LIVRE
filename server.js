@@ -8,6 +8,7 @@ const openApiSpec = require('./openapi.json');
 const curation = require('./ml-curation');
 const telegram = require('./telegram');
 const whatsapp = require('./whatsapp');
+const meta = require('./meta');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -263,6 +264,7 @@ async function initDB() {
         await curation.ensureCandidateTable(pool);
         await telegram.ensureTables(pool);
         await whatsapp.ensureTables(pool);
+        await meta.ensureTables(pool);
 
         console.log("Database tables verified/created successfully.");
 
@@ -1167,6 +1169,9 @@ async function applyCandidateDecision(itemId, { status, affiliateUrl, storeCateg
     await pool.query(
         'UPDATE product_candidates SET status = ?, affiliate_url = ?, store_category = ? WHERE item_id = ?',
         [status, url, category, c.item_id]);
+    if (status === 'approved') {
+        await meta.processAutomatic(pool, c.item_id);
+    }
 }
 
 app.put('/api/curation/candidates/:id', requireApiToken, async (req, res) => {
@@ -1198,6 +1203,32 @@ app.post('/api/curation/candidates/bulk', requireApiToken, async (req, res) => {
         }
     }
     res.json({ updated, errors });
+});
+
+app.get('/api/meta/config', requireApiToken, async (req, res) => {
+    try { res.json(meta.publicConfig(await meta.loadConfig(pool))); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/meta/config', requireApiToken, async (req, res) => {
+    try { res.json(await meta.saveConfig(pool, req.body || {})); }
+    catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.get('/api/meta/offers', requireApiToken, async (req, res) => {
+    try { res.json(await meta.listOffers(pool)); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/meta/publish', requireApiToken, async (req, res) => {
+    try {
+        const itemIds = Array.isArray(req.body?.itemIds) ? req.body.itemIds.map(String).filter(Boolean).slice(0, 50) : [];
+        const networks = Array.isArray(req.body?.networks) ? req.body.networks : ['facebook', 'instagram'];
+        if (!itemIds.length) return res.status(400).json({ error: 'Selecione ao menos uma oferta.' });
+        const results = [];
+        for (const itemId of itemIds) results.push({ itemId, results: await meta.publish(pool, itemId, networks) });
+        res.json({ results });
+    } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 app.post('/api/curation/verify', requireApiToken, async (req, res) => {
