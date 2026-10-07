@@ -1296,6 +1296,7 @@
             const logoutBtn = document.getElementById('logout-btn');
             const tabsContainer = document.getElementById('admin-tabs');
             const tabContent = document.getElementById('tab-content');
+            const tabContentContainer = document.getElementById('tab-content-container');
             const tabLoading = document.getElementById('tab-loading');
             const toastContainer = document.getElementById('toast-container');
             const adminSessionKey = 'admin-authenticated';
@@ -1558,6 +1559,16 @@
                 { label: 'Marketing', icon: 'fa-solid fa-bullhorn', tabs: ['marketing-config', 'creatives-config'] },
                 { label: 'Sistema', icon: 'fa-solid fa-key', tabs: ['api-tokens-config'] }
             ];
+            const curationPages = {
+                '/admin/curadoria': {
+                    label: 'Curadoria Mercado Livre',
+                    source: '/curadoria.html'
+                },
+                '/admin/curadoria/selecao': {
+                    label: 'Dashboard de Seleção',
+                    source: '/curadoria-selecao.html'
+                }
+            };
             let openGroup = null;
 
             document.addEventListener('click', event => {
@@ -1569,6 +1580,9 @@
 
             function selectTab(tabId) {
                 openGroup = null;
+                if (window.location.pathname !== '/admin') {
+                    window.history.replaceState({}, '', '/admin');
+                }
                 if (activeTabId !== tabId) {
                     activeTabId = tabId;
                     loadTab(tabId);
@@ -1584,7 +1598,10 @@
                 tabGroups.forEach((group, index) => {
                     const items = group.tabs.map(id => tabList.find(t => t.id === id)).filter(Boolean);
                     const links = group.links || [];
-                    const groupActive = items.some(t => t.id === activeTabId);
+                    const isCurationRoute = Boolean(curationPages[window.location.pathname]);
+                    const groupActive = isCurationRoute
+                        ? links.some(link => link.href === window.location.pathname)
+                        : items.some(t => t.id === activeTabId);
                     const wrapper = document.createElement('div');
                     wrapper.className = 'relative';
 
@@ -1634,6 +1651,14 @@
                 setTimeout(() => {
                     tabLoading.classList.add('hidden');
                     tabContent.classList.remove('opacity-0');
+
+                    const curationPage = curationPages[window.location.pathname];
+                    if (curationPage) {
+                        loadCurationPage(curationPage);
+                        return;
+                    }
+
+                    tabContentContainer.style.padding = '';
                     
                     switch(tabId) {
                         case 'estatisticas-config':
@@ -1668,6 +1693,18 @@
                             break;
                     }
                 }, 200);
+            }
+
+            function loadCurationPage(page) {
+                tabContentContainer.style.padding = '0';
+                tabContent.innerHTML = `<iframe id="curation-content-frame" title="${page.label}" src="${page.source}" class="block w-full border-0 bg-admin-bg" style="min-height: 900px"></iframe>`;
+
+                const frame = document.getElementById('curation-content-frame');
+                window.addEventListener('message', event => {
+                    if (event.origin !== window.location.origin || event.source !== frame.contentWindow) return;
+                    if (event.data?.type !== 'curation-frame-height') return;
+                    frame.style.height = `${Math.max(900, event.data.height)}px`;
+                });
             }
 
             function loadPromotionProductsTab() {

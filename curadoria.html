@@ -3,16 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<base target="_top">
 <title>Curadoria Mercado Livre • Tudo pra Você</title>
+<link rel="icon" href="images/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-    :root { --bg:#0b0b10; --card:#15151d; --border:#262633; --text:#f1f1f5; --muted:#8b8ba0; --accent:#ff1a75; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; }
+    :root { --bg:#09090b; --card:#151518; --border:#27272a; --text:#f1f1f5; --muted:#94a3b8; --accent:#ff1a75; --gold:#ffd700; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; }
     * { box-sizing: border-box; }
-    body { margin:0; font-family: system-ui, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
-    header { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
-    header h1 { font-size:20px; margin:0; }
+    body { margin:0; font-family:Outfit, system-ui, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
+    .admin-header { position:sticky; top:0; z-index:40; background:rgba(0,0,0,.6); border-bottom:1px solid var(--border); backdrop-filter:blur(12px); }
+    .admin-topbar, .admin-tabs { max-width:1280px; margin:0 auto; padding-left:24px; padding-right:24px; }
+    .admin-topbar { min-height:76px; display:flex; justify-content:space-between; align-items:center; gap:16px; }
+    .admin-brand { display:flex; align-items:center; gap:12px; color:var(--text); }
+    .admin-brand img { width:auto; height:40px; object-fit:contain; }
+    .admin-brand strong { display:block; font-size:20px; font-weight:900; line-height:1; text-transform:uppercase; }
+    .admin-brand small, .admin-context small { display:block; margin-top:5px; color:var(--gold); font-size:9px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .admin-context { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12px; font-weight:700; text-align:right; }
+    .admin-context::before { content:""; width:32px; height:32px; border-radius:10px; background:var(--border); box-shadow:inset 0 0 0 1px rgba(255,255,255,.04); }
+    .admin-tabs-wrap { border-top:1px solid var(--border); background:rgba(21,21,24,.55); }
+    .admin-tabs { display:flex; flex-wrap:wrap; gap:6px; padding-top:8px; padding-bottom:8px; }
+    .nav-group { position:relative; }
+    .nav-tab { display:flex; align-items:center; min-height:36px; padding:0 16px; border:0; border-bottom:2px solid transparent; border-radius:8px; color:var(--muted); background:transparent; cursor:pointer; font:700 12px/1 Outfit, sans-serif; text-decoration:none; white-space:nowrap; transition:.2s; }
+    .nav-tab:hover, .nav-tab:focus, .nav-group.active > .nav-tab { color:var(--text); background:rgba(255,255,255,.05); outline:none; }
+    .nav-group.active > .nav-tab { border-bottom-color:var(--accent); box-shadow:0 8px 20px rgba(255,26,117,.06); }
+    .nav-menu { display:none; position:absolute; left:0; top:100%; z-index:50; min-width:230px; padding:6px; border:1px solid var(--border); border-radius:12px; background:var(--card); box-shadow:0 16px 32px rgba(0,0,0,.45); }
+    .nav-group:hover .nav-menu, .nav-group:focus-within .nav-menu, .nav-group.is-open .nav-menu { display:block; }
+    .nav-menu a { display:block; padding:9px 10px; border-radius:7px; color:var(--muted); font-size:12px; font-weight:700; text-decoration:none; }
+    .nav-menu a:hover, .nav-menu a:focus, .nav-menu a.active { color:var(--text); background:rgba(255,255,255,.08); outline:none; }
+    .nav-menu a.active { color:var(--gold); }
+    .page-title { margin:0 0 20px; font-size:20px; }
     a { color:var(--accent); text-decoration:none; }
-    .nav-links { display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
-    .nav-links a.active { color:var(--text); font-weight:700; pointer-events:none; border-bottom:2px solid var(--accent); padding-bottom:2px; }
     main { max-width:1280px; margin:0 auto; padding:24px; }
     .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:20px; }
     .kpi, .panel { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
@@ -53,18 +73,75 @@
     .guide code { background:#1d1d29; padding:1px 5px; border-radius:4px; font-size:12px; }
     #msg { margin:10px 0; font-size:13px; min-height:18px; }
     .empty { text-align:center; padding:48px; color:var(--muted); }
+    html.embedded .admin-header { display:none; }
+    html.embedded main { padding:24px; }
+    @media (max-width:640px) {
+        .admin-topbar, .admin-tabs { padding-left:16px; padding-right:16px; }
+        .admin-context { display:none; }
+        .admin-brand strong { font-size:17px; }
+        .nav-tab { padding:0 12px; }
+        .nav-menu { position:fixed; left:16px; right:16px; min-width:0; }
+        main { padding:16px; }
+    }
 </style>
+<script>
+    if (window.self !== window.top) document.documentElement.classList.add('embedded');
+</script>
 </head>
 <body>
-<header>
-    <h1>🔎 Curadoria Mercado Livre</h1>
-    <nav class="nav-links">
-        <a href="/admin">⚙️ Painel</a>
-        <a href="/admin/curadoria" class="active">🔎 Curadoria Mercado Livre</a>
-        <a href="/admin/curadoria/selecao">🗂️ Dashboard de Seleção</a>
-    </nav>
+<header class="admin-header">
+    <div class="admin-topbar">
+        <a class="admin-brand" href="/admin" aria-label="Voltar ao painel administrativo">
+            <img src="images/logo.png" alt="">
+            <span><strong>Tudo pra Você</strong><small>Configuração visual</small></span>
+        </a>
+        <div class="admin-context"><span>Painel administrativo<small>Curadoria Mercado Livre</small></span></div>
+    </div>
+    <div class="admin-tabs-wrap">
+        <nav class="admin-tabs" aria-label="Navegação administrativa">
+            <a class="nav-tab" href="/admin">Dashboard</a>
+            <div class="nav-group active">
+                <button class="nav-tab" type="button" aria-expanded="false" aria-controls="products-menu">Produtos <span aria-hidden="true">&darr;</span></button>
+                <div class="nav-menu" id="products-menu">
+                    <a href="/admin/curadoria" class="active">Curadoria Mercado Livre</a>
+                    <a href="/admin/curadoria/selecao">Dashboard de Seleção</a>
+                </div>
+            </div>
+            <a class="nav-tab" href="/admin">Visual</a>
+            <a class="nav-tab" href="/admin">Marketing</a>
+            <a class="nav-tab" href="/admin">Sistema</a>
+        </nav>
+    </div>
 </header>
+<script>
+    (() => {
+        const group = document.querySelector('.nav-group.active');
+        const button = group.querySelector('.nav-tab');
+
+        function closeMenu() {
+            group.classList.remove('is-open');
+            button.setAttribute('aria-expanded', 'false');
+        }
+
+        button.addEventListener('click', () => {
+            const isOpen = group.classList.toggle('is-open');
+            button.setAttribute('aria-expanded', String(isOpen));
+        });
+
+        document.addEventListener('click', event => {
+            if (!group.contains(event.target)) closeMenu();
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                closeMenu();
+                button.focus();
+            }
+        });
+    })();
+</script>
 <main>
+    <h1 class="page-title">Curadoria Mercado Livre</h1>
     <div class="kpis" id="kpis"></div>
 
     <div class="panel" style="margin-bottom:20px">
@@ -152,6 +229,14 @@
 <script>
 const token = sessionStorage.getItem('admin-access-token');
 if (!token) location.href = '/admin';
+if (window.self !== window.top) {
+    const notifyHeight = () => window.parent.postMessage({
+        type: 'curation-frame-height',
+        height: document.documentElement.scrollHeight
+    }, window.location.origin);
+    new ResizeObserver(notifyHeight).observe(document.body);
+    window.addEventListener('load', notifyHeight);
+}
 
 const CATEGORIES = ['casa', 'organização', 'eletrônicos', 'beleza', 'utilidades'];
 let status = 'pending';

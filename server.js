@@ -1072,11 +1072,11 @@ app.get('/admin', (req, res) => {
 });
 
 app.get('/admin/curadoria', (req, res) => {
-    res.sendFile(path.join(__dirname, 'curadoria.html'));
+    res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 app.get('/admin/curadoria/selecao', (req, res) => {
-    res.sendFile(path.join(__dirname, 'curadoria-selecao.html'));
+    res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 app.get('/health', (req, res) => {
