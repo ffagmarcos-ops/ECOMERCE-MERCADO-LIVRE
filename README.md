@@ -55,7 +55,27 @@ Na aba **Marketing → Telegram: Ofertas**, é possível cadastrar vários canai
 5. Crie um template para o canal. Os campos disponíveis são `{title}`, `{price}`, `{old_price}`, `{discount}`, `{discount_line}` e `{affiliate_url}`.
 6. Selecione ofertas aprovadas, o canal, o template e a data para criar o agendamento.
 
-Os tokens dos bots são armazenados criptografados. O bot precisa permanecer administrador do canal para que o worker de publicação consiga enviar as ofertas. O WhatsApp será integrado em uma etapa separada.
+Os tokens dos bots são armazenados criptografados. O bot precisa permanecer administrador do canal para que o worker de publicação consiga enviar as ofertas.
+
+### Configuração de canais do WhatsApp
+
+Na aba **Marketing → WhatsApp: Canais**, escolha um dos provedores compatíveis:
+
+#### Evolution API (conexão por QR Code)
+
+1. Informe a URL base da sua Evolution API, a API Key global e um nome único para a instância.
+2. Clique em **Criar instância** e, depois, em **QR Code**.
+3. No celular, abra o WhatsApp em **Dispositivos conectados** e escaneie o QR Code.
+4. Use **Status** até a Evolution retornar o estado `open`.
+
+#### WhatsApp Cloud API oficial da Meta
+
+1. Crie um app do tipo **Business** em [Meta for Developers](https://developers.facebook.com/apps) e adicione o produto WhatsApp.
+2. Em **WhatsApp → API Setup**, conecte uma conta comercial e um número de telefone.
+3. Gere um token permanente de usuário do sistema e copie o **Phone Number ID**, o **WABA ID** (opcional) e a versão atual da Graph API.
+4. Salve a configuração e use **Testar Cloud API** para validar o acesso ao número.
+
+Tokens e API Keys são armazenados criptografados e nunca são retornados pela API. A Cloud API oficial não publica diretamente em Canais do WhatsApp: ela permite mensagens para destinatários que deram opt-in e para templates aprovados pela Meta. A automação de divulgação por esse fluxo será adicionada em uma etapa posterior.
 
 ## Funcionalidades principais
 

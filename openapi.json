@@ -12,6 +12,7 @@
     { "name": "Autenticação", "description": "Login e tokens de acesso da administração." },
     { "name": "Estatísticas", "description": "Visitas, cliques e métricas administrativas." },
     { "name": "Telegram", "description": "Canais, templates e agendamento de ofertas no Telegram." },
+    { "name": "WhatsApp", "description": "Configuração de canais via Evolution API e WhatsApp Cloud API." },
     { "name": "Sistema", "description": "Saúde e páginas web." }
   ],
   "paths": {
@@ -198,6 +199,25 @@
     },
     "/api/telegram/schedules/{id}/publish-now": {
       "post": { "tags": ["Telegram"], "summary": "Publicar imediatamente uma oferta agendada", "operationId": "publishTelegramScheduleNow", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "$ref": "#/components/responses/Success" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
+    },
+    "/api/whatsapp/channels": {
+      "get": { "tags": ["WhatsApp"], "summary": "Listar configurações de canais do WhatsApp", "operationId": "listWhatsAppChannels", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Configurações sem segredos." }, "401": { "$ref": "#/components/responses/Unauthorized" } } },
+      "post": { "tags": ["WhatsApp"], "summary": "Criar ou atualizar configuração de WhatsApp", "operationId": "saveWhatsAppChannel", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["name", "provider"], "properties": { "name": { "type": "string" }, "provider": { "type": "string", "enum": ["evolution", "cloud"] }, "evolutionUrl": { "type": "string", "format": "uri" }, "evolutionInstance": { "type": "string" }, "evolutionApiKey": { "type": "string", "description": "Nunca é retornada." }, "cloudAccessToken": { "type": "string", "description": "Nunca é retornado." }, "cloudPhoneNumberId": { "type": "string" }, "cloudWabaId": { "type": "string" }, "cloudGraphVersion": { "type": "string", "example": "v23.0" } } } } } }, "responses": { "200": { "$ref": "#/components/responses/Success" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
+    },
+    "/api/whatsapp/channels/{id}": {
+      "delete": { "tags": ["WhatsApp"], "summary": "Excluir configuração de WhatsApp", "operationId": "deleteWhatsAppChannel", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "$ref": "#/components/responses/Success" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
+    },
+    "/api/whatsapp/channels/{id}/evolution/create": {
+      "post": { "tags": ["WhatsApp"], "summary": "Criar instância Evolution", "operationId": "createEvolutionInstance", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Instância criada." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
+    },
+    "/api/whatsapp/channels/{id}/evolution/qrcode": {
+      "get": { "tags": ["WhatsApp"], "summary": "Obter QR Code da instância Evolution", "operationId": "getEvolutionQrCode", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "QR Code em base64 ou código de conexão." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
+    },
+    "/api/whatsapp/channels/{id}/evolution/status": {
+      "get": { "tags": ["WhatsApp"], "summary": "Consultar estado da instância Evolution", "operationId": "getEvolutionStatus", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Estado da conexão." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
+    },
+    "/api/whatsapp/channels/{id}/cloud/status": {
+      "get": { "tags": ["WhatsApp"], "summary": "Validar credenciais da WhatsApp Cloud API", "operationId": "getWhatsAppCloudStatus", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Dados do número configurado." }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
     },
     "/health": {
       "get": { "tags": ["Sistema"], "summary": "Verificar saúde do servidor", "operationId": "healthCheck", "responses": { "200": { "description": "Servidor ativo.", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean", "example": true } } } } } } } }

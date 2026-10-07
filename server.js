@@ -7,6 +7,7 @@ const swaggerUi = require('swagger-ui-express');
 const openApiSpec = require('./openapi.json');
 const curation = require('./ml-curation');
 const telegram = require('./telegram');
+const whatsapp = require('./whatsapp');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -261,6 +262,7 @@ async function initDB() {
         await curation.loadConfig(pool);
         await curation.ensureCandidateTable(pool);
         await telegram.ensureTables(pool);
+        await whatsapp.ensureTables(pool);
 
         console.log("Database tables verified/created successfully.");
 
@@ -661,6 +663,64 @@ app.post('/api/telegram/schedules/:id/publish-now', requireApiToken, async (req,
         );
         await telegram.processDue(pool);
         res.json(await telegram.listConfig(pool));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.get('/api/whatsapp/channels', requireApiToken, async (req, res) => {
+    try {
+        res.json(await whatsapp.listChannels(pool));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/whatsapp/channels', requireApiToken, async (req, res) => {
+    try {
+        await whatsapp.saveChannel(pool, req.body || {});
+        res.json(await whatsapp.listChannels(pool));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.delete('/api/whatsapp/channels/:id', requireApiToken, async (req, res) => {
+    try {
+        await whatsapp.deleteChannel(pool, req.params.id);
+        res.json(await whatsapp.listChannels(pool));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.post('/api/whatsapp/channels/:id/evolution/create', requireApiToken, async (req, res) => {
+    try {
+        res.json(await whatsapp.createEvolutionInstance(pool, req.params.id));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.get('/api/whatsapp/channels/:id/evolution/qrcode', requireApiToken, async (req, res) => {
+    try {
+        res.json(await whatsapp.evolutionQrCode(pool, req.params.id));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.get('/api/whatsapp/channels/:id/evolution/status', requireApiToken, async (req, res) => {
+    try {
+        res.json(await whatsapp.evolutionStatus(pool, req.params.id));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.get('/api/whatsapp/channels/:id/cloud/status', requireApiToken, async (req, res) => {
+    try {
+        res.json(await whatsapp.cloudStatus(pool, req.params.id));
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
