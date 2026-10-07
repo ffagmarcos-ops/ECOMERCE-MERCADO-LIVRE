@@ -676,6 +676,32 @@ app.get('/api/whatsapp/channels', requireApiToken, async (req, res) => {
     }
 });
 
+app.get('/api/whatsapp/evolution-servers', requireApiToken, async (req, res) => {
+    try {
+        res.json(await whatsapp.listServers(pool));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/whatsapp/evolution-servers', requireApiToken, async (req, res) => {
+    try {
+        await whatsapp.saveServer(pool, req.body || {});
+        res.json(await whatsapp.listServers(pool));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.delete('/api/whatsapp/evolution-servers/:id', requireApiToken, async (req, res) => {
+    try {
+        await whatsapp.deleteServer(pool, req.params.id);
+        res.json(await whatsapp.listServers(pool));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
 app.post('/api/whatsapp/channels', requireApiToken, async (req, res) => {
     try {
         await whatsapp.saveChannel(pool, req.body || {});

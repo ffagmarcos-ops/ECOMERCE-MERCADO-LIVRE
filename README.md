@@ -63,10 +63,22 @@ Na aba **Marketing → WhatsApp: Canais**, escolha um dos provedores compatívei
 
 #### Evolution API (conexão por QR Code)
 
-1. Informe a URL base da sua Evolution API, a API Key global e um nome único para a instância.
-2. Clique em **Criar instância** e, depois, em **QR Code**.
-3. No celular, abra o WhatsApp em **Dispositivos conectados** e escaneie o QR Code.
-4. Use **Status** até a Evolution retornar o estado `open`.
+1. Na seção **Servidores Evolution API**, informe um nome, a URL base e a API Key global do servidor.
+2. Repita o cadastro para cada servidor Evolution que será usado.
+3. Em **Adicionar configuração**, selecione o servidor desejado e informe um nome único para a instância.
+4. Clique em **Criar instância** e, depois, em **QR Code**.
+5. No celular, abra o WhatsApp em **Dispositivos conectados** e escaneie o QR Code.
+6. Use **Status** até a Evolution retornar o estado `open`.
+
+Um mesmo servidor pode ter diversas instâncias. Um servidor somente pode ser removido depois que todas as suas instâncias vinculadas forem excluídas.
+
+Ao configurar uma instância Evolution, também é possível registrar o destino padrão para uso posterior na automação de ofertas:
+
+* **Conversa individual:** informe o telefone com código do país e DDD, apenas dígitos (por exemplo, `5511999999999`). A Evolution normalmente converte esse destino para o JID de conversa.
+* **Grupo:** informe o identificador retornado pela Evolution, geralmente terminado em `@g.us`. Consulte os grupos da instância conectada na rota/ação de listagem de grupos disponível na sua versão da Evolution.
+* **Canal/newsletter:** informe o identificador da newsletter retornado pela Evolution. Esse recurso depende da versão da Evolution instalada e das permissões da conta conectada; confirme o suporte no servidor antes de agendar publicações.
+
+O destino é opcional nesta etapa e fica salvo junto da instância. A publicação automática para os destinos Evolution será conectada à fila de ofertas em uma etapa posterior.
 
 #### WhatsApp Cloud API oficial da Meta
 
