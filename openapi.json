@@ -14,6 +14,7 @@
     { "name": "Telegram", "description": "Canais, templates e agendamento de ofertas no Telegram." },
     { "name": "WhatsApp", "description": "Configuração de canais via Evolution API e WhatsApp Cloud API." },
     { "name": "Meta", "description": "Publicação de ofertas em Páginas do Facebook e contas profissionais do Instagram." },
+    { "name": "Email", "description": "Recuperação de senha e configuração SMTP do superadmin." },
     { "name": "Sistema", "description": "Saúde e páginas web." }
   ],
   "paths": {
@@ -96,6 +97,24 @@
         "responses": { "200": { "description": "Sessão administrativa criada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "500": { "$ref": "#/components/responses/ServerError" } }
       }
     },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": ["Email"],
+        "summary": "Solicitar link de recuperação de senha",
+        "operationId": "requestPasswordReset",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["email"], "properties": { "email": { "type": "string", "format": "email" } } } } } },
+        "responses": { "200": { "description": "Solicitação processada sem revelar se o email existe." }, "400": { "$ref": "#/components/responses/BadRequest" }, "503": { "description": "SMTP não configurado." } }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": ["Email"],
+        "summary": "Redefinir senha com token de uso único",
+        "operationId": "resetPassword",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["token", "password"], "properties": { "token": { "type": "string" }, "password": { "type": "string", "format": "password", "minLength": 8 } } } } } },
+        "responses": { "200": { "$ref": "#/components/responses/Success" }, "400": { "$ref": "#/components/responses/BadRequest" }, "500": { "$ref": "#/components/responses/ServerError" } }
+      }
+    },
     "/api/auth/logout": {
       "post": {
         "tags": ["Autenticação"],
@@ -103,6 +122,33 @@
         "operationId": "logout",
         "security": [{ "bearerAuth": [] }],
         "responses": { "200": { "$ref": "#/components/responses/Success" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/api/admin/smtp": {
+      "get": {
+        "tags": ["Email"],
+        "summary": "Consultar SMTP do superadmin sem senha",
+        "operationId": "getSmtpConfig",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Configuração SMTP sem segredo." }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "description": "Apenas superadmin." } }
+      },
+      "post": {
+        "tags": ["Email"],
+        "summary": "Salvar configuração SMTP e email do superadmin",
+        "operationId": "saveSmtpConfig",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["host", "port", "fromEmail", "adminEmail"], "properties": { "host": { "type": "string" }, "port": { "type": "integer" }, "secure": { "type": "boolean" }, "username": { "type": "string" }, "password": { "type": "string" }, "fromEmail": { "type": "string", "format": "email" }, "fromName": { "type": "string" }, "adminEmail": { "type": "string", "format": "email" }, "enabled": { "type": "boolean" } } } } } },
+        "responses": { "200": { "$ref": "#/components/responses/Success" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "description": "Apenas superadmin." } }
+      }
+    },
+    "/api/admin/smtp/test": {
+      "post": {
+        "tags": ["Email"],
+        "summary": "Enviar email de teste do SMTP",
+        "operationId": "testSmtpConfig",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "recipient": { "type": "string", "format": "email" } } } } } },
+        "responses": { "200": { "$ref": "#/components/responses/Success" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "description": "Apenas superadmin." } }
       }
     },
     "/api/auth/tokens": {

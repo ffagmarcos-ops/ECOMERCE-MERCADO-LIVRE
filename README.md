@@ -100,6 +100,22 @@ Na aba **Marketing → Facebook & Instagram**, é possível publicar ofertas apr
 
 A primeira versão publica uma imagem com legenda e link da oferta. A imagem precisa estar disponível em uma URL HTTPS pública. Tokens são armazenados criptografados e nunca retornados ao navegador. A Meta pode exigir revisão do aplicativo, autorização de publicação da Página e limites de uso antes da operação em produção.
 
+### Recuperação de senha por email
+
+O usuário padrão é promovido a **superadmin** no boot e encontra a aba **Sistema → SMTP & Recuperação**. Somente o superadmin pode salvar as configurações SMTP e o email de recuperação.
+
+1. Informe servidor, porta, usuário, senha SMTP, remetente e o email do superadmin.
+2. Use porta `465` com SSL ativado ou porta `587` com SSL desativado (STARTTLS).
+3. Salve e clique em **Enviar email de teste**.
+4. Na tela de login, clique em **Esqueceu a senha?** e informe o email cadastrado.
+5. O link enviado expira em 30 minutos, só pode ser usado uma vez e revoga as sessões ativas após a troca da senha.
+
+As senhas SMTP e os tokens de recuperação são protegidos no banco. Configure `INTEGRATION_SECRET_KEY` em produção para manter a chave de criptografia estável. Defina `APP_PUBLIC_URL` com a URL pública do painel para que os links de recuperação não apontem para localhost.
+
+### Desempenho e operação
+
+O pool MariaDB usa limite configurável por `DB_CONNECTION_LIMIT`, mantém conexões ativas e possui índices para produtos, cliques, sessões de visitantes e expiração dos tokens. Os limites opcionais `DB_MAX_IDLE` e `DB_IDLE_TIMEOUT_MS` permitem ajustar o consumo no servidor. Consultas administrativas continuam protegidas por token e as credenciais não são retornadas ao navegador.
+
 ## Funcionalidades principais
 
 * Catálogo dinâmico com produtos premium.

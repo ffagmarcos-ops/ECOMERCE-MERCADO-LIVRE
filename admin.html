@@ -170,12 +170,32 @@
                         <input type="checkbox" class="rounded border-admin-border bg-admin-bg text-admin-accentBlue focus:ring-0">
                         <span>Lembrar-me</span>
                     </label>
-                    <a href="#" class="hover:text-white transition">Esqueceu a senha?</a>
+                    <button type="button" id="forgot-password-btn" class="hover:text-white transition">Esqueceu a senha?</button>
                 </div>
 
                 <button type="submit" class="w-full bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black hover:opacity-90 font-extrabold py-3.5 rounded-xl uppercase tracking-wider text-xs transition duration-300 transform hover:scale-[1.02] shadow-lg shadow-pink-500/10">
                     Acessar Painel <i class="fa-solid fa-arrow-right-to-bracket ml-1.5"></i>
                 </button>
+            </form>
+            <form id="forgot-password-form" class="hidden space-y-4 mt-6 border-t border-admin-border pt-6">
+                <div>
+                    <h3 class="text-sm font-bold text-white">Recuperar senha</h3>
+                    <p class="text-xs text-admin-textMuted mt-1">Informe o email cadastrado pelo superadmin.</p>
+                </div>
+                <input type="email" id="forgot-password-email" class="admin-input" placeholder="seu@email.com" autocomplete="email" required>
+                <div class="flex gap-2">
+                    <button type="submit" class="flex-1 bg-admin-accentBlue text-white font-bold py-2.5 rounded-xl text-xs">Enviar link</button>
+                    <button type="button" id="cancel-forgot-password" class="px-4 border border-admin-border rounded-xl text-xs text-admin-textMuted">Cancelar</button>
+                </div>
+            </form>
+            <form id="reset-password-form" class="hidden space-y-4 mt-6 border-t border-admin-border pt-6">
+                <div>
+                    <h3 class="text-sm font-bold text-white">Criar nova senha</h3>
+                    <p class="text-xs text-admin-textMuted mt-1">Use pelo menos 8 caracteres. O link expira em 30 minutos.</p>
+                </div>
+                <input type="password" id="reset-password-value" class="admin-input" placeholder="Nova senha" autocomplete="new-password" minlength="8" required>
+                <input type="password" id="reset-password-confirm" class="admin-input" placeholder="Confirme a nova senha" autocomplete="new-password" minlength="8" required>
+                <button type="submit" class="w-full bg-gradient-to-r from-admin-accentGold to-admin-accentBlue text-black font-extrabold py-2.5 rounded-xl text-xs">Salvar nova senha</button>
             </form>
         </div>
     </div>
@@ -1137,7 +1157,8 @@
                 { id: 'telegram-config', label: 'Telegram: Ofertas', icon: 'fa-brands fa-telegram' },
                 { id: 'whatsapp-config', label: 'WhatsApp: Canais', icon: 'fa-brands fa-whatsapp' },
                 { id: 'meta-config', label: 'Facebook & Instagram', icon: 'fa-brands fa-meta' },
-                { id: 'api-tokens-config', label: 'Tokens de API', icon: 'fa-solid fa-key' }
+                { id: 'api-tokens-config', label: 'Tokens de API', icon: 'fa-solid fa-key' },
+                { id: 'smtp-config', label: 'SMTP & Recuperação', icon: 'fa-solid fa-envelope' }
             ];
 
             let activeTabId = 'estatisticas-config';
@@ -1295,6 +1316,9 @@
             const loginForm = document.getElementById('login-form');
             const loginPassword = document.getElementById('login-password');
             const passwordVisibilityBtn = document.getElementById('toggle-password-visibility');
+            const forgotPasswordButton = document.getElementById('forgot-password-btn');
+            const forgotPasswordForm = document.getElementById('forgot-password-form');
+            const resetPasswordForm = document.getElementById('reset-password-form');
             const adminPanel = document.getElementById('admin-panel');
             const logoutBtn = document.getElementById('logout-btn');
             const tabsContainer = document.getElementById('admin-tabs');
@@ -1522,6 +1546,67 @@
                         body: JSON.stringify({ username: user, password: pass })
                     });
 
+                    forgotPasswordButton.addEventListener('click', () => {
+                        loginForm.classList.add('hidden');
+                        forgotPasswordForm.classList.remove('hidden');
+                    });
+
+                    document.getElementById('cancel-forgot-password').addEventListener('click', () => {
+                        forgotPasswordForm.classList.add('hidden');
+                        loginForm.classList.remove('hidden');
+                    });
+
+                    forgotPasswordForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        try {
+                            const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email: document.getElementById('forgot-password-email').value.trim() })
+                            });
+                            const payload = await response.json();
+                            if (!response.ok) throw new Error(payload.error || 'Não foi possível solicitar a recuperação.');
+                            showToast(payload.message || 'Verifique seu email.', 'success');
+                            forgotPasswordForm.reset();
+                            forgotPasswordForm.classList.add('hidden');
+                            loginForm.classList.remove('hidden');
+                        } catch (error) {
+                            showToast(error.message, 'error');
+                        }
+                    });
+
+                    const resetToken = new URLSearchParams(window.location.search).get('reset');
+                    if (resetToken) {
+                        loginForm.classList.add('hidden');
+                        resetPasswordForm.classList.remove('hidden');
+                    }
+
+                    resetPasswordForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const password = document.getElementById('reset-password-value').value;
+                        const confirmation = document.getElementById('reset-password-confirm').value;
+                        if (password !== confirmation) {
+                            showToast('As senhas não conferem.', 'error');
+                            return;
+                        }
+                        try {
+                            const response = await fetch(`${API_BASE}/auth/reset-password`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ token: resetToken, password })
+                            });
+                            const payload = await response.json();
+                            if (!response.ok) throw new Error(payload.error || 'Não foi possível alterar a senha.');
+                            showToast(payload.message || 'Senha alterada com sucesso.', 'success');
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                            resetPasswordForm.reset();
+                            resetPasswordForm.classList.add('hidden');
+                            loginForm.classList.remove('hidden');
+                        } catch (error) {
+                            showToast(error.message, 'error');
+                        }
+                    });
+
                     const payload = await response.json();
 
                     if (response.ok && payload.success) {
@@ -1529,6 +1614,7 @@
                         sessionStorage.setItem(adminSessionKey, 'true');
                         sessionStorage.setItem(adminUserKey, JSON.stringify(payload.user || {}));
                         sessionStorage.setItem(adminAccessTokenKey, payload.accessToken);
+                        currentAdminUser = payload.user || {};
                         showAdminPanel();
                     } else {
                         showToast('Usuário ou senha incorretos!', 'error');
@@ -1552,6 +1638,12 @@
             });
 
             // --- TAB RENDER LOGIC ---
+            let currentAdminUser = {};
+            try {
+                currentAdminUser = JSON.parse(sessionStorage.getItem(adminUserKey) || '{}');
+            } catch (error) {
+                console.warn('Sessão administrativa inválida:', error);
+            }
             const tabGroups = [
                 { label: 'Dashboard', icon: 'fa-solid fa-chart-line', tabs: ['estatisticas-config'] },
                 { label: 'Produtos', icon: 'fa-solid fa-cart-plus', tabs: ['produtos-config', 'promocoes-config', 'escolhas-config'], links: [
@@ -1560,7 +1652,7 @@
                 ] },
                 { label: 'Visual', icon: 'fa-solid fa-palette', tabs: ['logo-config', 'banners-config', 'cores-config'] },
                 { label: 'Marketing', icon: 'fa-solid fa-bullhorn', tabs: ['marketing-config', 'creatives-config', 'telegram-config', 'whatsapp-config', 'meta-config'] },
-                { label: 'Sistema', icon: 'fa-solid fa-key', tabs: ['api-tokens-config'] }
+                { label: 'Sistema', icon: 'fa-solid fa-key', tabs: ['api-tokens-config', 'smtp-config'] }
             ];
             const curationPages = {
                 '/admin/curadoria': {
@@ -1599,7 +1691,9 @@
                 const itemClass = 'flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-bold text-left whitespace-nowrap transition';
 
                 tabGroups.forEach((group, index) => {
-                    const items = group.tabs.map(id => tabList.find(t => t.id === id)).filter(Boolean);
+                    const items = group.tabs
+                        .map(id => tabList.find(t => t.id === id))
+                        .filter(tab => tab && (tab.id !== 'smtp-config' || currentAdminUser.role === 'superadmin'));
                     const links = group.links || [];
                     const isCurationRoute = Boolean(curationPages[window.location.pathname]);
                     const groupActive = isCurationRoute
@@ -1699,6 +1793,9 @@
                             break;
                         case 'meta-config':
                             loadMetaTab();
+                            break;
+                        case 'smtp-config':
+                            loadSmtpTab();
                             break;
                         case 'api-tokens-config':
                             loadApiTokensTab();
@@ -5360,6 +5457,108 @@
                     } catch (error) { showToast(error.message, 'error'); }
                 });
                 updateProviderFields();
+                refresh().catch(error => showToast(error.message, 'error'));
+            }
+
+            function loadSmtpTab() {
+                tabContent.innerHTML = `
+                    <div class="space-y-6 animate-fade-in text-white">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-wide flex items-center gap-2"><i class="fa-solid fa-envelope text-admin-accentGold"></i> SMTP & Recuperação de senha</h2>
+                            <p class="text-xs text-admin-textMuted mt-1">Área exclusiva do superadmin. Configure o servidor de email e o endereço usado para recuperar a senha.</p>
+                        </div>
+                        <details class="bg-admin-bg border border-admin-border rounded-xl p-4" open>
+                            <summary class="cursor-pointer text-sm font-bold text-admin-accentGold">Como preencher o SMTP</summary>
+                            <ol class="mt-3 space-y-2 text-xs text-admin-textMuted list-decimal list-inside leading-relaxed">
+                                <li>Use os dados fornecidos pelo seu provedor de email. Exemplos comuns: Gmail/Google Workspace usa servidor SMTP próprio e senha de app; Outlook/Microsoft 365 usa <code>smtp.office365.com</code>.</li>
+                                <li>Use a porta <code>465</code> com conexão segura ativada, ou <code>587</code> com conexão segura desativada e STARTTLS.</li>
+                                <li>Informe o usuário e a senha SMTP. A senha é armazenada criptografada e nunca é exibida novamente.</li>
+                                <li>O email do superadmin precisa ser uma caixa existente e será usado para receber os links de recuperação.</li>
+                                <li>Salve e use <b class="text-white">Enviar email de teste</b> antes de ativar a recuperação.</li>
+                            </ol>
+                        </details>
+                        <section class="bg-admin-card border border-admin-border rounded-xl p-5 space-y-4">
+                            <h3 class="text-sm font-bold">Configuração SMTP</h3>
+                            <div class="grid md:grid-cols-2 gap-3">
+                                <input id="smtp-host" class="admin-input text-xs" placeholder="Servidor SMTP (ex.: smtp.seudominio.com)">
+                                <input id="smtp-port" class="admin-input text-xs" type="number" min="1" max="65535" placeholder="Porta (587 ou 465)">
+                                <input id="smtp-username" class="admin-input text-xs" placeholder="Usuário SMTP">
+                                <input id="smtp-password" class="admin-input text-xs" type="password" placeholder="Senha SMTP (vazio mantém a atual)">
+                                <input id="smtp-from-email" class="admin-input text-xs" type="email" placeholder="Email remetente">
+                                <input id="smtp-from-name" class="admin-input text-xs" placeholder="Nome do remetente">
+                                <input id="smtp-admin-email" class="admin-input text-xs md:col-span-2" type="email" placeholder="Email do superadmin para recuperação">
+                            </div>
+                            <div class="flex flex-wrap gap-4 text-xs text-admin-textMuted">
+                                <label><input id="smtp-secure" type="checkbox" class="mr-2">Usar conexão segura SSL (normalmente porta 465)</label>
+                                <label><input id="smtp-enabled" type="checkbox" class="mr-2">Ativar envio e recuperação por email</label>
+                            </div>
+                            <div class="flex flex-wrap justify-end gap-2">
+                                <button id="smtp-test" class="border border-admin-accentGold text-admin-accentGold font-bold px-4 py-2 rounded-lg text-xs">Enviar email de teste</button>
+                                <button id="smtp-save" class="bg-admin-accentBlue text-white font-bold px-4 py-2 rounded-lg text-xs">Salvar SMTP</button>
+                            </div>
+                            <p class="text-[10px] text-admin-textMuted">O link de recuperação expira em 30 minutos, pode ser usado uma única vez e revoga as sessões ativas após a troca da senha.</p>
+                        </section>
+                    </div>`;
+                const request = async (path, options = {}) => {
+                    const response = await authenticatedAdminFetch(`${API_BASE}${path}`, options);
+                    const payload = await response.json();
+                    if (!response.ok) throw new Error(payload.error || 'Operação não concluída.');
+                    return payload;
+                };
+                const fields = {
+                    host: document.getElementById('smtp-host'),
+                    port: document.getElementById('smtp-port'),
+                    username: document.getElementById('smtp-username'),
+                    password: document.getElementById('smtp-password'),
+                    fromEmail: document.getElementById('smtp-from-email'),
+                    fromName: document.getElementById('smtp-from-name'),
+                    adminEmail: document.getElementById('smtp-admin-email'),
+                    secure: document.getElementById('smtp-secure'),
+                    enabled: document.getElementById('smtp-enabled')
+                };
+                const refresh = async () => {
+                    const payload = await request('/admin/smtp');
+                    const config = payload.smtp;
+                    fields.host.value = config.host || '';
+                    fields.port.value = config.port || 587;
+                    fields.username.value = config.username || '';
+                    fields.fromEmail.value = config.fromEmail || '';
+                    fields.fromName.value = config.fromName || '';
+                    fields.adminEmail.value = payload.adminEmail || '';
+                    fields.secure.checked = Boolean(config.secure);
+                    fields.enabled.checked = Boolean(config.enabled);
+                };
+                document.getElementById('smtp-save').addEventListener('click', async () => {
+                    try {
+                        await request('/admin/smtp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                host: fields.host.value,
+                                port: Number(fields.port.value),
+                                username: fields.username.value,
+                                password: fields.password.value,
+                                fromEmail: fields.fromEmail.value,
+                                fromName: fields.fromName.value,
+                                adminEmail: fields.adminEmail.value,
+                                secure: fields.secure.checked,
+                                enabled: fields.enabled.checked
+                            })
+                        });
+                        fields.password.value = '';
+                        showToast('SMTP salvo com segurança.', 'success');
+                    } catch (error) { showToast(error.message, 'error'); }
+                });
+                document.getElementById('smtp-test').addEventListener('click', async () => {
+                    try {
+                        await request('/admin/smtp/test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ recipient: fields.adminEmail.value })
+                        });
+                        showToast('Email de teste enviado.', 'success');
+                    } catch (error) { showToast(error.message, 'error'); }
+                });
                 refresh().catch(error => showToast(error.message, 'error'));
             }
 

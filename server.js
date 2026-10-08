@@ -9,6 +9,7 @@ const curation = require('./ml-curation');
 const telegram = require('./telegram');
 const whatsapp = require('./whatsapp');
 const meta = require('./meta');
+const email = require('./email');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,13 +32,23 @@ const dbName = process.env.DB_NAME || 'tudopravoce_db';
 const defaultAdmin = {
     username: process.env.ADMIN_USERNAME || 'admin',
     password: process.env.ADMIN_PASSWORD || 'admin123',
-    displayName: process.env.ADMIN_DISPLAY_NAME || 'Administrador'
+    displayName: process.env.ADMIN_DISPLAY_NAME || 'Administrador',
+    email: process.env.ADMIN_EMAIL || ''
 };
 
 let pool;
+const tokenUsageCache = new Map();
+const passwordResetRequests = new Map();
 
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function requireSuperAdmin(req, res, next) {
+    if (req.adminToken.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Acesso restrito ao superadmin.' });
+    }
+    next();
 }
 
 function normalizeIdentifier(value) {
@@ -98,6 +109,15 @@ function createApiToken() {
     return `tpv_${crypto.randomBytes(32).toString('hex')}`;
 }
 
+function allowPasswordResetRequest(key) {
+    const now = Date.now();
+    const recent = (passwordResetRequests.get(key) || []).filter(timestamp => now - timestamp < 15 * 60 * 1000);
+    if (recent.length >= 5) return false;
+    recent.push(now);
+    passwordResetRequests.set(key, recent);
+    return true;
+}
+
 async function requireApiToken(req, res, next) {
     const authorization = req.get('authorization') || '';
     const match = /^Bearer\s+(.+)$/i.exec(authorization);
@@ -121,7 +141,12 @@ async function requireApiToken(req, res, next) {
         }
 
         req.adminToken = rows[0];
-        await pool.query('UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?', [req.adminToken.token_id]);
+        const now = Date.now();
+        const lastRecorded = tokenUsageCache.get(req.adminToken.token_id) || 0;
+        if (now - lastRecorded >= 60000) {
+            tokenUsageCache.set(req.adminToken.token_id, now);
+            await pool.query('UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?', [req.adminToken.token_id]);
+        }
         next();
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -132,19 +157,25 @@ async function ensureTable(query) {
     await pool.query(query);
 }
 
+async function ensureIndex(table, index, definition) {
+    const [rows] = await pool.query(`SHOW INDEX FROM \`${table}\` WHERE Key_name = ?`, [index]);
+    if (!rows.length) {
+        await pool.query(`CREATE INDEX \`${index}\` ON \`${table}\` ${definition}`);
+    }
+}
+
 async function seedAdminUser() {
     const credentials = createPasswordRecord(defaultAdmin.password);
     await pool.query(
-        `INSERT INTO admin_users (username, display_name, password_salt, password_hash, role, is_active)
-         VALUES (?, ?, ?, ?, 'admin', 1)
+        `INSERT INTO admin_users (username, display_name, email, password_salt, password_hash, role, is_active)
+         VALUES (?, ?, ?, ?, ?, 'superadmin', 1)
          ON DUPLICATE KEY UPDATE
             display_name = VALUES(display_name),
-            password_salt = VALUES(password_salt),
-            password_hash = VALUES(password_hash),
-            role = VALUES(role),
+            email = COALESCE(NULLIF(VALUES(email), ''), email),
+            role = 'superadmin',
             is_active = VALUES(is_active),
             updated_at = CURRENT_TIMESTAMP`,
-        [defaultAdmin.username, defaultAdmin.displayName, credentials.salt, credentials.hash]
+        [defaultAdmin.username, defaultAdmin.displayName, defaultAdmin.email, credentials.salt, credentials.hash]
     );
 }
 
@@ -177,8 +208,11 @@ async function initDB() {
             ...dbConfig,
             database: dbName,
             waitForConnections: true,
-            connectionLimit: 10,
-            queueLimit: 0
+            connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
+            maxIdle: Number(process.env.DB_MAX_IDLE || 10),
+            idleTimeout: Number(process.env.DB_IDLE_TIMEOUT_MS || 60000),
+            queueLimit: 0,
+            enableKeepAlive: true
         });
 
         // 3. Create tables
@@ -203,6 +237,11 @@ async function initDB() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
 
+        const [adminEmailColumn] = await pool.query("SHOW COLUMNS FROM admin_users LIKE 'email'");
+        if (!adminEmailColumn.length) {
+            await pool.query('ALTER TABLE admin_users ADD COLUMN email VARCHAR(255) NULL AFTER display_name');
+        }
+
         await pool.query(`
             CREATE TABLE IF NOT EXISTS clicks (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -214,6 +253,24 @@ async function initDB() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                token_hash CHAR(64) NOT NULL UNIQUE,
+                expires_at DATETIME NOT NULL,
+                used_at DATETIME NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_password_reset_user (user_id, used_at),
+                INDEX idx_password_reset_expiry (expires_at, used_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+
+        await ensureIndex('products', 'idx_products_updated_at', '(updated_at)');
+        await ensureIndex('products', 'idx_products_category', '(category)');
+        await ensureIndex('clicks', 'idx_clicks_product_created', '(product_id, created_at)');
+        await ensureIndex('visitor_sessions', 'idx_visitor_sessions_created', '(created_at)');
 
         await pool.query(`
             CREATE TABLE IF NOT EXISTS visitor_sessions (
@@ -237,6 +294,7 @@ async function initDB() {
                 display_name VARCHAR(150) NOT NULL,
                 password_salt VARCHAR(64) NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NULL,
                 role VARCHAR(50) NOT NULL DEFAULT 'admin',
                 is_active TINYINT(1) NOT NULL DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -755,6 +813,84 @@ app.get('/api/whatsapp/channels/:id/cloud/status', requireApiToken, async (req, 
 });
 
 // Authentication API
+app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+        const recipient = email.validateEmail(req.body?.email);
+        if (!recipient) return res.status(400).json({ error: 'Informe o email cadastrado.' });
+        if (!allowPasswordResetRequest(`${req.ip}:${recipient}`)) {
+            return res.status(429).json({ error: 'Muitas solicitações. Tente novamente em alguns minutos.' });
+        }
+
+        const smtpConfig = await email.loadConfig(pool);
+        if (!smtpConfig.enabled || !smtpConfig.host || !smtpConfig.fromEmail || !smtpConfig.password) {
+            return res.status(503).json({ error: 'A recuperação por email ainda não está disponível. Solicite ao superadmin a configuração do SMTP.' });
+        }
+
+        const [users] = await pool.query(
+            'SELECT id, email FROM admin_users WHERE LOWER(email) = ? AND is_active = 1 LIMIT 1',
+            [recipient]
+        );
+        if (!users.length) {
+            return res.json({ success: true, message: 'Se o email estiver cadastrado, você receberá as instruções de recuperação.' });
+        }
+
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+        await pool.query('DELETE FROM password_reset_tokens WHERE user_id = ? OR expires_at <= NOW()', [users[0].id]);
+        await pool.query(
+            'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+            [users[0].id, hashApiToken(rawToken), expiresAt]
+        );
+        const baseUrl = String(process.env.APP_PUBLIC_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+        await email.sendPasswordReset(pool, recipient, `${baseUrl}/admin?reset=${encodeURIComponent(rawToken)}`);
+        res.json({ success: true, message: 'Se o email estiver cadastrado, você receberá as instruções de recuperação.' });
+    } catch (err) {
+        console.error('Password recovery email failed:', err.message);
+        res.status(502).json({ error: 'Não foi possível enviar o email de recuperação.' });
+    }
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+    const rawToken = String(req.body?.token || '').trim();
+    const newPassword = String(req.body?.password || '');
+    if (!/^[a-f0-9]{64}$/i.test(rawToken) || newPassword.length < 8 || newPassword.length > 200) {
+        return res.status(400).json({ error: 'Token inválido ou senha fora do tamanho permitido.' });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        const [tokens] = await connection.query(
+            `SELECT id, user_id FROM password_reset_tokens
+             WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()
+             LIMIT 1 FOR UPDATE`,
+            [hashApiToken(rawToken)]
+        );
+        if (!tokens.length) {
+            await connection.rollback();
+            return res.status(400).json({ error: 'O link de recuperação é inválido ou expirou.' });
+        }
+
+        const credentials = createPasswordRecord(newPassword);
+        await connection.query(
+            'UPDATE admin_users SET password_salt = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND is_active = 1',
+            [credentials.salt, credentials.hash, tokens[0].user_id]
+        );
+        await connection.query('UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ?', [tokens[0].id]);
+        await connection.query(
+            "UPDATE api_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE created_by = ? AND token_type = 'session' AND revoked_at IS NULL",
+            [tokens[0].user_id]
+        );
+        await connection.commit();
+        res.json({ success: true, message: 'Senha alterada. Faça login com a nova senha.' });
+    } catch (err) {
+        await connection.rollback();
+        res.status(500).json({ error: err.message });
+    } finally {
+        connection.release();
+    }
+});
+
 app.post('/api/auth/login', async (req, res) => {
     try {
         const username = normalizeIdentifier(req.body?.username);
@@ -798,8 +934,41 @@ app.post('/api/auth/login', async (req, res) => {
                 role: adminUser.role
             }
         });
+
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/admin/smtp', requireApiToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const [users] = await pool.query('SELECT email FROM admin_users WHERE id = ? LIMIT 1', [req.adminToken.user_id]);
+        res.json({ smtp: email.publicConfig(await email.loadConfig(pool)), adminEmail: users[0]?.email || '' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/smtp', requireApiToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const adminEmail = email.validateEmail(req.body?.adminEmail);
+        if (!adminEmail) throw new Error('Informe o email do superadmin para recuperação de senha.');
+        await email.saveConfig(pool, req.body || {});
+        await pool.query('UPDATE admin_users SET email = ? WHERE id = ?', [adminEmail, req.adminToken.user_id]);
+        const [users] = await pool.query('SELECT email FROM admin_users WHERE id = ? LIMIT 1', [req.adminToken.user_id]);
+        res.json({ smtp: email.publicConfig(await email.loadConfig(pool)), adminEmail: users[0].email });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/smtp/test', requireApiToken, requireSuperAdmin, async (req, res) => {
+    try {
+        const [users] = await pool.query('SELECT email FROM admin_users WHERE id = ? LIMIT 1', [req.adminToken.user_id]);
+        await email.sendTest(pool, req.body?.recipient || users[0]?.email);
+        res.json({ success: true, message: 'Email de teste enviado.' });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
     }
 });
 
@@ -808,6 +977,7 @@ app.post('/api/auth/logout', requireApiToken, async (req, res) => {
         return res.status(400).json({ error: 'Only an admin session can be logged out here.' });
     }
     await pool.query('UPDATE api_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id = ?', [req.adminToken.token_id]);
+    tokenUsageCache.delete(req.adminToken.token_id);
     res.json({ success: true });
 });
 
